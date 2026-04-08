@@ -38,7 +38,14 @@ interface Article {
   url?: string; // 文章链接
 }
 
-const categories = ['全部', '情感', '职场', '星座', '汽车', '民生', '成长', '娱乐', '财经'];
+const categories = [
+  '全部', '小绿书', '娱乐', '汽车', '教育', '民生', '情感',
+  '影视', '科技', '职场', '三农', '旅游', '军事国际', '财经', 'AI',
+  '体育健身', '健康养生', '美食', '房产', '数码', '育儿', '星座命理',
+  '文案', '壁纸头像', '个人成长', '历史', '游戏', '资讯热点', '宠物',
+  '美妆时尚', '动漫', '体制', '开发者', '家居', '生活', '文摘', '法律',
+  '商业营销', '其它'
+];
 
 export default function DailyHotPage() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -322,9 +329,20 @@ export default function DailyHotPage() {
                     </Badge>
 
                     {/* Title */}
-                    <h3 className="mb-1 text-lg font-semibold text-gray-900 hover:text-orange-600 cursor-pointer transition-colors line-clamp-1">
-                      {article.title}
-                    </h3>
+                    {article.url ? (
+                      <a
+                        href={article.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mb-1 text-lg font-semibold text-gray-900 hover:text-orange-600 cursor-pointer transition-colors line-clamp-1"
+                      >
+                        {article.title}
+                      </a>
+                    ) : (
+                      <h3 className="mb-1 text-lg font-semibold text-gray-900 line-clamp-1">
+                        {article.title}
+                      </h3>
+                    )}
 
                     {/* Meta Info */}
                     <div className="mb-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
