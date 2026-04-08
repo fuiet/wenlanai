@@ -339,15 +339,6 @@ export default function DailyHotPage() {
                       </p>
                     )}
 
-                    {/* Article URL (if available) */}
-                    {article.url && (
-                      <div className="mb-3 p-2 bg-gray-50 rounded-md border border-gray-200">
-                        <p className="text-xs text-gray-500 font-mono break-all">
-                          URL: [{article.url}]
-                        </p>
-                      </div>
-                    )}
-
                     {/* Stats */}
                     <div className="flex flex-wrap gap-4">
                       <div className="flex items-center text-sm">
