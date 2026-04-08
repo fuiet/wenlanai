@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const category = searchParams.get('category');
+    const publishDate = searchParams.get('publish_date');
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
     const sortBy = searchParams.get('sortBy') || 'fetch_date';
@@ -79,14 +80,24 @@ export async function GET(request: NextRequest) {
 
     const client = getSupabaseClient();
 
+    // 计算30天前的日期
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const cutoffDate = thirtyDaysAgo.toISOString().split('T')[0];
+
     let query = client
       .from('hot_articles')
       .select('*')
+      .gte('publish_date', cutoffDate) // 只获取最近30天的文章
       .order(sortBy as 'fetch_date' | 'reads' | 'created_at', { ascending: sortOrder === 'asc' })
       .range(offset, offset + limit - 1);
 
     if (category && category !== '全部') {
       query = query.eq('category', category);
+    }
+
+    if (publishDate) {
+      query = query.eq('publish_date', publishDate);
     }
 
     const { data, error } = await query;
@@ -99,6 +110,10 @@ export async function GET(request: NextRequest) {
       success: true,
       data: data || [],
       total: data?.length || 0,
+      dateRange: {
+        cutoffDate,
+        timeRange: '30天',
+      },
     });
   } catch (error) {
     console.error('获取爆款文章失败:', error);

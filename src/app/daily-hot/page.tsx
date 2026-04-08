@@ -198,8 +198,8 @@ export default function DailyHotPage() {
           <div className="flex items-start gap-3">
             <Search className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-blue-700">
-              <p className="font-semibold mb-1">数据来源</p>
-              <p>爆款文章数据每日自动更新，覆盖西瓜、搜狗、百度、微信等平台。点击&ldquo;刷新数据&rdquo;可手动触发更新。</p>
+              <p className="font-semibold mb-1">数据说明</p>
+              <p>爆款文章数据来自微信等平台，显示最近30天内的热门内容。点击&ldquo;刷新数据&rdquo;可手动触发更新。</p>
             </div>
           </div>
         </CardContent>
