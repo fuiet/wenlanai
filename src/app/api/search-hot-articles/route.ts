@@ -40,12 +40,6 @@ export async function POST(request: NextRequest) {
       const readsMatch = item.snippet.match(/(\d+)万阅读/) || item.snippet.match(/阅读(\d+)/);
       const likesMatch = item.snippet.match(/点赞(\d+)/) || item.snippet.match(/(\d+)点赞/);
 
-      // 为不同分类生成示例图片URL（模拟数据）
-      const sampleImages = [
-        'https://code.coze.cn/api/sandbox/coze_coding/file/proxy?expire_time=-1&file_path=assets%2Fimage.png&nonce=3907057a-e05e-401d-8980-bedeba172380&project_id=7626301097891610687&sign=d2564475c935a3dceb41983c4ad33b7d7be0e0dc64b1807a342cf14e95ccf31f',
-        'https://code.coze.cn/api/sandbox/coze_coding/file/proxy?expire_time=-1&file_path=assets%2Fwork.png&nonce=example456&project_id=7626301097891610687&sign=example-sign-2',
-      ];
-
       return {
         id: item.id || `search-${index}`,
         date: item.publish_time || new Date().toISOString().split('T')[0],
@@ -55,10 +49,9 @@ export async function POST(request: NextRequest) {
         likes: likesMatch ? parseInt(likesMatch[1]) : Math.floor(Math.random() * 10000) + 500,
         shares: Math.floor(Math.random() * 5000) + 100,
         category: category,
-        url: item.url,
+        url: item.url, // 文章的真实链接
         source: item.site_name,
         snippet: item.snippet,
-        image: sampleImages[index % sampleImages.length], // 循环使用示例图片
       };
     }) || [];
 
