@@ -26,7 +26,7 @@ import {
 
 interface Article {
   id: string | number;
-  date: string;
+  publish_date: string;
   account: string;
   title: string;
   reads: number;
@@ -38,81 +38,71 @@ interface Article {
   url?: string; // 文章链接
 }
 
-const fallbackArticles: Article[] = [
-  {
-    id: 1,
-    date: '2025-01-15',
-    account: '情感生活馆',
-    title: '为什么你总是遇不到对的人？这3个真相扎心了',
-    reads: 125800,
-    likes: 4560,
-    shares: 2340,
-    category: '情感',
-    url: 'https://mp.weixin.qq.com/s/example-article-1',
-  },
-  {
-    id: 2,
-    date: '2025-01-15',
-    account: '职场加油站',
-    title: '30岁后，我终于明白的道理：这5件事决定你的一生',
-    reads: 98600,
-    likes: 3780,
-    shares: 1890,
-    category: '职场',
-    url: 'https://mp.weixin.qq.com/s/example-article-2',
-  },
-];
-
 const categories = ['全部', '情感', '职场', '星座', '汽车', '民生', '成长', '娱乐', '财经'];
 
 export default function DailyHotPage() {
-  const [articles, setArticles] = useState<Article[]>(fallbackArticles);
-  const [isLoading, setIsLoading] = useState(false);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState<'reads' | 'likes' | 'shares'>('reads');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('全部');
+  const [selectedDate, setSelectedDate] = useState<string>('');
 
-  // 获取实时爆款文章
-  const fetchHotArticles = useCallback(async (category: string = selectedCategory) => {
+  // 获取爆款文章数据
+  const fetchHotArticles = useCallback(async () => {
     setIsLoading(true);
     setError('');
-    
+
     try {
-      const response = await fetch('/api/search-hot-articles', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          category: category === '全部' ? '情感' : category,
-          timeRange: '1d',
-          count: 20,
-        }),
-      });
+      const params = new URLSearchParams();
+      if (selectedCategory !== '全部') {
+        params.append('category', selectedCategory);
+      }
+      if (selectedDate) {
+        params.append('publish_date', selectedDate);
+      }
+      params.append('limit', '50');
+
+      const response = await fetch(`/api/hot-articles?${params.toString()}`);
 
       const data = await response.json();
 
-      if (data.success && data.articles.length > 0) {
-        setArticles(data.articles);
+      if (data.success && data.data) {
+        setArticles(data.data);
       } else {
-        // 如果搜索失败或没有结果，使用模拟数据
-        setArticles(fallbackArticles);
-        setError('实时数据获取失败，显示历史数据');
+        // 如果获取失败，显示错误提示
+        setArticles([]);
+        setError('暂无爆款文章数据，请等待每日自动更新或手动刷新数据');
       }
     } catch (err) {
       console.error('获取爆款文章失败:', err);
-      setError('网络错误，显示历史数据');
-      setArticles(fallbackArticles);
+      setError('网络错误，无法加载数据');
+      setArticles([]);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedDate]);
 
   // 手动刷新
-  const handleRefresh = useCallback(() => {
-    fetchHotArticles();
+  const handleRefresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // 触发每日自动更新
+      const response = await fetch('/api/daily-auto-update', {
+        method: 'POST',
+      });
+      const result = await response.json();
+      console.log('自动更新结果:', result);
+
+      // 更新完成后重新获取数据
+      await fetchHotArticles();
+    } catch (err) {
+      console.error('刷新数据失败:', err);
+      setError('刷新失败，请稍后重试');
+      setIsLoading(false);
+    }
   }, [fetchHotArticles]);
 
   // 页面加载时获取数据
@@ -201,8 +191,8 @@ export default function DailyHotPage() {
           <div className="flex items-start gap-3">
             <Search className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-blue-700">
-              <p className="font-semibold mb-1">实时数据来源</p>
-              <p>已连接搜狗、百度等搜索引擎，实时抓取微信公众号爆款文章数据。数据每日自动更新，助您快速发现热点内容。</p>
+              <p className="font-semibold mb-1">数据来源</p>
+              <p>爆款文章数据每日自动更新，覆盖西瓜、搜狗、百度、微信等平台。点击&ldquo;刷新数据&rdquo;可手动触发更新。</p>
             </div>
           </div>
         </CardContent>
@@ -221,25 +211,47 @@ export default function DailyHotPage() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-gray-500" />
-            <span className="text-sm text-gray-600">分类筛选：</span>
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <Button
-                  key={category}
-                  variant={selectedCategory === category ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => {
-                    setSelectedCategory(category);
-                    fetchHotArticles(category);
-                  }}
-                  disabled={isLoading}
-                  className={selectedCategory === category ? 'bg-orange-500 hover:bg-orange-600' : ''}
-                >
-                  {category}
-                </Button>
-              ))}
-            </div>
+            <Calendar className="h-4 w-4 text-gray-500" />
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => {
+                setSelectedDate(e.target.value);
+                fetchHotArticles();
+              }}
+              className="w-auto"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedDate('');
+                fetchHotArticles();
+              }}
+            >
+              清除日期
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-gray-500" />
+          <span className="text-sm text-gray-600">分类筛选：</span>
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <Button
+                key={category}
+                variant={selectedCategory === category ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setSelectedCategory(category);
+                  fetchHotArticles();
+                }}
+                disabled={isLoading}
+                className={selectedCategory === category ? 'bg-orange-500 hover:bg-orange-600' : ''}
+              >
+                {category}
+              </Button>
+            ))}
           </div>
         </div>
       </div>
@@ -322,7 +334,7 @@ export default function DailyHotPage() {
                       </div>
                       <div className="flex items-center">
                         <Calendar className="mr-1 h-4 w-4" />
-                        {article.date}
+                        {article.publish_date}
                       </div>
                       <Badge variant="secondary" className="text-xs">{article.category}</Badge>
                     </div>
