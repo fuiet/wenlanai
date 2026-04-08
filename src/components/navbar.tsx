@@ -35,11 +35,11 @@ export default function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-orange-500">
-              <Zap className="h-6 w-6 text-white" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-500">
+              <PenTool className="h-6 w-6 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold text-gray-900">爆了么</span>
+              <span className="text-lg font-bold text-gray-900">文澜智作</span>
               <span className="text-xs text-gray-500">自媒体爆款智能创作系统</span>
             </div>
           </Link>

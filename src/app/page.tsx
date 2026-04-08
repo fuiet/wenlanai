@@ -195,7 +195,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="mb-16 text-center">
             <h2 className="mb-4 text-3xl font-bold text-gray-900">核心优势</h2>
-            <p className="text-lg text-gray-600">为什么选择爆了么</p>
+            <p className="text-lg text-gray-600">为什么选择文澜智作</p>
           </div>
           <div className="grid gap-8 md:grid-cols-3">
             {advantages.map((advantage) => (
