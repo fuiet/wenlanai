@@ -3,7 +3,7 @@ import { SearchClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
 
 export async function POST(request: NextRequest) {
   try {
-    const { category, timeRange = '1d', count = 20 } = await request.json();
+    const { category, timeRange = '1d', count = 20, customKeywords, searchStrategy = 'default' } = await request.json();
     const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
 
     const config = new Config();
@@ -21,7 +21,19 @@ export async function POST(request: NextRequest) {
       '财经': '财经理财 爆款文章 微信公众号',
     };
 
-    const keyword = searchKeywords[category as keyof typeof searchKeywords] || '爆款文章 微信公众号';
+    // 使用自定义关键词或默认关键词
+    let keyword = customKeywords
+      ? (Array.isArray(customKeywords) ? customKeywords.join(' ') : customKeywords)
+      : (searchKeywords[category as keyof typeof searchKeywords] || '爆款文章 微信公众号');
+
+    // 根据搜索策略调整关键词
+    if (searchStrategy === 'aggressive') {
+      // 激进策略：更广泛的搜索
+      keyword = `${keyword} OR 热门 OR 流行`;
+    } else if (searchStrategy === 'conservative') {
+      // 保守策略：更精确的搜索
+      keyword = `${keyword} AND 阅读10万+ AND 点赞5000+`;
+    }
 
     // 使用 advancedSearch 搜索，限制在中文网站，按时间过滤
     const response = await client.advancedSearch(keyword, {
