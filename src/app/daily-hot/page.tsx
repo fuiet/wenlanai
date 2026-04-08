@@ -301,58 +301,53 @@ export default function DailyHotPage() {
         <div className="space-y-4">
           {filteredArticles.map((article, index) => (
             <Card key={article.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-orange-500">
-              <CardContent className="p-4">
+              <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     {/* Index Badge */}
                     <Badge className="mb-2 bg-gradient-to-r from-orange-500 to-purple-500 text-xs">
                       #{index + 1}
                     </Badge>
-                    
+
                     {/* Title */}
-                    <h3 className="mb-1 text-lg font-semibold text-gray-900 hover:text-orange-600 cursor-pointer transition-colors">
+                    <h3 className="mb-1 text-lg font-semibold text-gray-900 hover:text-orange-600 cursor-pointer transition-colors line-clamp-1">
                       {article.title}
                     </h3>
-                    
+
                     {/* Meta Info */}
-                    <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                    <div className="mb-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
                       <div className="flex items-center">
-                        <User className="mr-1 h-3 w-3" />
-                        {article.account}
+                        <User className="mr-1 h-4 w-4" />
+                        <span className="truncate max-w-24">{article.account}</span>
                       </div>
                       <div className="flex items-center">
-                        <Calendar className="mr-1 h-3 w-3" />
+                        <Calendar className="mr-1 h-4 w-4" />
                         {article.date}
                       </div>
                       <Badge variant="secondary" className="text-xs">{article.category}</Badge>
-                      {article.source && (
-                        <Badge variant="outline" className="text-xs">
-                          来源: {article.source}
-                        </Badge>
-                      )}
                     </div>
-                    
+
                     {/* Snippet (if available) */}
                     {article.snippet && (
-                      <p className="mb-2 text-xs text-gray-600 line-clamp-1">
+                      <p className="mb-1 text-sm text-gray-600 line-clamp-1">
                         {article.snippet}
                       </p>
                     )}
 
                     {/* Stats */}
                     <div className="flex flex-wrap gap-3">
-                      <div className="flex items-center text-xs">
-                        <Eye className="mr-1 h-3 w-3 text-blue-500" />
+                      <div className="flex items-center text-sm">
+                        <Eye className="mr-1 h-4 w-4 text-blue-500" />
                         <span className="font-medium">{formatNumber(article.reads)}</span>
                         <span className="ml-1 text-gray-500">阅读</span>
                       </div>
-                      <div className="flex items-center text-xs">
-                        <ThumbsUp className="mr-1 h-3 w-3 text-red-500" />
+                      <div className="flex items-center text-sm">
+                        <ThumbsUp className="mr-1 h-4 w-4 text-red-500" />
                         <span className="font-medium">{formatNumber(article.likes)}</span>
                         <span className="ml-1 text-gray-500">点赞</span>
                       </div>
-                      <div className="flex items-center text-xs">
-                        <Share2 className="mr-1 h-3 w-3 text-green-500" />
+                      <div className="flex items-center text-sm">
+                        <Share2 className="mr-1 h-4 w-4 text-green-500" />
                         <span className="font-medium">{formatNumber(article.shares)}</span>
                         <span className="ml-1 text-gray-500">分享</span>
                       </div>
