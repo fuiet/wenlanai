@@ -35,6 +35,7 @@ interface Article {
   category: string;
   source?: string;
   snippet?: string;
+  image?: string; // 新增图片字段
 }
 
 const fallbackArticles: Article[] = [
@@ -47,6 +48,7 @@ const fallbackArticles: Article[] = [
     likes: 4560,
     shares: 2340,
     category: '情感',
+    image: 'https://code.coze.cn/api/sandbox/coze_coding/file/proxy?expire_time=-1&file_path=assets%2Fimage.png&nonce=3907057a-e05e-401d-8980-bedeba172380&project_id=7626301097891610687&sign=d2564475c935a3dceb41983c4ad33b7d7be0e0dc64b1807a342cf14e95ccf31f',
   },
   {
     id: 2,
@@ -57,6 +59,7 @@ const fallbackArticles: Article[] = [
     likes: 3780,
     shares: 1890,
     category: '职场',
+    image: 'https://code.coze.cn/api/sandbox/coze_coding/file/proxy?expire_time=-1&file_path=assets%2Fwork.png&nonce=example123&project_id=7626301097891610687&sign=example-sign',
   },
 ];
 
@@ -335,7 +338,16 @@ export default function DailyHotPage() {
                         {article.snippet}
                       </p>
                     )}
-                    
+
+                    {/* Image (if available) */}
+                    {article.image && (
+                      <div className="mb-3 p-2 bg-gray-50 rounded-md border border-gray-200">
+                        <p className="text-xs text-gray-500 font-mono break-all">
+                          Image: [{article.image}]
+                        </p>
+                      </div>
+                    )}
+
                     {/* Stats */}
                     <div className="flex flex-wrap gap-4">
                       <div className="flex items-center text-sm">

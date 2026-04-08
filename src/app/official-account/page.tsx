@@ -144,7 +144,7 @@ export default function OfficialAccountPage() {
             <UserCheck className="mr-3 h-8 w-8 text-orange-500" />
             公众号管理
           </h1>
-          <p className="text-gray-600">管理您的授权公众号，批量推送文章</p>
+          <p className="text-gray-600">管理您的授权公众号，批量推送文章 - 可实时编辑修改</p>
         </div>
         <div className="flex gap-2">
           <Button
