@@ -110,7 +110,7 @@ export default function SmartWritingPage() {
                 if (parsed.content) {
                   setGeneratedContent(prev => prev + parsed.content);
                 }
-              } catch (_e) {
+              } catch {
                 // Ignore parse errors
               }
             }
