@@ -8,15 +8,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
+import WechatAuth from '@/components/wechat-auth';
+import {
   UserCheck,
   Plus,
-  Edit,
-  Trash2,
   Settings,
-  RefreshCw,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Send
 } from 'lucide-react';
 
 // 模拟公众号数据
@@ -41,36 +40,98 @@ export default function OfficialAccountPage() {
   const [selectedGroup, setSelectedGroup] = useState('all');
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isManageGroupDialogOpen, setIsManageGroupDialogOpen] = useState(false);
+  const [isBatchSendDialogOpen, setIsBatchSendDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [authInfo, setAuthInfo] = useState<{ appId: string; appSecret: string; accessToken: string } | null>(null);
+
+  // 模拟待推送文章数据
+  const mockArticles = [
+    {
+      id: 1,
+      title: '2024年低粉爆款文案：这3个技巧让你从0到10万粉',
+      author: '文澜智作',
+      digest: '如何通过精准定位和高质量内容快速涨粉？本文揭秘爆款公众号的运营秘诀...',
+      content: '这里是文章的完整内容...',
+      content_source_url: 'https://example.com/article/1',
+    },
+    {
+      id: 2,
+      title: 'AI写作工具测评：5款免费工具让你的写作效率翻倍',
+      author: '文澜智作',
+      digest: '对比5款热门AI写作工具，从功能、价格、易用性三个维度进行全面分析...',
+      content: '这里是文章的完整内容...',
+      content_source_url: 'https://example.com/article/2',
+    },
+  ];
+  const [selectedArticles, setSelectedArticles] = useState<number[]>([]);
 
   const filteredAccounts = mockAccounts.filter(account => {
     if (selectedGroup === 'all') return true;
     return account.groupName === selectedGroup;
   });
 
-  const handleAddAccount = () => {
-    // TODO: 实现授权公众号的逻辑
-    alert('授权功能需要对接微信开放平台');
-    setIsAuthDialogOpen(false);
-  };
-
-  const handleEditAccount = () => {
-    // TODO: 实现编辑公众号的逻辑
-    alert('编辑公众号功能');
-  };
-
-  const handleDeleteAccount = () => {
-    if (confirm('确定要删除这个公众号吗？')) {
-      // TODO: 实现删除公众号的逻辑
-      alert('删除公众号功能');
-    }
-  };
-
   const handleAddGroup = () => {
     if (newGroupName.trim()) {
       // TODO: 实现添加分组的逻辑
       alert(`添加分组: ${newGroupName}`);
       setNewGroupName('');
+    }
+  };
+
+  // 处理授权成功
+  const handleAuthorized = (data: { appId: string; appSecret: string }) => {
+    // TODO: 将授权信息保存到数据库或本地存储
+    console.log('公众号授权成功:', data);
+    setAuthInfo({ ...data, accessToken: '' });
+    setIsAuthDialogOpen(false);
+  };
+
+  // 处理批量推送
+  const handleBatchSend = async () => {
+    if (!authInfo?.accessToken) {
+      alert('请先授权公众号并获取access_token');
+      return;
+    }
+
+    if (selectedArticles.length === 0) {
+      alert('请至少选择一篇文章');
+      return;
+    }
+
+    try {
+      const articlesToSend = mockArticles
+        .filter(article => selectedArticles.includes(article.id))
+        .map(article => ({
+          title: article.title,
+          author: article.author,
+          digest: article.digest,
+          content: article.content,
+          content_source_url: article.content_source_url,
+        }));
+
+      const response = await fetch('/api/wechat/batch-send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accessToken: authInfo.accessToken,
+          articles: articlesToSend,
+          target: { isToAll: true },
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`推送成功！消息ID: ${result.data.msgId}`);
+        setIsBatchSendDialogOpen(false);
+        setSelectedArticles([]);
+      } else {
+        alert(`推送失败: ${result.error}`);
+      }
+    } catch {
+      alert('推送失败，请检查网络连接');
     }
   };
 
@@ -85,46 +146,34 @@ export default function OfficialAccountPage() {
           </h1>
           <p className="text-gray-600">管理您的授权公众号，批量推送文章</p>
         </div>
-        <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600">
-              <Plus className="mr-2 h-5 w-5" />
-              授权公众号
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>授权公众号</DialogTitle>
-              <DialogDescription>
-                授权后，您可以将文章直接推送到公众号草稿箱
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="rounded-lg bg-blue-50 p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="mt-0.5 h-5 w-5 text-blue-500" />
-                  <div className="text-sm text-blue-700">
-                    <p className="font-semibold mb-1">授权说明</p>
-                    <ul className="list-inside list-disc space-y-1">
-                      <li>需要您拥有公众号的管理员权限</li>
-                      <li>授权后仅能操作文章推送，无法修改公众号设置</li>
-                      <li>您可以随时取消授权</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-center">
-                <Button
-                  onClick={handleAddAccount}
-                  className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  开始授权
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setIsBatchSendDialogOpen(true)}
+            variant="outline"
+            disabled={!authInfo}
+            className={authInfo ? 'bg-green-50 text-green-700 border-green-200' : ''}
+          >
+            <Send className="mr-2 h-4 w-4" />
+            批量推送
+          </Button>
+          <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600">
+                <Plus className="mr-2 h-5 w-5" />
+                授权公众号
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>授权公众号</DialogTitle>
+                <DialogDescription>
+                  填写您的微信公众号AppID和AppSecret，授权后即可批量推送文章
+                </DialogDescription>
+              </DialogHeader>
+              <WechatAuth onAuthorized={handleAuthorized} />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-4">
@@ -274,23 +323,6 @@ export default function OfficialAccountPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditAccount()}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteAccount()}
-                        className="text-red-500 hover:text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -314,6 +346,70 @@ export default function OfficialAccountPage() {
           </ul>
         </CardContent>
       </Card>
+
+      {/* 批量推送对话框 */}
+      <Dialog open={isBatchSendDialogOpen} onOpenChange={setIsBatchSendDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>批量推送文章</DialogTitle>
+            <DialogDescription>
+              选择要推送的文章，系统将自动群发到您的公众号
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* 文章列表 */}
+            <div className="space-y-3">
+              {mockArticles.map((article) => (
+                <Card
+                  key={article.id}
+                  className={`cursor-pointer transition-colors ${
+                    selectedArticles.includes(article.id)
+                      ? 'border-orange-500 bg-orange-50'
+                      : 'hover:border-orange-300'
+                  }`}
+                  onClick={() => {
+                    setSelectedArticles(prev =>
+                      prev.includes(article.id)
+                        ? prev.filter(id => id !== article.id)
+                        : [...prev, article.id]
+                    );
+                  }}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-5 w-5 items-center justify-center rounded border-2 border-orange-300 mt-1">
+                        {selectedArticles.includes(article.id) && (
+                          <CheckCircle className="h-3.5 w-3.5 text-orange-500" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 mb-1">{article.title}</h4>
+                        <p className="text-sm text-gray-500 mb-2">{article.author}</p>
+                        <p className="text-xs text-gray-400 line-clamp-2">{article.digest}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* 推送按钮 */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="outline" onClick={() => setIsBatchSendDialogOpen(false)}>
+                取消
+              </Button>
+              <Button
+                onClick={handleBatchSend}
+                disabled={selectedArticles.length === 0}
+                className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                推送 {selectedArticles.length} 篇文章
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
