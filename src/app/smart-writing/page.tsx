@@ -60,7 +60,7 @@ function SmartWritingContent() {
   const [generatedContent, setGeneratedContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [generatedImageUrl, setGeneratedImageUrl] = useState('');
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const streamRef = useRef(false);
 
@@ -173,6 +173,54 @@ function SmartWritingContent() {
     alert('草稿已保存到公众号草稿箱');
   };
 
+  // 将图片随机插入到文章中
+  const insertImagesToContent = (content: string, images: string[]): string => {
+    if (!content || images.length === 0) return content;
+
+    // 将文章按段落分割
+    const paragraphs = content.split('\n\n');
+    const imagePositions: number[] = [];
+
+    // 确定图片插入位置（随机，但确保分布均匀）
+    const totalParagraphs = paragraphs.length;
+    const minSpacing = Math.floor(totalParagraphs / (images.length + 1));
+
+    for (let i = 0; i < images.length; i++) {
+      // 计算每个图片的位置，确保均匀分布
+      const minPos = (i + 1) * minSpacing;
+      const maxPos = Math.min(minPos + minSpacing - 1, totalParagraphs - 1);
+      // 随机选择位置
+      const pos = Math.floor(Math.random() * (maxPos - minPos + 1)) + minPos;
+      imagePositions.push(pos);
+    }
+
+    // 按位置排序，确保插入顺序正确
+    imagePositions.sort((a, b) => a - b);
+
+    // 插入图片
+    let result = '';
+    let imageIndex = 0;
+
+    for (let i = 0; i < paragraphs.length; i++) {
+      result += paragraphs[i];
+
+      // 如果当前位置需要插入图片
+      if (imageIndex < imagePositions.length && i === imagePositions[imageIndex]) {
+        const imageUrl = images[imageIndex];
+        // 使用Markdown格式插入图片
+        result += `\n\n![插图${imageIndex + 1}](${imageUrl})\n\n`;
+        imageIndex++;
+      }
+
+      // 添加段落分隔
+      if (i < paragraphs.length - 1) {
+        result += '\n\n';
+      }
+    }
+
+    return result;
+  };
+
   const handleGenerateImage = async () => {
     if (!title.trim() && !generatedContent.trim()) {
       alert('请先生成文章内容');
@@ -180,7 +228,7 @@ function SmartWritingContent() {
     }
 
     setIsGeneratingImage(true);
-    setGeneratedImageUrl('');
+    setImageUrls([]);
 
     try {
       const response = await fetch('/api/generate-article-image', {
@@ -191,6 +239,7 @@ function SmartWritingContent() {
         body: JSON.stringify({
           title,
           content: generatedContent,
+          count: 3, // 生成3张图片
         }),
       });
 
@@ -200,8 +249,12 @@ function SmartWritingContent() {
 
       const data = await response.json();
 
-      if (data.success && data.imageUrl) {
-        setGeneratedImageUrl(data.imageUrl);
+      if (data.success && data.imageUrls && data.imageUrls.length > 0) {
+        setImageUrls(data.imageUrls);
+
+        // 将图片随机插入到文章内容中
+        const contentWithImages = insertImagesToContent(generatedContent, data.imageUrls);
+        setGeneratedContent(contentWithImages);
       } else {
         throw new Error(data.error || '生成图片失败');
       }
@@ -360,8 +413,8 @@ function SmartWritingContent() {
                 <li>• 选择合适的提示词，让文章更符合目标读者</li>
                 <li>• 标题要吸引人，包含关键词或引发好奇</li>
                 <li>• 文章会自动生成，字数控制在1200字左右</li>
-                <li>• 文章生成后会自动生成配图</li>
-                <li>• 点击&quot;生成插图&quot;可重新生成配图</li>
+                <li>• 点击&ldquo;生成插图&rdquo;可生成2-3张插图并自动插入文章</li>
+                <li>• 插图会随机分布在文章段落之间</li>
                 <li>• 完成后可保存到公众号草稿箱</li>
               </ul>
             </CardContent>
@@ -397,30 +450,33 @@ function SmartWritingContent() {
                   <Badge variant="outline" className="text-sm">
                     目标: 1200字
                   </Badge>
+                  {imageUrls.length > 0 && (
+                    <Badge variant="outline" className="text-sm">
+                      插图: {imageUrls.length}张
+                    </Badge>
+                  )}
                 </div>
 
-                {/* 生成的图片 */}
-                {generatedImageUrl && (
-                  <div className="mb-4">
-                    <p className="mb-2 text-sm font-medium text-gray-700">文章配图:</p>
-                    <div className="relative w-full aspect-video">
-                      <Image
-                        src={generatedImageUrl}
-                        alt="文章配图"
-                        fill
-                        className="rounded-lg shadow-md object-cover"
-                        onLoad={() => console.log('图片加载完成')}
-                        onError={() => console.error('图片加载失败')}
-                      />
-                    </div>
-                  </div>
-                )}
-
                 {/* Markdown内容 */}
-                <div className="prose prose-sm max-w-none dark:prose-invert">
+                <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:text-center prose-headings:font-bold prose-h1:text-center prose-h1:font-bold">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     rehypePlugins={[rehypeHighlight]}
+                    components={{
+                      // 自定义图片组件，优化显示
+                      img: ({ src, alt, ...props }) => (
+                        <div className="my-4 flex justify-center">
+                          <Image
+                            src={typeof src === 'string' ? src : ''}
+                            alt={alt || '插图'}
+                            width={800}
+                            height={450}
+                            className="rounded-lg shadow-md"
+                            {...props}
+                          />
+                        </div>
+                      ),
+                    }}
                   >
                     {generatedContent}
                   </ReactMarkdown>
