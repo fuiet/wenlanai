@@ -22,7 +22,17 @@ import {
 } from 'lucide-react';
 
 // 模拟提示词数据
-const mockPrompts = [
+interface Prompt {
+  id: number;
+  name: string;
+  category: string;
+  description: string;
+  prompt: string;
+  tags: string[];
+  isCustom: boolean;
+}
+
+const mockPrompts: Prompt[] = [
   {
     id: 1,
     name: '情感类爆款文案',
@@ -76,6 +86,9 @@ export default function PromptLibraryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('全部');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
+  const [prompts, setPrompts] = useState<Prompt[]>(mockPrompts);
   const [newPrompt, setNewPrompt] = useState({
     name: '',
     category: '自定义',
@@ -84,7 +97,7 @@ export default function PromptLibraryPage() {
     tags: '',
   });
 
-  const filteredPrompts = mockPrompts.filter(prompt => {
+  const filteredPrompts = prompts.filter(prompt => {
     const matchesSearch = prompt.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          prompt.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === '全部' || prompt.category === selectedCategory;
@@ -92,13 +105,74 @@ export default function PromptLibraryPage() {
   });
 
   const handleCreatePrompt = () => {
-    console.log('创建新提示词:', newPrompt);
+    if (!newPrompt.name || !newPrompt.prompt) {
+      alert('请填写提示词名称和内容');
+      return;
+    }
+
+    const newPromptWithId = {
+      id: Date.now(),
+      ...newPrompt,
+      tags: newPrompt.tags.split(',').map(t => t.trim()).filter(t => t),
+      isCustom: true,
+    };
+
+    setPrompts([...prompts, newPromptWithId]);
     setIsCreateDialogOpen(false);
     setNewPrompt({ name: '', category: '自定义', description: '', prompt: '', tags: '' });
   };
 
+  const handleEditPrompt = (prompt: Prompt) => {
+    setEditingPrompt(prompt);
+    setNewPrompt({
+      name: prompt.name,
+      category: prompt.category,
+      description: prompt.description,
+      prompt: prompt.prompt,
+      tags: prompt.tags.join(', '),
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdatePrompt = () => {
+    if (!editingPrompt) return;
+
+    const updatedPrompts = prompts.map(p =>
+      p.id === editingPrompt.id
+        ? {
+            ...p,
+            name: newPrompt.name,
+            category: newPrompt.category,
+            description: newPrompt.description,
+            prompt: newPrompt.prompt,
+            tags: newPrompt.tags.split(',').map(t => t.trim()).filter(t => t),
+          }
+        : p
+    );
+
+    setPrompts(updatedPrompts);
+    setIsEditDialogOpen(false);
+    setEditingPrompt(null);
+    setNewPrompt({ name: '', category: '自定义', description: '', prompt: '', tags: '' });
+  };
+
+  const handleDeletePrompt = (id: number) => {
+    if (confirm('确定要删除这个提示词吗？')) {
+      setPrompts(prompts.filter(p => p.id !== id));
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
+    alert('已复制到剪贴板');
+  };
+
+  const handleUsePrompt = (prompt: Prompt) => {
+    // 跳转到智能生文页面，并传递提示词信息
+    const params = new URLSearchParams();
+    params.set('promptId', prompt.id.toString());
+    params.set('prompt', prompt.prompt);
+    window.location.href = `/smart-writing?${params.toString()}`;
   };
 
   return (
@@ -182,6 +256,70 @@ export default function PromptLibraryPage() {
             </div>
           </DialogContent>
         </Dialog>
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>编辑提示词</DialogTitle>
+              <DialogDescription>修改提示词内容，让文章更符合你的风格</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label htmlFor="edit-name">提示词名称</Label>
+                <Input
+                  id="edit-name"
+                  value={newPrompt.name}
+                  onChange={(e) => setNewPrompt({ ...newPrompt, name: e.target.value })}
+                  placeholder="例如：情感类爆款文案"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-category">分类</Label>
+                <Input
+                  id="edit-category"
+                  value={newPrompt.category}
+                  onChange={(e) => setNewPrompt({ ...newPrompt, category: e.target.value })}
+                  placeholder="例如：情感、职场、自定义"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-description">描述</Label>
+                <Input
+                  id="edit-description"
+                  value={newPrompt.description}
+                  onChange={(e) => setNewPrompt({ ...newPrompt, description: e.target.value })}
+                  placeholder="简短描述这个提示词的用途"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-prompt">提示词内容</Label>
+                <Textarea
+                  id="edit-prompt"
+                  value={newPrompt.prompt}
+                  onChange={(e) => setNewPrompt({ ...newPrompt, prompt: e.target.value })}
+                  placeholder="输入详细的提示词内容..."
+                  rows={6}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-tags">标签（用逗号分隔）</Label>
+                <Input
+                  id="edit-tags"
+                  value={newPrompt.tags}
+                  onChange={(e) => setNewPrompt({ ...newPrompt, tags: e.target.value })}
+                  placeholder="例如：情感,爆款,共鸣"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                取消
+              </Button>
+              <Button onClick={handleUpdatePrompt} className="bg-gradient-to-r from-purple-500 to-pink-500">
+                保存
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Search and Filter */}
@@ -231,10 +369,15 @@ export default function PromptLibraryPage() {
                     {prompt.isCustom ? '自定义' : '预设'}
                   </Badge>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => handleEditPrompt(prompt)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-red-500">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500"
+                      onClick={() => handleDeletePrompt(prompt.id)}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -279,6 +422,7 @@ export default function PromptLibraryPage() {
                   <Button
                     size="sm"
                     className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                    onClick={() => handleUsePrompt(prompt)}
                   >
                     <Wand2 className="mr-2 h-4 w-4" />
                     使用

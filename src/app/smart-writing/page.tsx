@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
+import {
   PenTool,
   Wand2,
   Save,
@@ -51,13 +52,32 @@ const mockPrompts = [
   },
 ];
 
-export default function SmartWritingPage() {
+function SmartWritingContent() {
+  const searchParams = useSearchParams();
   const [selectedPrompt, setSelectedPrompt] = useState('');
   const [title, setTitle] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
   const streamRef = useRef(false);
+
+  // 从URL参数中获取标题和提示词
+  useEffect(() => {
+    const titleParam = searchParams.get('title');
+    const promptParam = searchParams.get('prompt');
+
+    if (titleParam) {
+      setTitle(decodeURIComponent(titleParam));
+    }
+
+    if (promptParam) {
+      // 如果有提示词参数，设置为自定义提示词
+      const customPrompt = mockPrompts.find((p) => p.name === '我的个人风格');
+      if (customPrompt) {
+        setSelectedPrompt(customPrompt.id.toString());
+      }
+    }
+  }, [searchParams]);
 
   const handleGenerate = async () => {
     if (!title.trim()) {
@@ -70,8 +90,8 @@ export default function SmartWritingPage() {
     streamRef.current = true;
 
     try {
-      const selectedPromptData = mockPrompts.find(p => p.id === parseInt(selectedPrompt));
-      
+      const selectedPromptData = mockPrompts.find((p) => p.id === parseInt(selectedPrompt));
+
       const response = await fetch('/api/generate-article', {
         method: 'POST',
         headers: {
@@ -108,7 +128,7 @@ export default function SmartWritingPage() {
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.content) {
-                  setGeneratedContent(prev => prev + parsed.content);
+                  setGeneratedContent((prev) => prev + parsed.content);
                 }
               } catch {
                 // Ignore parse errors
@@ -169,14 +189,14 @@ export default function SmartWritingPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5 text-orange-500" />
-                选择人设
+                选择提示词
               </CardTitle>
-              <CardDescription>选择适合的写作风格和人设</CardDescription>
+              <CardDescription>选择适合的写作提示词，AI将根据提示词生成文章</CardDescription>
             </CardHeader>
             <CardContent>
               <Select value={selectedPrompt} onValueChange={setSelectedPrompt}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择提示词人设" />
+                  <SelectValue placeholder="选择提示词" />
                 </SelectTrigger>
                 <SelectContent>
                   {mockPrompts.map((prompt) => (
@@ -208,8 +228,8 @@ export default function SmartWritingPage() {
                 placeholder="例如：为什么你总是遇不到对的人？这3个真相扎心了"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={() => {
-                  if (!isGenerating) {
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isGenerating) {
                     handleGenerate();
                   }
                 }}
@@ -335,5 +355,13 @@ export default function SmartWritingPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function SmartWritingPage() {
+  return (
+    <Suspense fallback={<div className="container mx-auto px-4 py-8">加载中...</div>}>
+      <SmartWritingContent />
+    </Suspense>
   );
 }

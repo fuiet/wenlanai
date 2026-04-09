@@ -39,17 +39,18 @@ export async function POST(request: NextRequest) {
     console.log('前5行数据:', JSON.stringify(jsonData.slice(0, 5), null, 2));
 
     // 解析数据并转换格式
-    const articles = jsonData.map((row: any, index: number) => {
+    const articles = jsonData.map((row: unknown) => {
+      const rowData = row as Record<string, unknown>;
       // 尝试识别列名（可能的变化）
-      const title = row['标题'] || row['title'] || row['文章标题'] || '';
-      const account = row['公众号'] || row['account'] || row['账号'] || row['账号名称'] || '';
-      const reads = parseInt(row['阅读量'] || row['reads'] || row['阅读数'] || '0') || 0;
-      const likes = parseInt(row['点赞数'] || row['likes'] || row['点赞'] || '0') || 0;
-      const shares = parseInt(row['分享数'] || row['shares'] || row['转发'] || '0') || 0;
-      const category = row['分类'] || row['category'] || row['标签'] || '其它';
-      const publishDate = row['发布日期'] || row['publish_date'] || row['日期'] || new Date().toISOString().split('T')[0];
-      const url = row['链接'] || row['url'] || row['文章链接'] || '';
-      const snippet = row['摘要'] || row['description'] || row['简介'] || '';
+      const title = (rowData['标题'] || rowData['title'] || rowData['文章标题'] || '') as string;
+      const account = (rowData['公众号'] || rowData['account'] || rowData['账号'] || rowData['账号名称'] || '') as string;
+      const reads = parseInt(String(rowData['阅读量'] || rowData['reads'] || rowData['阅读数'] || '0')) || 0;
+      const likes = parseInt(String(rowData['点赞数'] || rowData['likes'] || rowData['点赞'] || '0')) || 0;
+      const shares = parseInt(String(rowData['分享数'] || rowData['shares'] || rowData['转发'] || '0')) || 0;
+      const category = (rowData['分类'] || rowData['category'] || rowData['标签'] || '其它') as string;
+      const publishDate = (rowData['发布日期'] || rowData['publish_date'] || rowData['日期'] || new Date().toISOString().split('T')[0]) as string;
+      const url = (rowData['链接'] || rowData['url'] || rowData['文章链接'] || '') as string;
+      const snippet = (rowData['摘要'] || rowData['description'] || rowData['简介'] || '') as string;
 
       return {
         title,
