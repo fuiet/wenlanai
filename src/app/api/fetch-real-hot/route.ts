@@ -123,18 +123,18 @@ async function fetchFromZhihu(): Promise<Article[]> {
     
     const data = await response.json();
     
-    if (data.data) {
-      data.data.slice(0, 20).forEach((item: Record<string, unknown>) => {
-        const target = item.target || item;
+    if (data.data && Array.isArray(data.data)) {
+      (data.data as Array<Record<string, unknown>>).slice(0, 20).forEach((item) => {
+        const target = (item.target as Record<string, unknown>) || item;
         articles.push({
-          title: String(target.title || (target.question as Record<string, unknown>)?.title || '知乎热问'),
-          account: String((target.author as Record<string, unknown>)?.name || '知乎用户'),
+          title: String(target.title || ((target.question as Record<string, unknown>)?.title as string) || '知乎热问'),
+          account: String(((target.author as Record<string, unknown>)?.name as string) || '知乎用户'),
           reads: Math.floor(Math.random() * 100000) + 10000,
           likes: parseInt(String(target.voteup_count || '1000')),
           shares: parseInt(String(target.comment_count || '100')),
           category: '情感',
           source: '知乎',
-          url: String(target.url || (target.link as Record<string, unknown>)?.url || ''),
+          url: String(target.url || ((target.link as Record<string, unknown>)?.url as string) || ''),
           publish_date: new Date().toISOString().split('T')[0],
         });
       });

@@ -55,12 +55,23 @@ const categories = [
   '媒体', '出版', '写作', '文案', '设计',
 ];
 
-// 数据源配置
+// 数据源配置 - 按类别分组
 const dataSources = [
-  { id: 'sogou', name: '搜狗微信', icon: Globe, description: '微信公众号热文', enabled: true },
-  { id: 'toutiao', name: '今日头条', icon: Globe, description: '头条热榜', enabled: true },
-  { id: 'zhihu', name: '知乎', icon: Globe, description: '知乎热问', enabled: true },
-  { id: 'weibo', name: '微博热搜', icon: Globe, description: '微博热搜', enabled: true },
+  // 微信生态
+  { id: 'weixin', name: '微信搜一搜', icon: Globe, description: '微信公众号热文', category: '微信生态', enabled: true },
+  // 社交媒体
+  { id: 'weibo', name: '微博热搜', icon: Globe, description: '微博实时热搜', category: '社交媒体', enabled: true },
+  { id: 'toutiao', name: '今日头条', icon: Globe, description: '头条热榜', category: '社交媒体', enabled: true },
+  { id: 'zhihu', name: '知乎', icon: Globe, description: '知乎热问', category: '社交媒体', enabled: false },
+  // 数据平台
+  { id: 'newrank', name: '新榜', icon: Globe, description: '新榜热文榜单', category: '数据平台', enabled: true },
+  // 字节系
+  { id: 'xigua', name: '西瓜创作', icon: Globe, description: '西瓜图文热文', category: '字节系', enabled: true },
+  // 百度系
+  { id: 'baijiahao', name: '百度百家号', icon: Globe, description: '百家号热门文章', category: '百度系', enabled: true },
+  // 科技媒体
+  { id: '36kr', name: '36氪', icon: Globe, description: '科技创业资讯', category: '科技媒体', enabled: false },
+  { id: 'huxiu', name: '虎嗅', icon: Globe, description: '商业科技资讯', category: '科技媒体', enabled: false },
 ];
 
 export default function DailyHotPage() {
@@ -73,7 +84,7 @@ export default function DailyHotPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('全部');
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedSources, setSelectedSources] = useState<string[]>(['sogou', 'toutiao', 'zhihu', 'weibo']);
+  const [selectedSources, setSelectedSources] = useState<string[]>(['weixin', 'weibo', 'newrank', 'xigua', 'baijiahao']);
   const [activeTab, setActiveTab] = useState('hot');
   const [dataStats, setDataStats] = useState<{ total: number; sources: { [key: string]: number } }>({ total: 0, sources: {} });
 
@@ -112,13 +123,13 @@ export default function DailyHotPage() {
     }
   }, [selectedCategory, selectedDate]);
 
-  // 手动刷新 - 从真实数据源获取
+  // 手动刷新 - 从专业数据源获取
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     setError('');
     try {
-      // 使用新的真实数据源获取API
-      const response = await fetch('/api/fetch-real-hot', {
+      // 使用专业数据源获取API
+      const response = await fetch('/api/fetch-pro-hot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -131,7 +142,7 @@ export default function DailyHotPage() {
       if (result.success) {
         setDataStats({
           total: result.articleCount,
-          sources: { [selectedSources.join(',')]: result.articleCount }
+          sources: result.sourceStats || {}
         });
         setArticles(result.articles || []);
       } else {
@@ -340,33 +351,132 @@ export default function DailyHotPage() {
                 </div>
 
                 {/* 数据源选择 */}
-                <div className="space-y-3">
-                  <Label className="text-sm font-medium">选择数据源：</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {dataSources.map((source) => {
-                      const Icon = source.icon;
-                      const isSelected = selectedSources.includes(source.id);
-                      return (
-                        <div
-                          key={source.id}
-                          onClick={() => toggleSource(source.id)}
-                          className={`
-                            flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all
-                            ${isSelected 
-                              ? 'border-green-500 bg-green-50 text-green-700' 
-                              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}
-                          `}
-                        >
-                          <Checkbox 
-                            checked={isSelected} 
-                            onCheckedChange={() => toggleSource(source.id)}
-                            className="pointer-events-none"
-                          />
-                          <Icon className="h-4 w-4 pointer-events-none" />
-                          <span className="text-sm font-medium pointer-events-none">{source.name}</span>
-                        </div>
-                      );
-                    })}
+                <div className="space-y-4">
+                  <Label className="text-sm font-medium">选择数据源（可多选）：</Label>
+                  <div className="space-y-3">
+                    {/* 微信生态 */}
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-500 font-medium">微信生态</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {dataSources.filter(s => s.category === '微信生态').map((source) => {
+                          const Icon = source.icon;
+                          const isSelected = selectedSources.includes(source.id);
+                          return (
+                            <div
+                              key={source.id}
+                              onClick={() => toggleSource(source.id)}
+                              className={`
+                                flex items-center gap-2 p-2 rounded-lg border-2 cursor-pointer transition-all text-sm
+                                ${isSelected 
+                                  ? 'border-green-500 bg-green-50 text-green-700' 
+                                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}
+                              `}
+                            >
+                              <Checkbox 
+                                checked={isSelected} 
+                                onCheckedChange={() => toggleSource(source.id)}
+                                className="pointer-events-none h-4 w-4"
+                              />
+                              <Icon className="h-4 w-4 pointer-events-none" />
+                              <span className="pointer-events-none truncate">{source.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 社交媒体 */}
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-500 font-medium">社交媒体</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {dataSources.filter(s => s.category === '社交媒体').map((source) => {
+                          const Icon = source.icon;
+                          const isSelected = selectedSources.includes(source.id);
+                          return (
+                            <div
+                              key={source.id}
+                              onClick={() => toggleSource(source.id)}
+                              className={`
+                                flex items-center gap-2 p-2 rounded-lg border-2 cursor-pointer transition-all text-sm
+                                ${isSelected 
+                                  ? 'border-green-500 bg-green-50 text-green-700' 
+                                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}
+                              `}
+                            >
+                              <Checkbox 
+                                checked={isSelected} 
+                                onCheckedChange={() => toggleSource(source.id)}
+                                className="pointer-events-none h-4 w-4"
+                              />
+                              <Icon className="h-4 w-4 pointer-events-none" />
+                              <span className="pointer-events-none truncate">{source.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 内容平台 */}
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-500 font-medium">内容平台</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {dataSources.filter(s => s.category === '数据平台' || s.category === '字节系' || s.category === '百度系').map((source) => {
+                          const Icon = source.icon;
+                          const isSelected = selectedSources.includes(source.id);
+                          return (
+                            <div
+                              key={source.id}
+                              onClick={() => toggleSource(source.id)}
+                              className={`
+                                flex items-center gap-2 p-2 rounded-lg border-2 cursor-pointer transition-all text-sm
+                                ${isSelected 
+                                  ? 'border-green-500 bg-green-50 text-green-700' 
+                                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}
+                              `}
+                            >
+                              <Checkbox 
+                                checked={isSelected} 
+                                onCheckedChange={() => toggleSource(source.id)}
+                                className="pointer-events-none h-4 w-4"
+                              />
+                              <Icon className="h-4 w-4 pointer-events-none" />
+                              <span className="pointer-events-none truncate">{source.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 科技媒体 */}
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-500 font-medium">科技媒体</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {dataSources.filter(s => s.category === '科技媒体').map((source) => {
+                          const Icon = source.icon;
+                          const isSelected = selectedSources.includes(source.id);
+                          return (
+                            <div
+                              key={source.id}
+                              onClick={() => toggleSource(source.id)}
+                              className={`
+                                flex items-center gap-2 p-2 rounded-lg border-2 cursor-pointer transition-all text-sm
+                                ${isSelected 
+                                  ? 'border-green-500 bg-green-50 text-green-700' 
+                                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}
+                              `}
+                            >
+                              <Checkbox 
+                                checked={isSelected} 
+                                onCheckedChange={() => toggleSource(source.id)}
+                                className="pointer-events-none h-4 w-4"
+                              />
+                              <Icon className="h-4 w-4 pointer-events-none" />
+                              <span className="pointer-events-none truncate">{source.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -523,7 +633,7 @@ export default function DailyHotPage() {
       ) : (
         <div className="space-y-4">
           {filteredArticles.map((article, index) => (
-            <Card key={article.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-orange-500">
+            <Card key={`${article.id || article.title}-${index}`} className="hover:shadow-lg transition-shadow border-l-4 border-l-orange-500">
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
