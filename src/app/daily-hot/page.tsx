@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   TrendingUp,
   Eye,
@@ -21,7 +24,10 @@ import {
   RefreshCw,
   AlertCircle,
   Loader2,
-  Sparkles
+  Sparkles,
+  Database,
+  Globe,
+  BarChart3
 } from 'lucide-react';
 
 interface Article {
@@ -49,15 +55,27 @@ const categories = [
   '媒体', '出版', '写作', '文案', '设计',
 ];
 
+// 数据源配置
+const dataSources = [
+  { id: 'sogou', name: '搜狗微信', icon: Globe, description: '微信公众号热文', enabled: true },
+  { id: 'toutiao', name: '今日头条', icon: Globe, description: '头条热榜', enabled: true },
+  { id: 'zhihu', name: '知乎', icon: Globe, description: '知乎热问', enabled: true },
+  { id: 'weibo', name: '微博热搜', icon: Globe, description: '微博热搜', enabled: true },
+];
+
 export default function DailyHotPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState<'reads' | 'likes' | 'shares'>('reads');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('全部');
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedSources, setSelectedSources] = useState<string[]>(['sogou', 'toutiao', 'zhihu', 'weibo']);
+  const [activeTab, setActiveTab] = useState('hot');
+  const [dataStats, setDataStats] = useState<{ total: number; sources: { [key: string]: number } }>({ total: 0, sources: {} });
 
   // 获取爆款文章数据
   const fetchHotArticles = useCallback(async () => {
@@ -94,30 +112,103 @@ export default function DailyHotPage() {
     }
   }, [selectedCategory, selectedDate]);
 
-  // 手动刷新
+  // 手动刷新 - 从真实数据源获取
   const handleRefresh = useCallback(async () => {
-    setIsLoading(true);
+    setIsRefreshing(true);
+    setError('');
     try {
-      // 触发每日自动更新
-      const response = await fetch('/api/daily-auto-update', {
+      // 使用新的真实数据源获取API
+      const response = await fetch('/api/fetch-real-hot', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: selectedCategory !== '全部' ? selectedCategory : undefined,
+          sources: selectedSources
+        }),
       });
       const result = await response.json();
-      console.log('自动更新结果:', result);
-
-      // 更新完成后重新获取数据
-      await fetchHotArticles();
+      
+      if (result.success) {
+        setDataStats({
+          total: result.articleCount,
+          sources: { [selectedSources.join(',')]: result.articleCount }
+        });
+        setArticles(result.articles || []);
+      } else {
+        setError(result.error || '获取数据失败');
+      }
     } catch (err) {
       console.error('刷新数据失败:', err);
       setError('刷新失败，请稍后重试');
+    } finally {
+      setIsRefreshing(false);
       setIsLoading(false);
     }
-  }, [fetchHotArticles]);
+  }, [selectedCategory, selectedSources]);
 
-  // 页面加载时获取数据
+  // 切换数据源
+  const toggleSource = (sourceId: string) => {
+    setSelectedSources(prev => {
+      if (prev.includes(sourceId)) {
+        // 如果已选中，至少保留一个
+        if (prev.length > 1) {
+          return prev.filter(id => id !== sourceId);
+        }
+        return prev;
+      }
+      return [...prev, sourceId];
+    });
+  };
+
+  // 从数据库获取已有数据
+  const fetchFromDatabase = useCallback(async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const params = new URLSearchParams();
+      if (selectedCategory !== '全部') {
+        params.append('category', selectedCategory);
+      }
+      if (selectedDate) {
+        params.append('publish_date', selectedDate);
+      }
+      params.append('limit', '50');
+
+      const response = await fetch(`/api/hot-articles?${params.toString()}`);
+
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        setArticles(data.data);
+        setDataStats({ total: data.data.length, sources: {} });
+      } else {
+        setArticles([]);
+        setError('暂无爆款文章数据，请点击&quot;获取实时数据&quot;刷新');
+      }
+    } catch (err) {
+      console.error('获取爆款文章失败:', err);
+      setError('网络错误，无法加载数据');
+      setArticles([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedCategory, selectedDate]);
+
+  // Tab切换处理
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (tab === 'hot') {
+      fetchFromDatabase();
+    } else if (tab === 'realtime') {
+      handleRefresh();
+    }
+  };
+
+  // 页面加载时获取数据库已有数据
   useEffect(() => {
-    fetchHotArticles();
-  }, [fetchHotArticles]);
+    fetchFromDatabase();
+  }, [fetchFromDatabase]);
 
   // 过滤和排序文章
   const filteredArticles = articles
@@ -164,24 +255,14 @@ export default function DailyHotPage() {
           </h1>
           <p className="text-gray-600">实时更新低粉爆款，对标写作手法，快速创作出爆款文章</p>
         </div>
-        <Button
-          onClick={handleRefresh}
-          disabled={isLoading}
-          variant="outline"
-          className="flex items-center gap-2"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              刷新中...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4" />
-              刷新数据
-            </>
+        <div className="flex items-center gap-3">
+          {dataStats.total > 0 && (
+            <Badge variant="outline" className="text-sm">
+              <Database className="mr-1 h-4 w-4" />
+              数据库: {dataStats.total} 篇
+            </Badge>
           )}
-        </Button>
+        </div>
       </div>
 
       {/* 错误提示 */}
@@ -194,6 +275,127 @@ export default function DailyHotPage() {
         </Card>
       )}
 
+      {/* Tabs - 数据源选择 */}
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <TabsList>
+            <TabsTrigger value="hot" className="gap-2">
+              <Database className="h-4 w-4" />
+              数据库文章
+            </TabsTrigger>
+            <TabsTrigger value="realtime" className="gap-2">
+              <Globe className="h-4 w-4" />
+              获取实时数据
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="hot" className="mt-0">
+          {/* 数据库已有数据 - 显示刷新按钮 */}
+          <Card className="mb-6 border-blue-200 bg-blue-50">
+            <CardContent className="py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <Database className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-700">
+                    <p className="font-semibold mb-1">数据库文章</p>
+                    <p>显示已保存的爆款文章数据。如需获取最新数据，请切换到&quot;获取实时数据&quot;标签。</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      加载中...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      刷新数据库
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="realtime" className="mt-0">
+          {/* 实时数据获取 */}
+          <Card className="mb-6 border-green-200 bg-green-50">
+            <CardContent className="py-4">
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <Globe className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-green-700">
+                    <p className="font-semibold mb-1">实时数据获取</p>
+                    <p>从多个真实数据源获取最新爆款文章。勾选数据源后点击&quot;获取实时数据&quot;按钮。</p>
+                  </div>
+                </div>
+
+                {/* 数据源选择 */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">选择数据源：</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {dataSources.map((source) => {
+                      const Icon = source.icon;
+                      const isSelected = selectedSources.includes(source.id);
+                      return (
+                        <div
+                          key={source.id}
+                          onClick={() => toggleSource(source.id)}
+                          className={`
+                            flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all
+                            ${isSelected 
+                              ? 'border-green-500 bg-green-50 text-green-700' 
+                              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}
+                          `}
+                        >
+                          <Checkbox 
+                            checked={isSelected} 
+                            onCheckedChange={() => toggleSource(source.id)}
+                            className="pointer-events-none"
+                          />
+                          <Icon className="h-4 w-4 pointer-events-none" />
+                          <span className="text-sm font-medium pointer-events-none">{source.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 获取按钮 */}
+                <div className="flex items-center justify-end">
+                  <Button
+                    onClick={handleRefresh}
+                    disabled={isRefreshing || selectedSources.length === 0}
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                  >
+                    {isRefreshing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        获取中...
+                      </>
+                    ) : (
+                      <>
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        获取实时数据 ({selectedSources.length}个数据源)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
       {/* 数据来源提示 */}
       <Card className="mb-6 border-blue-200 bg-blue-50">
         <CardContent className="py-4">
@@ -201,7 +403,7 @@ export default function DailyHotPage() {
             <Search className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-blue-700">
               <p className="font-semibold mb-1">数据说明</p>
-              <p>爆款文章数据来自微信等平台，显示最近30天内的热门内容。点击&ldquo;刷新数据&rdquo;可手动触发更新。</p>
+              <p>爆款文章数据来自微信等平台，显示最近30天内的热门内容。点击&quot;刷新数据&quot;可手动触发更新。</p>
             </div>
           </div>
         </CardContent>
