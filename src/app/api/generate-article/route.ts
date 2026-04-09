@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     const client = new LLMClient(config, customHeaders);
 
     // 构建system prompt
-    const systemPrompt = prompt || `你是一位专业的自媒体写作专家，擅长创作爆款文章。你的写作风格：
+    const systemPrompt = prompt || `你是一位专业的自媒体写作专家，擅长创作公众号爆款文章。你的写作风格：
 1. 标题吸引人，能够抓住读者眼球
 2. 开头用故事或提问引发共鸣
 3. 内容实用、有深度、有价值
@@ -18,23 +18,30 @@ export async function POST(request: NextRequest) {
 5. 语言生动有趣，不枯燥
 6. 结尾有升华或总结
 
-请根据提供的标题，创作一篇高质量的爆款文章。文章格式使用Markdown。`;
+请根据提供的标题，创作一篇高质量的公众号文章。文章格式使用Markdown。`;
 
     const messages = [
       { role: 'system' as const, content: systemPrompt },
-      { 
+      {
         role: 'user' as const,
-        content: `请根据以下标题创作一篇完整的文章，使用Markdown格式：
+        content: `请根据以下标题创作一篇完整的公众号文章，使用Markdown格式，字数严格控制在1200字左右（±100字）：
 
 标题：${title}
 
 要求：
-1. 文章要有明确的段落结构
+1. 文章要有明确的段落结构，适合公众号阅读
 2. 使用二级标题、三级标题等分层
-3. 内容要有深度和价值
-4. 字数在1500-2500字之间
+3. 内容要有深度和价值，提供实用的观点或建议
+4. 字数严格控制在1200字左右（±100字），不要过短或过长
 5. 适当使用加粗、列表等Markdown格式
-6. 确保内容原创且有吸引力` 
+6. 确保内容原创且有吸引力
+7. 文章要可以直接发布，格式规范
+8. 结尾要有总结或升华
+
+文章结构建议：
+- 引人入胜的开头（100-150字）
+- 3-4个核心段落，每段300字左右
+- 总结升华（100-150字）`
       },
     ];
 
