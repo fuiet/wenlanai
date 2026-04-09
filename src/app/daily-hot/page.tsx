@@ -15,13 +15,13 @@ import {
   User,
   ArrowUp,
   ArrowDown,
-  Wand2,
   Copy,
   Search,
   Filter,
   RefreshCw,
   AlertCircle,
-  Loader2
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 
 interface Article {
@@ -388,9 +388,9 @@ export default function DailyHotPage() {
                   
                   {/* Action Buttons */}
                   <div className="flex flex-col gap-2">
-                    <Link href={`/smart-writing?title=${encodeURIComponent(article.title)}`}>
+                    <Link href={`/prompt-crafting?title=${encodeURIComponent(article.title)}`}>
                       <Button size="sm" className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
-                        <Wand2 className="mr-2 h-4 w-4" />
+                        <Sparkles className="mr-2 h-4 w-4" />
                         提示词打造
                       </Button>
                     </Link>

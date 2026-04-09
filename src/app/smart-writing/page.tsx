@@ -464,21 +464,27 @@ function SmartWritingContent() {
                     rehypePlugins={[rehypeHighlight]}
                     components={{
                       // 自定义图片组件，优化显示
-                      img: ({ src, alt, ...props }) => (
-                        <div className="my-4 flex justify-center">
-                          <Image
-                            src={typeof src === 'string' ? src : ''}
-                            alt={alt || '插图'}
-                            width={800}
-                            height={450}
-                            className="rounded-lg shadow-md"
-                            {...props}
-                          />
-                        </div>
-                      ),
+                      img: ({ src, alt, ...props }) => {
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                        const { width: _width, height: _height, ...restProps } = props;
+                        const imageAlt = typeof alt === 'string' ? alt : String(alt || '插图');
+                        return (
+                          <div className="my-4 flex justify-center">
+                            <Image
+                              src={typeof src === 'string' ? src : ''}
+                              alt={imageAlt}
+                              width={800}
+                              height={450}
+                              className="rounded-lg shadow-md"
+                              {...restProps}
+                            />
+                          </div>
+                        );
+                      },
                     }}
                   >
-                    {generatedContent}
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {generatedContent as any}
                   </ReactMarkdown>
                 </div>
               </>
