@@ -21,7 +21,8 @@ import {
   Check,
   Sparkles,
   Image as ImageIcon,
-  Globe
+  Globe,
+  Send
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -63,6 +64,8 @@ function SmartWritingContent() {
   const [generatedContent, setGeneratedContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
+  const [pushSuccess, setPushSuccess] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [searchEnabled, setSearchEnabled] = useState(true); // 默认启用联网搜索
@@ -176,6 +179,53 @@ function SmartWritingContent() {
     }
     // TODO: 实现保存到公众号草稿箱的功能
     alert('草稿已保存到公众号草稿箱');
+  };
+
+  // 一键推送到公众号草稿箱
+  const handlePushDraft = async () => {
+    if (!generatedContent.trim()) {
+      alert('没有可推送的内容');
+      return;
+    }
+
+    setIsPushing(true);
+    setPushSuccess(false);
+
+    try {
+      // 提取文章中的图片URL（用于推送到公众号）
+      const imageMatches = generatedContent.match(/!\[.*?\]\((.*?)\)/g) || [];
+      const pushImageUrls = imageMatches.map((match) => {
+        const urlMatch = match.match(/\((.*?)\)/);
+        return urlMatch ? urlMatch[1] : '';
+      }).filter(Boolean);
+
+      // 调用推送API
+      const response = await fetch('/api/push-to-wechat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: title || '未命名文章',
+          content: generatedContent,
+          imageUrls: pushImageUrls,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setPushSuccess(true);
+        alert(`推送成功！文章已发送到公众号草稿箱`);
+      } else {
+        alert(result.message || '推送失败，请稍后重试');
+      }
+    } catch (error) {
+      console.error('推送失败:', error);
+      alert('推送失败，请稍后重试');
+    } finally {
+      setIsPushing(false);
+    }
   };
 
   // 将图片随机插入到文章中
@@ -419,11 +469,21 @@ function SmartWritingContent() {
                 )}
               </Button>
               <Button
-                onClick={handleSaveDraft}
+                onClick={handlePushDraft}
+                disabled={isPushing}
                 className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
               >
-                <Save className="mr-2 h-4 w-4" />
-                保存草稿
+                {isPushing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    推送中...
+                  </>
+                ) : (
+                  <>
+                    <img src="/push-icon.png" alt="" className="mr-2 h-4 w-4" />
+                    {pushSuccess ? '已推送' : '一键推草稿'}
+                  </>
+                )}
               </Button>
             </div>
           )}
