@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   PenTool,
@@ -18,7 +20,8 @@ import {
   Copy,
   Check,
   Sparkles,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Globe
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -62,6 +65,7 @@ function SmartWritingContent() {
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
+  const [searchEnabled, setSearchEnabled] = useState(true); // 默认启用联网搜索
   const streamRef = useRef(false);
 
   // 从URL参数中获取标题和提示词
@@ -103,6 +107,7 @@ function SmartWritingContent() {
         body: JSON.stringify({
           title,
           prompt: selectedPromptData ? selectedPromptData.description : '',
+          searchEnabled, // 传递联网搜索开关
         }),
       });
 
@@ -319,7 +324,7 @@ function SmartWritingContent() {
               </CardTitle>
               <CardDescription>输入文章标题，AI 将根据标题生成内容</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <Input
                 placeholder="例如：为什么你总是遇不到对的人？这3个真相扎心了"
                 value={title}
@@ -331,6 +336,27 @@ function SmartWritingContent() {
                 }}
                 disabled={isGenerating}
               />
+              
+              {/* 联网搜索开关 */}
+              <div className="flex items-center justify-between rounded-lg border p-4 bg-gradient-to-r from-green-50 to-emerald-50">
+                <div className="flex items-center gap-3">
+                  <Globe className="h-5 w-5 text-green-600" />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="search-mode" className="text-sm font-medium cursor-pointer">
+                      实时联网搜索
+                    </Label>
+                    <p className="text-xs text-gray-500">
+                      {searchEnabled ? '已启用：AI将搜索最新数据生成准确文章' : '已禁用：使用通用知识生成文章'}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="search-mode"
+                  checked={searchEnabled}
+                  onCheckedChange={setSearchEnabled}
+                  className="data-[state=checked]:bg-green-500"
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -344,12 +370,12 @@ function SmartWritingContent() {
             {isGenerating ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                正在生成...
+                {searchEnabled ? '正在联网搜索并生成...' : '正在生成...'}
               </>
             ) : (
               <>
                 <Wand2 className="mr-2 h-5 w-5" />
-                开始生成文章
+                {searchEnabled ? '联网搜索并生成文章' : '生成文章'}
               </>
             )}
           </Button>
@@ -410,6 +436,7 @@ function SmartWritingContent() {
                 使用技巧
               </h3>
               <ul className="space-y-2 text-sm text-gray-600">
+                <li>• <strong>开启联网搜索</strong>：AI会搜索最新数据，生成内容更准确、更时效</li>
                 <li>• 选择合适的提示词，让文章更符合目标读者</li>
                 <li>• 标题要吸引人，包含关键词或引发好奇</li>
                 <li>• 文章会自动生成，字数控制在1200字左右</li>
