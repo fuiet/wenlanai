@@ -478,11 +478,20 @@ function SmartWritingContent() {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     推送中...
                   </>
-                ) : (
+                ) : pushSuccess ? (
                   <>
-                    <img src="/push-icon.png" alt="" className="mr-2 h-4 w-4" />
-                    {pushSuccess ? '已推送' : '一键推草稿'}
+                    <Check className="mr-2 h-4 w-4" />
+                    已推送
                   </>
+                ) : (
+                  <span className="flex items-center">
+                    <img 
+                      src="https://code.coze.cn/api/sandbox/coze_coding/file/proxy?expire_time=-1&file_path=assets%2Fimage.png&nonce=ac7b2e9a-b02e-4eb0-89b9-5b77ac909da2&project_id=7626301097891610687&sign=b8a8799c6cf1f5d4977ccbcc3759ef23592d9cac6dc1eb1f7786d0f635ee0d00" 
+                      alt="" 
+                      className="mr-2 h-4 w-4 object-contain" 
+                    />
+                    一键推送
+                  </span>
                 )}
               </Button>
             </div>
