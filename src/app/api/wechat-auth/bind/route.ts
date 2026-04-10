@@ -43,10 +43,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 验证AppID格式
-    if (!appId.startsWith('wx') || appId.length < 15) {
+    // 验证AppID格式（公众号或小程序的AppID）
+    if ((!appId.startsWith('wx') && !appId.startsWith('wxa')) || appId.length < 15) {
       return NextResponse.json(
-        { success: false, message: 'AppID格式不正确，应以wx开头' },
+        { success: false, message: 'AppID格式不正确，应以wx或wxa开头' },
         { status: 400 }
       );
     }
