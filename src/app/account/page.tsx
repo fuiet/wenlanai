@@ -5,17 +5,20 @@ import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plus, 
   CheckCircle, 
   XCircle, 
-  QrCode, 
+  Key,
   Trash2,
-  RefreshCw,
   ExternalLink,
   AlertCircle,
   Loader2,
-  UserCircle
+  UserCircle,
+  Shield
 } from 'lucide-react';
 
 interface WechatAccount {
@@ -37,9 +40,12 @@ export default function AccountPage() {
   const searchParams = useSearchParams();
   const [accounts, setAccounts] = useState<WechatAccount[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdding, setIsAdding] = useState(false);
-  const [configStatus, setConfigStatus] = useState<{ configured: boolean }>({ configured: false });
+  const [isBinding, setIsBinding] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  
+  // 绑定表单状态
+  const [bindAppId, setBindAppId] = useState('');
+  const [bindAppSecret, setBindAppSecret] = useState('');
 
   // 检查URL中的状态参数
   useEffect(() => {
@@ -71,7 +77,6 @@ export default function AccountPage() {
       
       if (result.success) {
         setAccounts(result.accounts || []);
-        setConfigStatus({ configured: result.configured });
       }
     } catch (error) {
       console.error('加载公众号失败:', error);
@@ -85,30 +90,42 @@ export default function AccountPage() {
     loadAccounts();
   }, []);
 
-  // 添加公众号（获取授权URL）
-  const handleAddAccount = async () => {
-    setIsAdding(true);
+  // 直接通过AppID和AppSecret绑定
+  const handleBindAccount = async () => {
+    if (!bindAppId.trim() || !bindAppSecret.trim()) {
+      setStatusMessage({ type: 'error', message: '请输入AppID和AppSecret' });
+      return;
+    }
+
+    setIsBinding(true);
+    setStatusMessage(null);
+
     try {
-      const response = await fetch('/api/wechat-auth/url', {
+      const response = await fetch('/api/wechat-auth/bind', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          redirectUri: `${window.location.origin}/api/wechat-auth/callback`,
+          appId: bindAppId.trim(),
+          appSecret: bindAppSecret.trim(),
         }),
       });
+
       const result = await response.json();
 
-      if (result.success && result.data?.authUrl) {
-        // 跳转到授权页面
-        window.location.href = result.data.authUrl;
+      if (result.success) {
+        setStatusMessage({ type: 'success', message: result.message || '绑定成功！' });
+        setBindAppId('');
+        setBindAppSecret('');
+        // 刷新列表
+        loadAccounts();
       } else {
-        setStatusMessage({ type: 'error', message: result.message || '获取授权链接失败' });
-        setIsAdding(false);
+        setStatusMessage({ type: 'error', message: result.message || '绑定失败' });
       }
     } catch (error) {
-      console.error('获取授权URL失败:', error);
-      setStatusMessage({ type: 'error', message: '获取授权链接失败' });
-      setIsAdding(false);
+      console.error('绑定失败:', error);
+      setStatusMessage({ type: 'error', message: '绑定失败，请稍后重试' });
+    } finally {
+      setIsBinding(false);
     }
   };
 
@@ -175,7 +192,7 @@ export default function AccountPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">公众号管理</h1>
-          <p className="text-gray-600">管理和授权您的微信公众号，用于一键推送文章到公众号草稿箱</p>
+          <p className="text-gray-600">绑定您的微信公众号，用于一键推送文章到公众号草稿箱</p>
         </div>
 
         {/* 状态消息 */}
@@ -204,147 +221,181 @@ export default function AccountPage() {
           </Card>
         )}
 
-        {/* 配置说明 */}
-        {!configStatus.configured && (
-          <Card className="mb-6 border-2 border-dashed border-orange-300 bg-orange-50">
-            <CardContent className="py-6">
-              <div className="flex items-start gap-4">
-                <div className="bg-orange-100 p-3 rounded-lg">
-                  <AlertCircle className="h-6 w-6 text-orange-600" />
+        {/* 绑定方式切换 */}
+        <Tabs defaultValue="manual" className="mb-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="manual" className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              AppID/AppSecret绑定
+            </TabsTrigger>
+            <TabsTrigger value="list" className="flex items-center gap-2">
+              <UserCircle className="h-4 w-4" />
+              已绑定公众号 ({accounts.length})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* 手动输入绑定 */}
+          <TabsContent value="manual">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-green-500" />
+                  输入公众号凭证绑定
+                </CardTitle>
+                <CardDescription>
+                  在微信公众平台获取AppID和AppSecret，输入以下信息完成绑定
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* 获取凭证说明 */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 mb-2">如何获取AppID和AppSecret？</h4>
+                  <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+                    <li>登录微信公众平台：<a href="https://mp.weixin.qq.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">https://mp.weixin.qq.com</a></li>
+                    <li>进入「设置与开发」→「基本配置」</li>
+                    <li>找到「AppID」和「AppSecret」</li>
+                    <li>如果未设置，需点击「设置」按钮设置管理员密码</li>
+                  </ol>
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-orange-900 mb-2">演示模式</h3>
-                  <p className="text-orange-700 text-sm mb-3">
-                    当前系统未配置微信第三方平台，已进入演示模式。您可以体验授权流程，
-                    但实际推送功能需要配置微信第三方平台才能使用。
-                  </p>
-                  <p className="text-orange-600 text-xs">
-                    配置环境变量：WECHAT_COMPONENT_APPID、WECHAT_COMPONENT_APP_SECRET
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* 添加公众号 */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              添加公众号
-            </CardTitle>
-            <CardDescription>
-              点击下方按钮，使用微信扫码授权您的公众号
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              onClick={handleAddAccount} 
-              disabled={isAdding}
-              className="bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
-            >
-              {isAdding ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  获取授权链接...
-                </>
-              ) : (
-                <>
-                  <QrCode className="mr-2 h-4 w-4" />
-                  微信扫码授权
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* 公众号列表 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserCircle className="h-5 w-5" />
-              已授权公众号
-            </CardTitle>
-            <CardDescription>
-              共 {accounts.length} 个公众号
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {accounts.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                <UserCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>暂无已授权的公众号</p>
-                <p className="text-sm">点击上方按钮扫码授权您的公众号</p>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {accounts.map((account) => (
-                  <div 
-                    key={account.id}
-                    className="flex items-center gap-4 p-4 border rounded-lg bg-white hover:shadow-md transition-shadow"
-                  >
-                    {/* 头像 */}
-                    <div className="flex-shrink-0">
-                      {account.head_img ? (
-                        <img 
-                          src={account.head_img} 
-                          alt={account.nickname}
-                          className="w-16 h-16 rounded-lg object-cover"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center">
-                          <UserCircle className="h-8 w-8 text-gray-400" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 信息 */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-gray-900 truncate">
-                          {account.nickname || '未命名公众号'}
-                        </h3>
-                        {getAccountTypeBadge(account)}
-                        {getVerifyStatus(account)}
-                      </div>
-                      <p className="text-sm text-gray-500 truncate">
-                        @{account.alias || account.user_name || account.app_id}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        AppID: {account.app_id}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        授权时间: {new Date(account.created_at).toLocaleDateString('zh-CN')}
-                      </p>
-                    </div>
-
-                    {/* 操作 */}
-                    <div className="flex items-center gap-2">
-                      {account.qrcode_url && (
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={account.qrcode_url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                            二维码
-                          </a>
-                        </Button>
-                      )}
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleDeleteAccount(account.app_id)}
-                        className="text-red-500 hover:text-red-600 hover:border-red-300"
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        解绑
-                      </Button>
-                    </div>
+                {/* 表单 */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="appId">AppID</Label>
+                    <Input
+                      id="appId"
+                      placeholder="例如：wx1234567890abcdef"
+                      value={bindAppId}
+                      onChange={(e) => setBindAppId(e.target.value)}
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-gray-500">以wx开头的公众号唯一标识符</p>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="appSecret">AppSecret</Label>
+                    <Input
+                      id="appSecret"
+                      type="password"
+                      placeholder="请输入AppSecret"
+                      value={bindAppSecret}
+                      onChange={(e) => setBindAppSecret(e.target.value)}
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-gray-500">公众号的密钥，请妥善保管</p>
+                  </div>
+
+                  <Button 
+                    onClick={handleBindAccount}
+                    disabled={isBinding || !bindAppId || !bindAppSecret}
+                    className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
+                  >
+                    {isBinding ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        绑定中...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        确认绑定
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 已绑定公众号列表 */}
+          <TabsContent value="list">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserCircle className="h-5 w-5" />
+                  已绑定公众号
+                </CardTitle>
+                <CardDescription>
+                  共 {accounts.length} 个公众号，绑定后可使用一键推送功能
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {accounts.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <UserCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>暂无已绑定的公众号</p>
+                    <p className="text-sm">切换到「AppID/AppSecret绑定」添加公众号</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {accounts.map((account) => (
+                      <div 
+                        key={account.id}
+                        className="flex items-center gap-4 p-4 border rounded-lg bg-white hover:shadow-md transition-shadow"
+                      >
+                        {/* 头像 */}
+                        <div className="flex-shrink-0">
+                          {account.head_img ? (
+                            <img 
+                              src={account.head_img} 
+                              alt={account.nickname}
+                              className="w-16 h-16 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center">
+                              <UserCircle className="h-8 w-8 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 信息 */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-gray-900 truncate">
+                              {account.nickname || '未命名公众号'}
+                            </h3>
+                            {getAccountTypeBadge(account)}
+                            {getVerifyStatus(account)}
+                          </div>
+                          <p className="text-sm text-gray-500 truncate">
+                            @{account.alias || account.user_name || account.app_id}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            AppID: {account.app_id}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            绑定时间: {new Date(account.created_at).toLocaleDateString('zh-CN')}
+                          </p>
+                        </div>
+
+                        {/* 操作 */}
+                        <div className="flex items-center gap-2">
+                          {account.qrcode_url && (
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={account.qrcode_url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-4 w-4 mr-1" />
+                                二维码
+                              </a>
+                            </Button>
+                          )}
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDeleteAccount(account.app_id)}
+                            className="text-red-500 hover:text-red-600 hover:border-red-300"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            解绑
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* 使用说明 */}
         <Card className="mt-6 bg-gradient-to-br from-blue-50 to-purple-50">
@@ -356,13 +407,13 @@ export default function AccountPage() {
               <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
                 <span className="text-xs font-bold text-primary">1</span>
               </div>
-              <p><strong>扫码授权：</strong>点击「微信扫码授权」按钮，使用公众号管理员微信扫码确认授权</p>
+              <p><strong>获取凭证：</strong>登录微信公众平台，在「设置与开发」→「基本配置」中获取AppID和AppSecret</p>
             </div>
             <div className="flex gap-3">
               <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
                 <span className="text-xs font-bold text-primary">2</span>
               </div>
-              <p><strong>授权成功：</strong>授权完成后，公众号将显示在「已授权公众号」列表中</p>
+              <p><strong>完成绑定：</strong>在下方输入AppID和AppSecret，点击确认绑定</p>
             </div>
             <div className="flex gap-3">
               <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
@@ -374,7 +425,7 @@ export default function AccountPage() {
               <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
                 <span className="text-xs font-bold text-primary">4</span>
               </div>
-              <p><strong>注意事项：</strong>每个公众号每年可授权给最多5个第三方平台</p>
+              <p><strong>安全提示：</strong>AppSecret是公众号的重要凭证，请勿泄露给他人</p>
             </div>
           </CardContent>
         </Card>
