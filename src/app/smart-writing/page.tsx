@@ -22,7 +22,8 @@ import {
   Sparkles,
   Image as ImageIcon,
   Globe,
-  Send
+  Send,
+  RotateCcw
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -179,6 +180,23 @@ function SmartWritingContent() {
     }
     // TODO: 实现保存到公众号草稿箱的功能
     alert('草稿已保存到公众号草稿箱');
+  };
+
+  // 清空内容，重新生成
+  const handleReset = () => {
+    if (!generatedContent.trim()) {
+      return; // 没有内容不需要清空
+    }
+    
+    // 确认是否清空
+    if (!confirm('确定要清空当前文章吗？清空后可以重新生成。')) {
+      return;
+    }
+    
+    setGeneratedContent('');
+    setImageUrls([]);
+    setPushSuccess(false);
+    setCopied(false);
   };
 
   // 一键推送到公众号草稿箱
@@ -433,6 +451,14 @@ function SmartWritingContent() {
           {/* Action Buttons */}
           {generatedContent && (
             <div className="flex gap-2">
+              <Button
+                onClick={handleReset}
+                variant="outline"
+                className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                清空重写
+              </Button>
               <Button
                 onClick={handleCopy}
                 variant="outline"
