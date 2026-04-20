@@ -193,7 +193,7 @@ export default function PromptLibraryPage() {
               创建提示词
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>创建新提示词</DialogTitle>
               <DialogDescription>创建专属的AI写作提示词，让文章更符合你的风格</DialogDescription>
@@ -257,7 +257,7 @@ export default function PromptLibraryPage() {
           </DialogContent>
         </Dialog>
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>编辑提示词</DialogTitle>
               <DialogDescription>修改提示词内容，让文章更符合你的风格</DialogDescription>
