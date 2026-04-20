@@ -30,37 +30,70 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github-dark.css';
 
-// 模拟提示词数据
-const mockPrompts = [
+// 提示词数据结构
+interface Prompt {
+  id: number;
+  name: string;
+  category: string;
+  description: string;
+  prompt: string;
+  tags: string[];
+  isCustom: boolean;
+}
+
+// 模拟默认提示词数据
+const defaultPrompts: Prompt[] = [
   {
     id: 1,
     name: '情感类爆款文案',
     category: '情感',
     description: '擅长写触动人心的情感类文章',
+    prompt: '你是一位情感类自媒体写作专家，擅长创作触动人心、引发共鸣的爆款文章。你的写作风格温暖细腻，善于通过生活细节和真实情感打动读者。请根据提供的主题，创作一篇具有强烈感染力的情感类文章，要求：1. 开头吸引人 2. 内容有共鸣 3. 结尾有升华',
+    tags: ['情感', '爆款', '共鸣'],
+    isCustom: false,
   },
   {
     id: 2,
     name: '职场成长导师',
     category: '职场',
     description: '职场经验分享，帮助职场人成长',
+    prompt: '你是一位资深职场导师，拥有10年以上HR和职场管理经验。你擅长分享实用的职场干货和成长建议，帮助职场人解决工作难题。请根据提供的主题，创作一篇有深度、有价值的职场类文章，要求：1. 案例真实 2. 方法实用 3. 建议可操作',
+    tags: ['职场', '干货', '成长'],
+    isCustom: false,
   },
   {
     id: 3,
     name: '星座运势分析师',
     category: '星座',
     description: '专业的星座分析和运势预测',
+    prompt: '你是一位专业的星座分析师，精通十二星座的性格特点和运势规律。你的分析准确、有趣，深受粉丝喜爱。请根据提供的星座和时间，进行详细的星座分析，包括：性格特点、近期运势、注意事项、建议等',
+    tags: ['星座', '运势', '分析'],
+    isCustom: false,
   },
   {
     id: 4,
+    name: '汽车评测专家',
+    category: '汽车',
+    description: '专业的汽车评测和购车建议',
+    prompt: '你是一位资深的汽车评测专家，拥有丰富的汽车行业经验。你擅长从消费者角度出发，提供客观、实用的汽车评测和购车建议。请根据提供的车型或需求，创作一篇专业的汽车类文章，要求：1. 数据准确 2. 分析客观 3. 建议实用',
+    tags: ['汽车', '评测', '购车'],
+    isCustom: false,
+  },
+  {
+    id: 5,
     name: '我的个人风格',
     category: '自定义',
     description: '自定义的写作风格',
+    prompt: '你是一位自媒体写作专家，擅长创作轻松、有趣、实用的内容。你的风格幽默风趣，善于用生动的比喻和案例。请根据主题创作内容。',
+    tags: ['自定义', '幽默', '实用'],
+    isCustom: true,
   },
 ];
 
 function SmartWritingContent() {
   const searchParams = useSearchParams();
   const [selectedPrompt, setSelectedPrompt] = useState('');
+  const [customPromptText, setCustomPromptText] = useState(''); // 从URL传递的自定义提示词
   const [title, setTitle] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -70,25 +103,51 @@ function SmartWritingContent() {
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [searchEnabled, setSearchEnabled] = useState(true); // 默认启用联网搜索
+  const [prompts, setPrompts] = useState<Prompt[]>(defaultPrompts);
   const streamRef = useRef(false);
+
+  // 从 localStorage 读取提示词数据
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('wenlan-prompts');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setPrompts(parsed);
+          }
+        } catch {
+          // 使用默认数据
+        }
+      }
+    }
+  }, []);
 
   // 从URL参数中获取标题和提示词
   useEffect(() => {
     const titleParam = searchParams.get('title');
     const promptParam = searchParams.get('prompt');
+    const promptIdParam = searchParams.get('promptId');
 
     if (titleParam) {
       setTitle(decodeURIComponent(titleParam));
     }
 
     if (promptParam) {
-      // 如果有提示词参数，设置为自定义提示词
-      const customPrompt = mockPrompts.find((p) => p.name === '我的个人风格');
-      if (customPrompt) {
-        setSelectedPrompt(customPrompt.id.toString());
+      // 从URL参数中获取自定义提示词内容
+      const decodedPrompt = decodeURIComponent(promptParam);
+      setCustomPromptText(decodedPrompt);
+      
+      // 如果URL中有promptId，尝试匹配并选中
+      if (promptIdParam) {
+        const id = parseInt(promptIdParam);
+        const foundPrompt = prompts.find(p => p.id === id);
+        if (foundPrompt) {
+          setSelectedPrompt(id.toString());
+        }
       }
     }
-  }, [searchParams]);
+  }, [searchParams, prompts]);
 
   const handleGenerate = async () => {
     if (!title.trim()) {
@@ -101,7 +160,12 @@ function SmartWritingContent() {
     streamRef.current = true;
 
     try {
-      const selectedPromptData = mockPrompts.find((p) => p.id === parseInt(selectedPrompt));
+      // 优先使用从URL传递的自定义提示词，否则使用选中的提示词
+      const promptToUse = customPromptText || (
+        selectedPrompt 
+          ? (prompts.find((p) => p.id === parseInt(selectedPrompt))?.prompt || '')
+          : ''
+      );
 
       const response = await fetch('/api/generate-article', {
         method: 'POST',
@@ -110,7 +174,7 @@ function SmartWritingContent() {
         },
         body: JSON.stringify({
           title,
-          prompt: selectedPromptData ? selectedPromptData.description : '',
+          prompt: promptToUse,
           searchEnabled, // 传递联网搜索开关
         }),
       });
@@ -368,7 +432,7 @@ function SmartWritingContent() {
                   <SelectValue placeholder="选择提示词" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockPrompts.map((prompt) => (
+                  {prompts.map((prompt) => (
                     <SelectItem key={prompt.id} value={prompt.id.toString()}>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-xs">
@@ -380,6 +444,12 @@ function SmartWritingContent() {
                   ))}
                 </SelectContent>
               </Select>
+              {customPromptText && (
+                <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                  <p className="text-xs text-purple-600 font-medium mb-1">已加载自定义提示词</p>
+                  <p className="text-xs text-gray-600 line-clamp-2">{customPromptText}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
