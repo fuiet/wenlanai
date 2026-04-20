@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -88,7 +88,22 @@ export default function PromptLibraryPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
-  const [prompts, setPrompts] = useState<Prompt[]>(mockPrompts);
+  
+  // 从 localStorage 读取保存的提示词，如果没有则使用默认数据
+  const [prompts, setPrompts] = useState<Prompt[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('wenlan-prompts');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return mockPrompts;
+        }
+      }
+    }
+    return mockPrompts;
+  });
+  
   const [newPrompt, setNewPrompt] = useState({
     name: '',
     category: '自定义',
@@ -96,6 +111,13 @@ export default function PromptLibraryPage() {
     prompt: '',
     tags: '',
   });
+
+  // 当 prompts 变化时，同步保存到 localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('wenlan-prompts', JSON.stringify(prompts));
+    }
+  }, [prompts]);
 
   const filteredPrompts = prompts.filter(prompt => {
     const matchesSearch = prompt.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -173,7 +195,9 @@ export default function PromptLibraryPage() {
 
   const handleDeletePrompt = (id: number) => {
     if (confirm('确定要删除这个提示词吗？')) {
-      setPrompts(prompts.filter(p => p.id !== id));
+      const updatedPrompts = prompts.filter(p => p.id !== id);
+      setPrompts(updatedPrompts);
+      localStorage.setItem('wenlan-prompts', JSON.stringify(updatedPrompts));
     }
   };
 
