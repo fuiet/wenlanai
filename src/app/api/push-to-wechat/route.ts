@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // 延迟初始化Supabase
-let supabase: ReturnType<typeof createSupabaseClient> | null = null;
-
-function createSupabaseClient() {
+const createSupabaseClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || '';
   
@@ -11,6 +9,7 @@ function createSupabaseClient() {
     return null;
   }
   
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createClient } = require('@supabase/supabase-js');
   return createClient(supabaseUrl, supabaseServiceKey);
 }
@@ -59,7 +58,7 @@ async function getAuthorizedAccount(preferredAppId?: string) {
       return null;
     }
     
-    let query = supabaseClient
+    const query = supabaseClient
       .from('wechat_accounts')
       .select('*')
       .eq('is_authorized', true)

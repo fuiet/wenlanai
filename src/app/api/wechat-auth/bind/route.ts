@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // 延迟初始化Supabase
-function createSupabaseClient() {
+const createSupabaseClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || '';
   
@@ -9,6 +9,7 @@ function createSupabaseClient() {
     return null;
   }
   
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createClient } = require('@supabase/supabase-js');
   return createClient(supabaseUrl, supabaseServiceKey);
 }
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
     // 调用微信API验证凭证并获取公众号信息
     const verifyUrl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appId}&secret=${appSecret}`;
     
-    let accountInfo = {
+    const accountInfo = {
       app_id: appId,
       authorizer_appid: appId,
       nickname: '公众号',

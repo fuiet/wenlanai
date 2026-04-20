@@ -51,6 +51,56 @@ interface Prompt {
   isCustom: boolean;
 }
 
+// 字数统计指示器组件
+function WordCountIndicator({ actual, target, minDiff }: { actual: number; target: number; minDiff: number }) {
+  const diff = actual - target;
+  const isInRange = Math.abs(diff) <= minDiff;
+  const isOver = diff > 0;
+  const isUnder = diff < 0;
+  
+  let colorClass = 'bg-green-500';
+  let text = '符合要求';
+  
+  if (!isInRange) {
+    if (isOver) {
+      colorClass = 'bg-red-500';
+      text = `超出${diff}字`;
+    } else {
+      colorClass = 'bg-yellow-500';
+      text = `差${Math.abs(diff)}字`;
+    }
+  }
+  
+  return (
+    <Badge className={`${colorClass} text-white text-sm`}>
+      {text}
+    </Badge>
+  );
+}
+
+// AI检测结果类型
+interface ParagraphDetect {
+  index: number;
+  content: string;
+  source: string;
+  aiFeatures: string[];
+  confidence: number;
+  reasons: string[];
+  suggestions: string[];
+}
+
+interface DetectResult {
+  aiRate: number;
+  riskLevel: string;
+  paragraphCount: number;
+  totalParagraphs: number;
+  aiParagraphs: number;
+  humanParagraphs: number;
+  summary: string;
+  confidence: number;
+  paragraphs: ParagraphDetect[];
+}
+
 // 模拟默认提示词数据
 const defaultPrompts: Prompt[] = [
   {
@@ -117,7 +167,7 @@ function SmartWritingContent() {
   
   // AI检测相关状态
   const [isDetecting, setIsDetecting] = useState(false);
-  const [detectResult, setDetectResult] = useState<any>(null);
+  const [detectResult, setDetectResult] = useState<DetectResult | null>(null);
   const [isHumanizing, setIsHumanizing] = useState(false);
   const [showDetectPanel, setShowDetectPanel] = useState(false);
   
@@ -515,6 +565,7 @@ function SmartWritingContent() {
     }
 
     setIsHumanizing(true);
+    setGeneratedContent(''); // 清空当前内容显示改写进度
 
     try {
       const response = await fetch('/api/humanize-content', {
@@ -529,17 +580,18 @@ function SmartWritingContent() {
       });
 
       const data = await response.json();
+      console.log('Humanize response:', data);
 
-      if (data.success) {
+      if (data.success && data.rewrittenContent) {
         // 更新文章内容
         setGeneratedContent(data.rewrittenContent);
-        alert(`改写完成！人类化程度：${data.humanizationRate}%\n改写了${data.changedParagraphs}个段落`);
+        alert(`改写完成！\n人类化程度：${data.humanizationScore}%\n改写了${data.changedParagraphs}个段落`);
         
         // 重新检测
         setDetectResult(null);
-        await handleDetectAI();
+        setTimeout(() => handleDetectAI(), 500);
       } else {
-        alert(data.error || '改写失败，请重试');
+        alert(data.error || data.hint || '改写失败，请重试');
       }
     } catch (error) {
       console.error('降低AI率失败:', error);
@@ -565,7 +617,7 @@ AI段落：${detectResult.aiParagraphs}
 总体评估：${detectResult.summary}
 
 段落详情：
-${detectResult.paragraphs?.map((p: any) => `
+${detectResult.paragraphs?.map((p: DetectResult['paragraphs'][0]) => `
 【段落${p.index + 1}】
 来源：${p.source}
 置信度：${p.confidence}%
@@ -944,14 +996,15 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                   </TabsList>
                   
                   <TabsContent value="article" className="mt-3">
-                    {/* 字数统计 */}
+                    {/* 字数统计 - 计算实际中文字符数 */}
                     <div className="mb-4 flex items-center gap-2">
                       <Badge variant="outline" className="text-sm">
-                        字数: {generatedContent.length}
+                        实际字数: {generatedContent.replace(/[#*`_\[\]()]/g, '').length}
                       </Badge>
                       <Badge variant="outline" className="text-sm">
-                        目标: 1200字
+                        目标: 1000±100字
                       </Badge>
+                      <WordCountIndicator actual={generatedContent.replace(/[#*`_\[\]()]/g, '').length} target={1000} minDiff={100} />
                       {imageUrls.length > 0 && (
                         <Badge variant="outline" className="text-sm">
                           插图: {imageUrls.length}张
@@ -1054,7 +1107,7 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                         {/* 段落详情 */}
                         <div className="space-y-3">
                           <h4 className="font-medium text-gray-700">段落详情</h4>
-                          {detectResult.paragraphs?.map((p: any) => (
+                          {detectResult.paragraphs?.map((p: DetectResult['paragraphs'][0]) => (
                             <div 
                               key={p.index} 
                               className={`rounded-lg border p-3 ${
