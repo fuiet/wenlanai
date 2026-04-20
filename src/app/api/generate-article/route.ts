@@ -116,7 +116,7 @@ ${searchContext}
     // 创建流式响应
     const encoder = new TextEncoder();
     const stream = llmClient.stream(messages, {
-      model: 'doubao-seed-2-0-pro-260215', // 使用最新的旗舰模型
+      model: 'deepseek-v3-2-251201', // 使用 DeepSeek V3 模型
       temperature: 0.8,
       streaming: true,
     });
