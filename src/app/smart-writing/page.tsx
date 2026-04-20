@@ -10,6 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   PenTool,
   Wand2,
@@ -23,7 +26,14 @@ import {
   Image as ImageIcon,
   Globe,
   Send,
-  RotateCcw
+  RotateCcw,
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  Bot,
+  UserCheck
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -104,6 +114,13 @@ function SmartWritingContent() {
   const [copied, setCopied] = useState(false);
   const [searchEnabled, setSearchEnabled] = useState(true); // 默认启用联网搜索
   const [prompts, setPrompts] = useState<Prompt[]>(defaultPrompts);
+  
+  // AI检测相关状态
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [detectResult, setDetectResult] = useState<any>(null);
+  const [isHumanizing, setIsHumanizing] = useState(false);
+  const [showDetectPanel, setShowDetectPanel] = useState(false);
+  
   const streamRef = useRef(false);
 
   // 从 localStorage 读取提示词数据
@@ -447,6 +464,120 @@ function SmartWritingContent() {
     }
   };
 
+  // AI检测
+  const handleDetectAI = async () => {
+    if (!generatedContent.trim()) {
+      alert('请先生成文章内容');
+      return;
+    }
+
+    setIsDetecting(true);
+    setDetectResult(null);
+    setShowDetectPanel(true);
+
+    try {
+      const response = await fetch('/api/detect-ai-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: generatedContent,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setDetectResult(data);
+      } else {
+        alert(data.error || '检测失败，请重试');
+        setShowDetectPanel(false);
+      }
+    } catch (error) {
+      console.error('AI检测失败:', error);
+      alert('检测失败，请稍后重试');
+      setShowDetectPanel(false);
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
+  // 降低AI率
+  const handleHumanize = async () => {
+    if (!generatedContent.trim()) {
+      alert('请先生成文章内容');
+      return;
+    }
+
+    if (!confirm('确定要降低AI率吗？这将改写文章中AI特征明显的段落。')) {
+      return;
+    }
+
+    setIsHumanizing(true);
+
+    try {
+      const response = await fetch('/api/humanize-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: generatedContent,
+          detectResult,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // 更新文章内容
+        setGeneratedContent(data.rewrittenContent);
+        alert(`改写完成！人类化程度：${data.humanizationRate}%\n改写了${data.changedParagraphs}个段落`);
+        
+        // 重新检测
+        setDetectResult(null);
+        await handleDetectAI();
+      } else {
+        alert(data.error || '改写失败，请重试');
+      }
+    } catch (error) {
+      console.error('降低AI率失败:', error);
+      alert('改写失败，请稍后重试');
+    } finally {
+      setIsHumanizing(false);
+    }
+  };
+
+  // 复制检测报告
+  const handleCopyReport = () => {
+    if (!detectResult) return;
+    
+    const report = `
+AI内容检测报告
+================
+综合AI率：${detectResult.aiRate}%
+风险等级：${detectResult.riskLevel}
+总段落数：${detectResult.totalParagraphs}
+AI段落：${detectResult.aiParagraphs}
+人工段落：${detectResult.humanParagraphs}
+
+总体评估：${detectResult.summary}
+
+段落详情：
+${detectResult.paragraphs?.map((p: any) => `
+【段落${p.index + 1}】
+来源：${p.source}
+置信度：${p.confidence}%
+原因：${p.reasons?.join('、') || '无'}
+${p.suggestions ? '建议：' + p.suggestions : ''}
+`).join('\n')}
+    `.trim();
+    
+    navigator.clipboard.writeText(report);
+    alert('报告已复制到剪贴板');
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Page Header */}
@@ -637,6 +768,113 @@ function SmartWritingContent() {
             </div>
           )}
 
+          {/* AI检测区域 */}
+          {generatedContent && (
+            <Card className="border-2 border-gradient-to-r from-cyan-500 to-blue-500 bg-gradient-to-r from-cyan-50 to-blue-50">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Shield className="h-5 w-5 text-cyan-600" />
+                  AI检测
+                  {detectResult && (
+                    <Badge className={`ml-2 ${
+                      detectResult.riskLevel === '高风险' ? 'bg-red-500' :
+                      detectResult.riskLevel === '中风险' ? 'bg-yellow-500' : 'bg-green-500'
+                    } text-white`}>
+                      {detectResult.aiRate}% AI率
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-xs text-gray-500">
+                  检测文章AI特征，标记可疑段落，降低AI率让文章更自然
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleDetectAI}
+                    disabled={isDetecting || isHumanizing}
+                    variant="outline"
+                    className="flex-1 border-cyan-300 text-cyan-700 hover:bg-cyan-100"
+                  >
+                    {isDetecting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        检测中...
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="mr-2 h-4 w-4" />
+                        AI检测
+                      </>
+                    )}
+                  </Button>
+                  {detectResult && detectResult.aiRate > 30 && (
+                    <Button
+                      onClick={handleHumanize}
+                      disabled={isDetecting || isHumanizing}
+                      className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                    >
+                      {isHumanizing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          改写中...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          降低AI率
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+                
+                {/* 快速检测结果 */}
+                {showDetectPanel && (
+                  <div className="mt-3 rounded-lg bg-white/80 p-3">
+                    {isDetecting ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-6 w-6 animate-spin text-cyan-500" />
+                        <span className="ml-2 text-sm text-gray-500">正在分析文章...</span>
+                      </div>
+                    ) : detectResult ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">综合AI率</span>
+                          <span className={`font-bold ${
+                            detectResult.aiRate > 60 ? 'text-red-500' :
+                            detectResult.aiRate > 30 ? 'text-yellow-500' : 'text-green-500'
+                          }`}>
+                            {detectResult.aiRate}%
+                          </span>
+                        </div>
+                        <Progress 
+                          value={detectResult.aiRate} 
+                          className={`h-2 ${
+                            detectResult.aiRate > 60 ? '[&>div]:bg-red-500' :
+                            detectResult.aiRate > 30 ? '[&>div]:bg-yellow-500' : '[&>div]:bg-green-500'
+                          }`}
+                        />
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span>AI段落: {detectResult.aiParagraphs}</span>
+                          <span>|</span>
+                          <span>人工段落: {detectResult.humanParagraphs}</span>
+                          <span>|</span>
+                          <span className={`font-medium ${
+                            detectResult.riskLevel === '高风险' ? 'text-red-500' :
+                            detectResult.riskLevel === '中风险' ? 'text-yellow-500' : 'text-green-500'
+                          }`}>
+                            {detectResult.riskLevel}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Tips */}
           <Card className="bg-gradient-to-br from-blue-50 to-purple-50 border-2">
             <CardContent className="py-6">
@@ -678,51 +916,230 @@ function SmartWritingContent() {
           <CardContent>
             {generatedContent ? (
               <>
-                {/* 字数统计 */}
-                <div className="mb-4 flex items-center gap-2">
-                  <Badge variant="outline" className="text-sm">
-                    字数: {generatedContent.length}
-                  </Badge>
-                  <Badge variant="outline" className="text-sm">
-                    目标: 1200字
-                  </Badge>
-                  {imageUrls.length > 0 && (
-                    <Badge variant="outline" className="text-sm">
-                      插图: {imageUrls.length}张
-                    </Badge>
-                  )}
-                </div>
+                {/* Tabs for article and detection report */}
+                <Tabs value={showDetectPanel && detectResult ? 'detect' : 'article'} onValueChange={(v) => {
+                  if (v === 'detect') {
+                    if (!detectResult) {
+                      handleDetectAI();
+                    } else {
+                      setShowDetectPanel(true);
+                    }
+                  } else {
+                    setShowDetectPanel(false);
+                  }
+                }} className="mb-4">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="article">文章内容</TabsTrigger>
+                    <TabsTrigger value="detect">
+                      AI检测报告
+                      {detectResult && (
+                        <Badge className={`ml-1 ${
+                          detectResult.aiRate > 60 ? 'bg-red-500' :
+                          detectResult.aiRate > 30 ? 'bg-yellow-500' : 'bg-green-500'
+                        } text-white text-xs`}>
+                          {detectResult.aiRate}%
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="article" className="mt-3">
+                    {/* 字数统计 */}
+                    <div className="mb-4 flex items-center gap-2">
+                      <Badge variant="outline" className="text-sm">
+                        字数: {generatedContent.length}
+                      </Badge>
+                      <Badge variant="outline" className="text-sm">
+                        目标: 1200字
+                      </Badge>
+                      {imageUrls.length > 0 && (
+                        <Badge variant="outline" className="text-sm">
+                          插图: {imageUrls.length}张
+                        </Badge>
+                      )}
+                    </div>
 
-                {/* Markdown内容 */}
-                <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:text-center prose-headings:font-bold prose-h1:text-center prose-h1:font-bold">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeHighlight]}
-                    components={{
-                      // 自定义图片组件，优化显示
-                      img: ({ src, alt, ...props }) => {
-                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const { width: _width, height: _height, ...restProps } = props;
-                        const imageAlt = typeof alt === 'string' ? alt : String(alt || '插图');
-                        return (
-                          <div className="my-4 flex justify-center">
-                            <Image
-                              src={typeof src === 'string' ? src : ''}
-                              alt={imageAlt}
-                              width={800}
-                              height={450}
-                              className="rounded-lg shadow-md"
-                              {...restProps}
-                            />
+                    {/* Markdown内容 */}
+                    <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:text-center prose-headings:font-bold prose-h1:text-center prose-h1:font-bold">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeHighlight]}
+                        components={{
+                          // 自定义图片组件，优化显示
+                          img: ({ src, alt, ...props }) => {
+                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                            const { width: _width, height: _height, ...restProps } = props;
+                            const imageAlt = typeof alt === 'string' ? alt : String(alt || '插图');
+                            return (
+                              <div className="my-4 flex justify-center">
+                                <Image
+                                  src={typeof src === 'string' ? src : ''}
+                                  alt={imageAlt}
+                                  width={800}
+                                  height={450}
+                                  className="rounded-lg shadow-md"
+                                  {...restProps}
+                                />
+                              </div>
+                            );
+                          },
+                        }}
+                      >
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                        {generatedContent as any}
+                      </ReactMarkdown>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="detect" className="mt-3">
+                    {isDetecting ? (
+                      <div className="flex flex-col items-center justify-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
+                        <p className="mt-3 text-sm text-gray-500">正在分析文章AI特征...</p>
+                      </div>
+                    ) : detectResult ? (
+                      <ScrollArea className="h-[500px] pr-4">
+                        {/* 检测概览 */}
+                        <div className="mb-4 rounded-lg bg-gradient-to-r from-gray-50 to-gray-100 p-4">
+                          <div className="mb-3 flex items-center justify-between">
+                            <h3 className="font-semibold">综合AI检测报告</h3>
+                            <Button size="sm" variant="ghost" onClick={handleCopyReport}>
+                              <Copy className="mr-1 h-3 w-3" />
+                              复制报告
+                            </Button>
                           </div>
-                        );
-                      },
-                    }}
-                  >
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {generatedContent as any}
-                  </ReactMarkdown>
-                </div>
+                          
+                          <div className="mb-4 text-center">
+                            <div className={`text-4xl font-bold ${
+                              detectResult.aiRate > 60 ? 'text-red-500' :
+                              detectResult.aiRate > 30 ? 'text-yellow-500' : 'text-green-500'
+                            }`}>
+                              {detectResult.aiRate}%
+                            </div>
+                            <p className="text-sm text-gray-500">综合AI率</p>
+                          </div>
+                          
+                          <Progress 
+                            value={detectResult.aiRate} 
+                            className={`mb-4 h-3 ${
+                              detectResult.aiRate > 60 ? '[&>div]:bg-red-500' :
+                              detectResult.aiRate > 30 ? '[&>div]:bg-yellow-500' : '[&>div]:bg-green-500'
+                            }`}
+                          />
+                          
+                          <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                            <div className="rounded bg-white p-2">
+                              <div className="text-lg font-bold text-red-500">{detectResult.aiParagraphs}</div>
+                              <div className="text-xs text-gray-500">AI段落</div>
+                            </div>
+                            <div className="rounded bg-white p-2">
+                              <div className="text-lg font-bold text-green-500">{detectResult.humanParagraphs}</div>
+                              <div className="text-xs text-gray-500">人工段落</div>
+                            </div>
+                            <div className={`rounded bg-white p-2 ${
+                              detectResult.riskLevel === '高风险' ? 'ring-2 ring-red-500' :
+                              detectResult.riskLevel === '中风险' ? 'ring-2 ring-yellow-500' : 'ring-2 ring-green-500'
+                            }`}>
+                              <div className={`text-lg font-bold ${
+                                detectResult.riskLevel === '高风险' ? 'text-red-500' :
+                                detectResult.riskLevel === '中风险' ? 'text-yellow-500' : 'text-green-500'
+                              }`}>{detectResult.riskLevel}</div>
+                              <div className="text-xs text-gray-500">风险等级</div>
+                            </div>
+                          </div>
+                          
+                          <p className="mt-3 text-sm text-gray-600">{detectResult.summary}</p>
+                        </div>
+                        
+                        {/* 段落详情 */}
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-gray-700">段落详情</h4>
+                          {detectResult.paragraphs?.map((p: any) => (
+                            <div 
+                              key={p.index} 
+                              className={`rounded-lg border p-3 ${
+                                p.source === 'AI生成' ? 'border-red-200 bg-red-50' :
+                                p.source === '人工写作' ? 'border-green-200 bg-green-50' :
+                                'border-yellow-200 bg-yellow-50'
+                              }`}
+                            >
+                              <div className="mb-2 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Badge 
+                                    className={`text-xs ${
+                                      p.source === 'AI生成' ? 'bg-red-500' :
+                                      p.source === '人工写作' ? 'bg-green-500' : 'bg-yellow-500'
+                                    } text-white`}
+                                  >
+                                    {p.source === 'AI生成' && <Bot className="mr-1 h-3 w-3" />}
+                                    {p.source === '人工写作' && <UserCheck className="mr-1 h-3 w-3" />}
+                                    {p.source}
+                                  </Badge>
+                                  <span className="text-xs text-gray-500">
+                                    置信度: {p.confidence}%
+                                  </span>
+                                </div>
+                                <span className="text-xs text-gray-400">
+                                  段落 {p.index + 1}
+                                </span>
+                              </div>
+                              
+                              <p className="mb-2 text-sm text-gray-700 line-clamp-3">
+                                {p.content?.substring(0, 150)}
+                                {p.content?.length > 150 && '...'}
+                              </p>
+                              
+                              {p.reasons && p.reasons.length > 0 && (
+                                <div className="mb-2">
+                                  <span className="text-xs font-medium text-gray-500">AI特征: </span>
+                                  <span className="text-xs text-red-600">
+                                    {p.reasons.join('、')}
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {p.suggestions && (
+                                <div className="rounded bg-white/50 p-2">
+                                  <span className="text-xs font-medium text-gray-500">修改建议: </span>
+                                  <span className="text-xs text-gray-600">{p.suggestions}</span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* 降低AI率按钮 */}
+                        {detectResult.aiRate > 30 && (
+                          <Button
+                            onClick={handleHumanize}
+                            disabled={isHumanizing}
+                            className="mt-4 w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                            size="lg"
+                          >
+                            {isHumanizing ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                正在改写文章...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                一键降低AI率
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </ScrollArea>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <Shield className="h-12 w-12 text-gray-300" />
+                        <p className="mt-3 text-sm text-gray-500">
+                          点击左侧「AI检测」按钮<br/>开始检测文章AI特征
+                        </p>
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </>
             ) : (
               <div className="flex h-96 items-center justify-center text-center text-gray-400">
