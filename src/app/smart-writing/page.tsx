@@ -171,6 +171,20 @@ function SmartWritingContent() {
   const [isHumanizing, setIsHumanizing] = useState(false);
   const [showDetectPanel, setShowDetectPanel] = useState(false);
   
+  // 人类化改写相关状态
+  const [humanizeResult, setHumanizeResult] = useState<{
+    originalContent: string;
+    rewrittenContent: string;
+    changes: Array<{
+      index: number;
+      original: string;
+      rewritten: string;
+      changes: string[];
+    }>;
+    humanizationScore: number;
+    changedParagraphs: number;
+  } | null>(null);
+  
   const streamRef = useRef(false);
 
   // 从 localStorage 读取提示词数据
@@ -284,6 +298,36 @@ function SmartWritingContent() {
 
         // 文章生成完成后，自动生成图片
         if (fullContent) {
+          // 计算当前字数
+          const charCount = fullContent.replace(/[#*`_\[\]()>~]/g, '').trim().length;
+          
+          // 如果字数超出1000±100范围，自动精简
+          if (charCount > 1100) {
+            console.log(`文章字数${charCount}超出范围，自动精简...`);
+            try {
+              const trimResponse = await fetch('/api/trim-article', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  content: fullContent,
+                  targetCount: 1000,
+                  tolerance: 100
+                }),
+              });
+              
+              if (trimResponse.ok) {
+                const trimData = await trimResponse.json();
+                if (trimData.success && trimData.content) {
+                  fullContent = trimData.content;
+                  console.log(`精简完成: ${trimData.originalCount}字 → ${trimData.finalCount}字`);
+                }
+              }
+            } catch (trimError) {
+              console.error('自动精简失败:', trimError);
+            }
+          }
+          
+          setGeneratedContent(fullContent);
           await handleAutoGenerateImage(fullContent);
         }
       }
@@ -560,12 +604,7 @@ function SmartWritingContent() {
       return;
     }
 
-    if (!confirm('确定要降低AI率吗？这将改写文章中AI特征明显的段落。')) {
-      return;
-    }
-
     setIsHumanizing(true);
-    setGeneratedContent(''); // 清空当前内容显示改写进度
 
     try {
       const response = await fetch('/api/humanize-content', {
@@ -575,7 +614,6 @@ function SmartWritingContent() {
         },
         body: JSON.stringify({
           content: generatedContent,
-          detectResult,
         }),
       });
 
@@ -583,13 +621,18 @@ function SmartWritingContent() {
       console.log('Humanize response:', data);
 
       if (data.success && data.rewrittenContent) {
-        // 更新文章内容
-        setGeneratedContent(data.rewrittenContent);
-        alert(`改写完成！\n人类化程度：${data.humanizationScore}%\n改写了${data.changedParagraphs}个段落`);
+        // 保存改写结果
+        setHumanizeResult({
+          originalContent: data.originalContent || generatedContent,
+          rewrittenContent: data.rewrittenContent,
+          changes: data.changes || [],
+          humanizationScore: data.humanizationScore || 0,
+          changedParagraphs: data.changedParagraphs || 0,
+        });
         
-        // 重新检测
-        setDetectResult(null);
-        setTimeout(() => handleDetectAI(), 500);
+        // 自动切换到改写对比视图
+        setShowHumanizeCompare(true);
+        alert(`改写完成！\n人类化程度：${data.humanizationScore}%\n改写了${data.changedParagraphs}个段落\n\n请查看下方改写对比，确认后点击"应用改写"按钮`);
       } else {
         alert(data.error || data.hint || '改写失败，请重试');
       }
@@ -600,6 +643,28 @@ function SmartWritingContent() {
       setIsHumanizing(false);
     }
   };
+  
+  // 应用改写结果
+  const handleApplyHumanize = () => {
+    if (humanizeResult) {
+      setGeneratedContent(humanizeResult.rewrittenContent);
+      setHumanizeResult(null);
+      setShowHumanizeCompare(false);
+      alert('改写已应用！');
+      
+      // 重新检测
+      setTimeout(() => handleDetectAI(), 500);
+    }
+  };
+  
+  // 取消改写
+  const handleCancelHumanize = () => {
+    setHumanizeResult(null);
+    setShowHumanizeCompare(false);
+  };
+  
+  // 显示改写对比面板
+  const [showHumanizeCompare, setShowHumanizeCompare] = useState(false);
 
   // 复制检测报告
   const handleCopyReport = () => {
@@ -938,7 +1003,7 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                 <li>• <strong>开启联网搜索</strong>：AI会搜索最新数据，生成内容更准确、更时效</li>
                 <li>• 选择合适的提示词，让文章更符合目标读者</li>
                 <li>• 标题要吸引人，包含关键词或引发好奇</li>
-                <li>• 文章会自动生成，字数控制在1200字左右</li>
+                <li>• 文章会自动生成，字数控制在1000字左右</li>
                 <li>• 点击&ldquo;生成插图&rdquo;可生成2-3张插图并自动插入文章</li>
                 <li>• 插图会随机分布在文章段落之间</li>
                 <li>• 完成后可保存到公众号草稿箱</li>
@@ -997,7 +1062,7 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                   
                   <TabsContent value="article" className="mt-3">
                     {/* 字数统计 - 计算实际中文字符数 */}
-                    <div className="mb-4 flex items-center gap-2">
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
                       <Badge variant="outline" className="text-sm">
                         实际字数: {generatedContent.replace(/[#*`_\[\]()]/g, '').length}
                       </Badge>
@@ -1009,6 +1074,41 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                         <Badge variant="outline" className="text-sm">
                           插图: {imageUrls.length}张
                         </Badge>
+                      )}
+                      {generatedContent.replace(/[#*`_\[\]()]/g, '').length > 1100 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            if (!confirm('确定要精简文章吗？')) return;
+                            
+                            try {
+                              const response = await fetch('/api/trim-article', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  content: generatedContent,
+                                  targetCount: 1000,
+                                  tolerance: 100
+                                }),
+                              });
+                              
+                              const data = await response.json();
+                              if (data.success && data.content) {
+                                setGeneratedContent(data.content);
+                                alert(`精简完成: ${data.originalCount}字 → ${data.finalCount}字`);
+                              } else {
+                                alert(data.error || '精简失败');
+                              }
+                            } catch (error) {
+                              alert('精简失败，请重试');
+                            }
+                          }}
+                          className="text-orange-500 hover:text-orange-600"
+                        >
+                          <RefreshCw className="mr-1 h-3 w-3" />
+                          精简文章
+                        </Button>
                       )}
                     </div>
 
@@ -1192,6 +1292,91 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                       </div>
                     )}
                   </TabsContent>
+                  
+                  {/* 改写对比面板 */}
+                  {showHumanizeCompare && humanizeResult && (
+                    <TabsContent value="detect" className="mt-3">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-gray-800">改写对比</h3>
+                          <Badge className="bg-green-500 text-white">
+                            已改写{humanizeResult.changedParagraphs}个段落
+                          </Badge>
+                        </div>
+                        
+                        <p className="text-sm text-gray-600">
+                          人类化程度: <span className="font-semibold text-green-600">{humanizeResult.humanizationScore}%</span>
+                        </p>
+                        
+                        {/* 操作按钮 */}
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleApplyHumanize}
+                            className="flex-1 bg-green-500 hover:bg-green-600"
+                          >
+                            <Check className="mr-2 h-4 w-4" />
+                            应用改写
+                          </Button>
+                          <Button
+                            onClick={handleCancelHumanize}
+                            variant="outline"
+                            className="flex-1"
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            取消
+                          </Button>
+                        </div>
+                        
+                        {/* 改写详情 */}
+                        <ScrollArea className="max-h-96 rounded-lg border bg-gray-50 p-4">
+                          <div className="space-y-4">
+                            {humanizeResult.changes.map((change, idx) => (
+                              <div key={idx} className="rounded-lg border bg-white p-3">
+                                <div className="mb-2 flex items-center justify-between">
+                                  <Badge variant="outline">段落 {change.index + 1}</Badge>
+                                  <span className="text-xs text-gray-400">
+                                    {change.changes.length}处改动
+                                  </span>
+                                </div>
+                                
+                                <div className="mb-2">
+                                  <p className="mb-1 text-xs font-medium text-gray-500">原文:</p>
+                                  <p className="rounded bg-red-50 p-2 text-sm text-gray-700 line-clamp-3">
+                                    {change.original}
+                                  </p>
+                                </div>
+                                
+                                <div className="mb-2">
+                                  <p className="mb-1 text-xs font-medium text-gray-500">改写后:</p>
+                                  <p className="rounded bg-green-50 p-2 text-sm text-gray-700 line-clamp-3">
+                                    {change.rewritten}
+                                  </p>
+                                </div>
+                                
+                                {change.changes.length > 0 && (
+                                  <div className="text-xs text-gray-500">
+                                    <span className="font-medium">改动:</span> {change.changes.join('、')}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                        
+                        {/* 完整改写预览 */}
+                        <div>
+                          <p className="mb-2 text-sm font-medium text-gray-700">完整改写预览:</p>
+                          <ScrollArea className="max-h-48 rounded-lg border bg-white p-3">
+                            <div className="prose prose-sm max-w-none">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {humanizeResult.rewrittenContent}
+                              </ReactMarkdown>
+                            </div>
+                          </ScrollArea>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  )}
                 </Tabs>
               </>
             ) : (
