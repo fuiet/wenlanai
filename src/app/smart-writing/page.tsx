@@ -185,6 +185,7 @@ function SmartWritingContent() {
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
+      let fullContent = '';
 
       if (reader) {
         while (streamRef.current) {
@@ -204,7 +205,8 @@ function SmartWritingContent() {
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.content) {
-                  setGeneratedContent((prev) => prev + parsed.content);
+                  fullContent += parsed.content;
+                  setGeneratedContent(fullContent);
                 }
               } catch {
                 // Ignore parse errors
@@ -214,8 +216,8 @@ function SmartWritingContent() {
         }
 
         // 文章生成完成后，自动生成图片
-        if (generatedContent) {
-          await handleGenerateImage();
+        if (fullContent) {
+          await handleAutoGenerateImage(fullContent);
         }
       }
     } catch (error) {
@@ -356,6 +358,48 @@ function SmartWritingContent() {
     }
 
     return result;
+  };
+
+  // 自动生成插图（根据文章内容）
+  const handleAutoGenerateImage = async (content?: string) => {
+    const articleContent = content || generatedContent;
+    if (!articleContent) {
+      return;
+    }
+
+    setIsGeneratingImage(true);
+
+    try {
+      const response = await fetch('/api/generate-article-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          content: articleContent,
+          count: 3,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('生成图片失败');
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.imageUrls && data.imageUrls.length > 0) {
+        setImageUrls(data.imageUrls);
+
+        // 将图片随机插入到文章内容中
+        const contentWithImages = insertImagesToContent(articleContent, data.imageUrls);
+        setGeneratedContent(contentWithImages);
+      }
+    } catch (error) {
+      console.error('自动生成图片失败:', error);
+    } finally {
+      setIsGeneratingImage(false);
+    }
   };
 
   const handleGenerateImage = async () => {

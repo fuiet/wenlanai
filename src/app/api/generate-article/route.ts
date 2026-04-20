@@ -63,19 +63,49 @@ ${searchResults}
 7. **重要**：必须基于提供的参考资料创作，确保内容准确、真实
 8. 如有数据引用，请使用参考资料中的真实数据`;
 
+    // 从用户提示词中解析字数要求
+    let wordCountRequirement = '1200字左右（±100字）';
+    const wordPatterns = [
+      /约\s*([0-9]+)\s*字/,
+      /([0-9]+)\s*字左右/,
+      /字数[为是]?\s*([0-9]+)/,
+      /([0-9]+)\s*字.*左右/,
+      /控制在\s*([0-9]+)\s*字/,
+      /[约大约]\s*([0-9]+)\s*字/,
+    ];
+    
+    for (const pattern of wordPatterns) {
+      const match = prompt.match(pattern);
+      if (match && match[1]) {
+        const targetWord = parseInt(match[1]);
+        // 如果字数在合理范围内（500-3000），使用这个字数
+        if (targetWord >= 500 && targetWord <= 3000) {
+          const minWord = Math.floor(targetWord * 0.9);
+          const maxWord = Math.ceil(targetWord * 1.1);
+          wordCountRequirement = `${targetWord}字左右（${minWord}-${maxWord}字）`;
+          break;
+        }
+      }
+    }
+    
+    // 如果提示词中明确说了"不要提及字数"等要求，也要遵循
+    const hasStrictWordCount = prompt.includes('严格控制') || 
+                                 prompt.includes('字数限制') ||
+                                 prompt.includes('严格在');
+    
     // 构建用户消息
     const userContent = searchContext
-      ? `请根据以下标题和实时搜索参考资料，创作一篇完整的公众号文章，使用Markdown格式，字数严格控制在1200字左右（±100字）：
+      ? `请根据以下标题和实时搜索参考资料，创作一篇完整的公众号文章，使用Markdown格式，字数${hasStrictWordCount ? '必须严格控制在' + wordCountRequirement : '控制在' + wordCountRequirement}：
 
 标题：${title}
 
 ${searchContext}
 
 要求：
-1. 文章要有明确的段落结构，适合公众号阅读
-2. 使用二级标题、三级标题等分层
-3. 内容要有深度和价值，提供实用的观点或建议
-4. 字数严格控制在1200字左右（±100字），不要过短或过长
+1. **【重要】字数要求：${wordCountRequirement}**，必须严格遵守！
+2. 文章要有明确的段落结构，适合公众号阅读
+3. 使用二级标题、三级标题等分层
+4. 内容要有深度和价值，提供实用的观点或建议
 5. 适当使用加粗、列表等Markdown格式
 6. **重要**：必须基于搜索参考资料中的真实信息创作
 7. 如有数据引用，请使用参考资料中的真实数据
@@ -83,29 +113,35 @@ ${searchContext}
 9. 文章要可以直接发布，格式规范
 10. 结尾要有总结或升华
 11. **重要：不要在文章中提及配图、插图、图片等内容，专注于纯文本创作**
+12. 文章生成后，检查总字数是否在${wordCountRequirement}范围内，如有超出需要精简
 
 文章结构建议：
 - 引人入胜的开头（100-150字）
-- 3-4个核心段落，每段300字左右
-- 总结升华（100-150字）`
-      : `请根据以下标题创作一篇完整的公众号文章，使用Markdown格式，字数严格控制在1200字左右（±100字）：
+- 3-4个核心段落，每段适当长度
+- 总结升华（100-150字）
+---
+**最终检查：确保文章总字数在${wordCountRequirement}范围内！**`
+      : `请根据以下标题创作一篇完整的公众号文章，使用Markdown格式，字数${hasStrictWordCount ? '必须严格控制在' + wordCountRequirement : '控制在' + wordCountRequirement}：
 
 标题：${title}
 
 要求：
-1. 文章要有明确的段落结构，适合公众号阅读
-2. 使用二级标题、三级标题等分层
-3. 内容要有深度和价值，提供实用的观点或建议
-4. 字数严格控制在1200字左右（±100字），不要过短或过长
+1. **【重要】字数要求：${wordCountRequirement}**，必须严格遵守！
+2. 文章要有明确的段落结构，适合公众号阅读
+3. 使用二级标题、三级标题等分层
+4. 内容要有深度和价值，提供实用的观点或建议
 5. 适当使用加粗、列表等Markdown格式
 6. 确保内容原创且有吸引力
 7. 文章要可以直接发布，格式规范
 8. 结尾要有总结或升华
 9. **重要：不要在文章中提及配图、插图、图片等内容，专注于纯文本创作**
+10. 文章生成后，检查总字数是否在${wordCountRequirement}范围内，如有超出需要精简
+---
+**最终检查：确保文章总字数在${wordCountRequirement}范围内！**
 
 文章结构建议：
 - 引人入胜的开头（100-150字）
-- 3-4个核心段落，每段300字左右
+- 3-4个核心段落，每段适当长度
 - 总结升华（100-150字）`;
 
     const messages = [
