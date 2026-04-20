@@ -97,15 +97,15 @@ export async function POST(request: NextRequest) {
         const promptTemplates = [
           // 开头配图
           i === 0 
-            ? `微信公众号文章封面配图，主题："${title}"，关键词：${keywords}，${theme}场景，现代简约风格，温暖色调，适合手机阅读，高清精美，2K分辨率，竖版构图`
-            : `微信公众号文章内页插图，第${i + 1}张，主题相关："${title}"，${theme}场景插画，温馨治愈风格，清新配色，简洁大方，2K分辨率`,
+            ? `微信公众号文章封面配图，主题："${title}"，关键词：${keywords}，${theme}场景，现代简约风格，温暖色调，适合手机阅读，高清精美，2K分辨率，竖版构图，**纯视觉设计，禁止任何文字、字母、数字、二维码、条码，图片中不得包含任何可读文字**`
+            : `微信公众号文章内页插图，第${i + 1}张，主题相关："${title}"，${theme}场景插画，温馨治愈风格，清新配色，简洁大方，2K分辨率，**纯视觉设计，禁止任何文字、字母、数字、二维码、条码，图片中不得包含任何可读文字**`,
         ];
         
         imagePrompt = promptTemplates[i % promptTemplates.length];
       } else if (title) {
-        imagePrompt = `微信公众号文章配图，主题："${title}"，${theme}场景，现代简约风格，温暖色调，适合手机阅读，高清精美，2K分辨率`;
+        imagePrompt = `微信公众号文章配图，主题："${title}"，${theme}场景，现代简约风格，温暖色调，适合手机阅读，高清精美，2K分辨率，**纯视觉设计，禁止任何文字、字母、数字、二维码、条码，图片中不得包含任何可读文字**`;
       } else if (articleSummary) {
-        imagePrompt = `微信公众号文章插图，内容摘要：${articleSummary}，${theme}相关插画，温馨治愈风格，2K分辨率`;
+        imagePrompt = `微信公众号文章插图，内容摘要：${articleSummary}，${theme}相关插画，温馨治愈风格，2K分辨率，**纯视觉设计，禁止任何文字、字母、数字、二维码、条码，图片中不得包含任何可读文字**`;
       }
 
       imagePrompts.push(imagePrompt);
