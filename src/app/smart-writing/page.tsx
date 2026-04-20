@@ -298,35 +298,6 @@ function SmartWritingContent() {
 
         // 文章生成完成后，自动生成图片
         if (fullContent) {
-          // 计算当前字数
-          const charCount = fullContent.replace(/[#*`_\[\]()>~]/g, '').trim().length;
-          
-          // 如果字数超出1000±100范围，自动精简
-          if (charCount > 1100) {
-            console.log(`文章字数${charCount}超出范围，自动精简...`);
-            try {
-              const trimResponse = await fetch('/api/trim-article', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  content: fullContent,
-                  targetCount: 1000,
-                  tolerance: 100
-                }),
-              });
-              
-              if (trimResponse.ok) {
-                const trimData = await trimResponse.json();
-                if (trimData.success && trimData.content) {
-                  fullContent = trimData.content;
-                  console.log(`精简完成: ${trimData.originalCount}字 → ${trimData.finalCount}字`);
-                }
-              }
-            } catch (trimError) {
-              console.error('自动精简失败:', trimError);
-            }
-          }
-          
           setGeneratedContent(fullContent);
           await handleAutoGenerateImage(fullContent);
         }
@@ -1078,41 +1049,6 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                         <Badge variant="outline" className="text-sm">
                           插图: {imageUrls.length}张
                         </Badge>
-                      )}
-                      {generatedContent.replace(/[#*`_\[\]()]/g, '').length > 1100 && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={async () => {
-                            if (!confirm('确定要精简文章吗？')) return;
-                            
-                            try {
-                              const response = await fetch('/api/trim-article', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  content: generatedContent,
-                                  targetCount: 1000,
-                                  tolerance: 100
-                                }),
-                              });
-                              
-                              const data = await response.json();
-                              if (data.success && data.content) {
-                                setGeneratedContent(data.content);
-                                alert(`精简完成: ${data.originalCount}字 → ${data.finalCount}字`);
-                              } else {
-                                alert(data.error || '精简失败');
-                              }
-                            } catch (error) {
-                              alert('精简失败，请重试');
-                            }
-                          }}
-                          className="text-orange-500 hover:text-orange-600"
-                        >
-                          <RefreshCw className="mr-1 h-3 w-3" />
-                          精简文章
-                        </Button>
                       )}
                       {/* 降低AI率按钮 - 在文章内容Tab中直接显示 */}
                       {generatedContent && (
