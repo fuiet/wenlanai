@@ -135,16 +135,30 @@ export default function PromptLibraryPage() {
   };
 
   const handleUpdatePrompt = () => {
-    if (!editingPrompt) return;
+    // 添加验证
+    if (!editingPrompt) {
+      alert('编辑状态异常，请重新打开编辑框');
+      return;
+    }
+
+    if (!newPrompt.name.trim()) {
+      alert('请输入提示词名称');
+      return;
+    }
+
+    if (!newPrompt.prompt.trim()) {
+      alert('请输入提示词内容');
+      return;
+    }
 
     const updatedPrompts = prompts.map(p =>
       p.id === editingPrompt.id
         ? {
             ...p,
-            name: newPrompt.name,
-            category: newPrompt.category,
-            description: newPrompt.description,
-            prompt: newPrompt.prompt,
+            name: newPrompt.name.trim(),
+            category: newPrompt.category.trim() || '自定义',
+            description: newPrompt.description.trim(),
+            prompt: newPrompt.prompt.trim(),
             tags: newPrompt.tags.split(',').map(t => t.trim()).filter(t => t),
           }
         : p
@@ -154,6 +168,7 @@ export default function PromptLibraryPage() {
     setIsEditDialogOpen(false);
     setEditingPrompt(null);
     setNewPrompt({ name: '', category: '自定义', description: '', prompt: '', tags: '' });
+    alert('保存成功！');
   };
 
   const handleDeletePrompt = (id: number) => {
