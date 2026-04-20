@@ -632,6 +632,10 @@ function SmartWritingContent() {
         
         // 自动切换到改写对比视图
         setShowHumanizeCompare(true);
+        
+        // 自动切换到detect tab
+        setShowDetectPanel(true);
+        
         alert(`改写完成！\n人类化程度：${data.humanizationScore}%\n改写了${data.changedParagraphs}个段落\n\n请查看下方改写对比，确认后点击"应用改写"按钮`);
       } else {
         alert(data.error || data.hint || '改写失败，请重试');
@@ -1110,7 +1114,106 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                           精简文章
                         </Button>
                       )}
+                      {/* 降低AI率按钮 - 在文章内容Tab中直接显示 */}
+                      {generatedContent && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleHumanize}
+                          disabled={isHumanizing}
+                          className="text-cyan-500 hover:text-cyan-600"
+                        >
+                          {isHumanizing ? (
+                            <>
+                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              改写中...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="mr-1 h-3 w-3" />
+                              降低AI率
+                            </>
+                          )}
+                        </Button>
+                      )}
                     </div>
+
+                    {/* 改写结果预览 - 当有改写结果时显示 */}
+                    {showHumanizeCompare && humanizeResult && (
+                      <div className="mb-4 space-y-3 rounded-lg border-2 border-green-200 bg-green-50 p-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-green-800">改写对比</h3>
+                          <Badge className="bg-green-500 text-white">
+                            已改写{humanizeResult.changedParagraphs}个段落
+                          </Badge>
+                        </div>
+                        
+                        <p className="text-sm text-green-700">
+                          人类化程度: <span className="font-semibold">{humanizeResult.humanizationScore}%</span>
+                        </p>
+                        
+                        {/* 操作按钮 */}
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleApplyHumanize}
+                            size="sm"
+                            className="flex-1 bg-green-500 hover:bg-green-600"
+                          >
+                            <Check className="mr-1 h-4 w-4" />
+                            应用改写
+                          </Button>
+                          <Button
+                            onClick={handleCancelHumanize}
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                          >
+                            <XCircle className="mr-1 h-4 w-4" />
+                            取消
+                          </Button>
+                        </div>
+                        
+                        {/* 逐段对比 */}
+                        <ScrollArea className="max-h-48 rounded-lg border bg-white p-3">
+                          <div className="space-y-3">
+                            {humanizeResult.changes.map((change, idx) => (
+                              <div key={idx} className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                                <div className="mb-1 flex items-center justify-between text-xs">
+                                  <Badge variant="outline" className="text-xs">段落 {change.index + 1}</Badge>
+                                  <span className="text-gray-400">{change.changes.length}处改动</span>
+                                </div>
+                                
+                                <div className="mb-1">
+                                  <p className="text-xs text-red-600">原文:</p>
+                                  <p className="text-xs text-gray-700 line-clamp-2">{change.original}</p>
+                                </div>
+                                
+                                <div className="mb-1">
+                                  <p className="text-xs text-green-600">改写后:</p>
+                                  <p className="text-xs text-gray-700 line-clamp-2">{change.rewritten}</p>
+                                </div>
+                                
+                                {change.changes.length > 0 && (
+                                  <p className="text-xs text-gray-500">改动: {change.changes.slice(0, 3).join('、')}{change.changes.length > 3 ? '...' : ''}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                        
+                        {/* 完整预览 */}
+                        <div>
+                          <p className="mb-2 text-xs font-medium text-gray-700">完整改写预览:</p>
+                          <ScrollArea className="max-h-32 rounded-lg border bg-white p-2">
+                            <div className="prose prose-sm max-w-none text-sm">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {humanizeResult.rewrittenContent}
+                              </ReactMarkdown>
+                            </div>
+                          </ScrollArea>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Markdown内容 */}
                     <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:text-center prose-headings:font-bold prose-h1:text-center prose-h1:font-bold">
@@ -1261,8 +1364,91 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                           ))}
                         </div>
                         
+                        {/* 改写对比面板 - 当有改写结果时显示 */}
+                        {showHumanizeCompare && humanizeResult && (
+                          <div className="mt-4 space-y-4 rounded-lg border-2 border-green-200 bg-green-50 p-4">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-semibold text-green-800">改写对比</h3>
+                              <Badge className="bg-green-500 text-white">
+                                已改写{humanizeResult.changedParagraphs}个段落
+                              </Badge>
+                            </div>
+                            
+                            <p className="text-sm text-green-700">
+                              人类化程度: <span className="font-semibold">{humanizeResult.humanizationScore}%</span>
+                            </p>
+                            
+                            {/* 操作按钮 */}
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={handleApplyHumanize}
+                                className="flex-1 bg-green-500 hover:bg-green-600"
+                              >
+                                <Check className="mr-2 h-4 w-4" />
+                                应用改写
+                              </Button>
+                              <Button
+                                onClick={handleCancelHumanize}
+                                variant="outline"
+                                className="flex-1"
+                              >
+                                <XCircle className="mr-2 h-4 w-4" />
+                                取消
+                              </Button>
+                            </div>
+                            
+                            {/* 改写详情 */}
+                            <ScrollArea className="max-h-64 rounded-lg border bg-white p-3">
+                              <div className="space-y-4">
+                                {humanizeResult.changes.map((change, idx) => (
+                                  <div key={idx} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <div className="mb-2 flex items-center justify-between">
+                                      <Badge variant="outline">段落 {change.index + 1}</Badge>
+                                      <span className="text-xs text-gray-400">
+                                        {change.changes.length}处改动
+                                      </span>
+                                    </div>
+                                    
+                                    <div className="mb-2">
+                                      <p className="mb-1 text-xs font-medium text-red-600">原文:</p>
+                                      <p className="rounded bg-red-50 p-2 text-sm text-gray-700">
+                                        {change.original}
+                                      </p>
+                                    </div>
+                                    
+                                    <div className="mb-2">
+                                      <p className="mb-1 text-xs font-medium text-green-600">改写后:</p>
+                                      <p className="rounded bg-green-50 p-2 text-sm text-gray-700">
+                                        {change.rewritten}
+                                      </p>
+                                    </div>
+                                    
+                                    {change.changes.length > 0 && (
+                                      <div className="text-xs text-gray-500">
+                                        <span className="font-medium">改动:</span> {change.changes.join('、')}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </ScrollArea>
+                            
+                            {/* 完整改写预览 */}
+                            <div>
+                              <p className="mb-2 text-sm font-medium text-gray-700">完整改写预览:</p>
+                              <ScrollArea className="max-h-40 rounded-lg border bg-white p-3">
+                                <div className="prose prose-sm max-w-none">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {humanizeResult.rewrittenContent}
+                                  </ReactMarkdown>
+                                </div>
+                              </ScrollArea>
+                            </div>
+                          </div>
+                        )}
+                        
                         {/* 降低AI率按钮 */}
-                        {detectResult.aiRate > 30 && (
+                        {detectResult.aiRate > 30 && !showHumanizeCompare && (
                           <Button
                             onClick={handleHumanize}
                             disabled={isHumanizing}
@@ -1292,91 +1478,6 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                       </div>
                     )}
                   </TabsContent>
-                  
-                  {/* 改写对比面板 */}
-                  {showHumanizeCompare && humanizeResult && (
-                    <TabsContent value="detect" className="mt-3">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-gray-800">改写对比</h3>
-                          <Badge className="bg-green-500 text-white">
-                            已改写{humanizeResult.changedParagraphs}个段落
-                          </Badge>
-                        </div>
-                        
-                        <p className="text-sm text-gray-600">
-                          人类化程度: <span className="font-semibold text-green-600">{humanizeResult.humanizationScore}%</span>
-                        </p>
-                        
-                        {/* 操作按钮 */}
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={handleApplyHumanize}
-                            className="flex-1 bg-green-500 hover:bg-green-600"
-                          >
-                            <Check className="mr-2 h-4 w-4" />
-                            应用改写
-                          </Button>
-                          <Button
-                            onClick={handleCancelHumanize}
-                            variant="outline"
-                            className="flex-1"
-                          >
-                            <XCircle className="mr-2 h-4 w-4" />
-                            取消
-                          </Button>
-                        </div>
-                        
-                        {/* 改写详情 */}
-                        <ScrollArea className="max-h-96 rounded-lg border bg-gray-50 p-4">
-                          <div className="space-y-4">
-                            {humanizeResult.changes.map((change, idx) => (
-                              <div key={idx} className="rounded-lg border bg-white p-3">
-                                <div className="mb-2 flex items-center justify-between">
-                                  <Badge variant="outline">段落 {change.index + 1}</Badge>
-                                  <span className="text-xs text-gray-400">
-                                    {change.changes.length}处改动
-                                  </span>
-                                </div>
-                                
-                                <div className="mb-2">
-                                  <p className="mb-1 text-xs font-medium text-gray-500">原文:</p>
-                                  <p className="rounded bg-red-50 p-2 text-sm text-gray-700 line-clamp-3">
-                                    {change.original}
-                                  </p>
-                                </div>
-                                
-                                <div className="mb-2">
-                                  <p className="mb-1 text-xs font-medium text-gray-500">改写后:</p>
-                                  <p className="rounded bg-green-50 p-2 text-sm text-gray-700 line-clamp-3">
-                                    {change.rewritten}
-                                  </p>
-                                </div>
-                                
-                                {change.changes.length > 0 && (
-                                  <div className="text-xs text-gray-500">
-                                    <span className="font-medium">改动:</span> {change.changes.join('、')}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                        
-                        {/* 完整改写预览 */}
-                        <div>
-                          <p className="mb-2 text-sm font-medium text-gray-700">完整改写预览:</p>
-                          <ScrollArea className="max-h-48 rounded-lg border bg-white p-3">
-                            <div className="prose prose-sm max-w-none">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {humanizeResult.rewrittenContent}
-                              </ReactMarkdown>
-                            </div>
-                          </ScrollArea>
-                        </div>
-                      </div>
-                    </TabsContent>
-                  )}
                 </Tabs>
               </>
             ) : (
