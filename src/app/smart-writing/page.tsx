@@ -901,7 +901,10 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                     已推送
                   </>
                 ) : (
-                  <span className="flex items-center">
+                  <span 
+                    className="flex items-center cursor-pointer"
+                    onClick={() => window.location.href = '/account?tab=scan'}
+                  >
                     <img 
                       src="https://code.coze.cn/api/sandbox/coze_coding/file/proxy?expire_time=-1&file_path=assets%2Fimage.png&nonce=ac7b2e9a-b02e-4eb0-89b9-5b77ac909da2&project_id=7626301097891610687&sign=b8a8799c6cf1f5d4977ccbcc3759ef23592d9cac6dc1eb1f7786d0f635ee0d00" 
                       alt="" 

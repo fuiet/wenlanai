@@ -204,6 +204,44 @@
 }
 ```
 
+**POST `/api/wechat-auth/scan`**
+- 生成扫码授权二维码和授权码（无需第三方平台资质）
+- 请求参数：无
+- 响应示例：
+```json
+{
+  "success": true,
+  "data": {
+    "sessionId": "abc123",
+    "authCode": "123456",
+    "expiresIn": 600,
+    "qrCodeUrl": "data:image/png;base64,...",
+    "authPageUrl": "https://..."
+  }
+}
+```
+
+**GET `/api/wechat-auth/scan`**
+- 查询扫码授权状态
+- 请求参数：`sessionId` - 会话ID
+- 响应示例：
+```json
+{
+  "success": true,
+  "data": {
+    "status": "completed",
+    "authCode": "123456",
+    "remainingSeconds": 300,
+    "appId": "wx..."
+  }
+}
+```
+
+**GET `/account/scan-auth`**
+- 扫码授权回调页面
+- 参数：`session` - 会话ID，`code` - 授权码
+- 显示6位授权码供用户复制
+
 **POST `/api/trim-article`**
 - 文章字数精简API，将文章精简到指定字数
 - 请求参数：

@@ -57,6 +57,10 @@ export default function AccountContent() {
   const [isBinding, setIsBinding] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   
+  // 检查URL参数确定默认标签
+  const urlTab = searchParams.get('tab');
+  const defaultTab = urlTab === 'manual' || urlTab === 'list' ? urlTab : 'scan';
+  
   // 绑定表单状态
   const [bindAppId, setBindAppId] = useState('');
   const [bindAppSecret, setBindAppSecret] = useState('');
@@ -385,7 +389,7 @@ export default function AccountContent() {
         )}
 
         {/* 绑定方式切换 */}
-        <Tabs defaultValue="scan" className="mb-6">
+        <Tabs defaultValue={defaultTab} className="mb-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="scan" className="flex items-center gap-2">
               <QrCode className="h-4 w-4" />
