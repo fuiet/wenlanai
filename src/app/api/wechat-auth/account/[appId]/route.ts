@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
-// 初始化Supabase客户端
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// 延迟初始化Supabase客户端
+const createSupabaseClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || '';
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return null;
+  }
+  
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { createClient } = require('@supabase/supabase-js');
+  return createClient(supabaseUrl, supabaseServiceKey);
+};
 
 /**
  * DELETE /api/wechat-auth/account/[appId]
@@ -22,6 +30,17 @@ export async function DELETE(
         { success: false, message: '缺少公众号AppID' },
         { status: 400 }
       );
+    }
+
+    const supabase = createSupabaseClient();
+    
+    // 如果Supabase未配置，返回模拟成功
+    if (!supabase) {
+      return NextResponse.json({
+        success: true,
+        message: '解绑成功（演示模式）',
+        demo: true,
+      });
     }
 
     // 从数据库删除
