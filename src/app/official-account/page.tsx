@@ -156,23 +156,13 @@ export default function OfficialAccountPage() {
             <Send className="mr-2 h-4 w-4" />
             批量推送
           </Button>
-          <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600">
-                <Plus className="mr-2 h-5 w-5" />
-                授权公众号
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>授权公众号</DialogTitle>
-                <DialogDescription>
-                  填写您的微信公众号AppID和AppSecret，授权后即可批量推送文章
-                </DialogDescription>
-              </DialogHeader>
-              <WechatAuth onAuthorized={handleAuthorized} />
-            </DialogContent>
-          </Dialog>
+          <Button 
+            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+            onClick={() => window.location.href = '/account?tab=scan'}
+          >
+            <Plus className="mr-2 h-5 w-5" />
+            授权公众号
+          </Button>
         </div>
       </div>
 
