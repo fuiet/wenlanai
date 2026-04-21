@@ -850,6 +850,7 @@ function OfficialAccountContent() {
 }
 
 export default function OfficialAccountPage() {
+  'use client';
   return (
     <Suspense fallback={<div className="container mx-auto px-4 py-8"><div className="flex items-center justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div></div></div>}>
       <OfficialAccountContent />
