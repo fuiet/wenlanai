@@ -17,7 +17,12 @@ import {
   AlertCircle,
   Loader2,
   UserCircle,
-  Shield
+  Shield,
+  QrCode,
+  Smartphone,
+  ArrowLeft,
+  Copy,
+  Check
 } from 'lucide-react';
 
 interface WechatAccount {
@@ -45,6 +50,11 @@ export default function AccountContent() {
   // 绑定表单状态
   const [bindAppId, setBindAppId] = useState('');
   const [bindAppSecret, setBindAppSecret] = useState('');
+
+  // 扫码授权状态
+  const [scanLoading, setScanLoading] = useState(false);
+  const [authUrl, setAuthUrl] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   // 检查URL中的状态参数
   useEffect(() => {
@@ -88,6 +98,60 @@ export default function AccountContent() {
   useEffect(() => {
     loadAccounts();
   }, []);
+
+  // 生成扫码授权URL
+  const generateScanAuthUrl = async () => {
+    setScanLoading(true);
+    setAuthUrl(null);
+    
+    try {
+      const response = await fetch('/api/wechat-auth/url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate_scan_url',
+          redirectUri: `${window.location.origin}/account`
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.authUrl) {
+        setAuthUrl(result.authUrl);
+      } else {
+        setStatusMessage({ 
+          type: 'error', 
+          message: result.message || '生成授权链接失败，请使用手动绑定方式' 
+        });
+      }
+    } catch (error) {
+      console.error('生成授权URL失败:', error);
+      setStatusMessage({ type: 'error', message: '生成授权链接失败' });
+    } finally {
+      setScanLoading(false);
+    }
+  };
+
+  // 复制授权链接
+  const copyAuthUrl = async () => {
+    if (!authUrl) return;
+    
+    try {
+      await navigator.clipboard.writeText(authUrl);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = authUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
 
   // 直接通过AppID和AppSecret绑定
   const handleBindAccount = async () => {
@@ -221,17 +285,144 @@ export default function AccountContent() {
         )}
 
         {/* 绑定方式切换 */}
-        <Tabs defaultValue="manual" className="mb-6">
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs defaultValue="scan" className="mb-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="scan" className="flex items-center gap-2">
+              <QrCode className="h-4 w-4" />
+              扫码授权
+            </TabsTrigger>
             <TabsTrigger value="manual" className="flex items-center gap-2">
               <Key className="h-4 w-4" />
-              AppID/AppSecret绑定
+              AppID绑定
             </TabsTrigger>
             <TabsTrigger value="list" className="flex items-center gap-2">
               <UserCircle className="h-4 w-4" />
-              已绑定公众号 ({accounts.length})
+              已绑定 ({accounts.length})
             </TabsTrigger>
           </TabsList>
+
+          {/* 扫码授权 */}
+          <TabsContent value="scan">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <QrCode className="h-5 w-5 text-blue-500" />
+                  扫码授权公众号
+                </CardTitle>
+                <CardDescription>
+                  使用微信扫码授权，快速绑定您的公众号（推荐）
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* 扫码授权说明 */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                    <Smartphone className="h-4 w-4" />
+                    扫码授权步骤
+                  </h4>
+                  <ol className="text-sm text-blue-700 space-y-2">
+                    <li className="flex items-start gap-2">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">1</span>
+                      <span>点击下方「生成授权链接」按钮</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">2</span>
+                      <span>复制授权链接到微信中打开，或长按识别二维码</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">3</span>
+                      <span>使用公众号管理员微信扫码并确认授权</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">4</span>
+                      <span>授权成功后自动返回，公众号即绑定完成</span>
+                    </li>
+                  </ol>
+                </div>
+
+                {/* 生成授权链接按钮 */}
+                {!authUrl ? (
+                  <Button 
+                    onClick={generateScanAuthUrl}
+                    disabled={scanLoading}
+                    className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
+                  >
+                    {scanLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        正在生成授权链接...
+                      </>
+                    ) : (
+                      <>
+                        <QrCode className="mr-2 h-4 w-4" />
+                        生成授权链接
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <div className="space-y-4">
+                    {/* 授权链接显示 */}
+                    <div className="space-y-2">
+                      <Label>授权链接</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          value={authUrl} 
+                          readOnly 
+                          className="font-mono text-sm"
+                        />
+                        <Button 
+                          onClick={copyAuthUrl}
+                          variant="outline"
+                          size="icon"
+                          className="flex-shrink-0"
+                        >
+                          {isCopied ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        复制链接到微信中打开，或使用微信扫一扫扫描
+                      </p>
+                    </div>
+
+                    {/* 微信提示 */}
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                      <p className="text-sm text-green-700">
+                        请在微信中打开上述链接，使用公众号管理员微信扫码授权
+                      </p>
+                    </div>
+
+                    {/* 重新生成 */}
+                    <Button 
+                      onClick={generateScanAuthUrl}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <QrCode className="mr-2 h-4 w-4" />
+                      重新生成授权链接
+                    </Button>
+                  </div>
+                )}
+
+                {/* 注意事项 */}
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <h4 className="font-medium text-amber-900 mb-2 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    注意事项
+                  </h4>
+                  <ul className="text-sm text-amber-700 space-y-1 list-disc list-inside">
+                    <li>需要使用公众号管理员微信扫码授权</li>
+                    <li>授权后会自动获取公众号的基本信息</li>
+                    <li>如需解除授权，请在公众号后台操作</li>
+                    <li>当前为演示模式，实际授权需要配置第三方平台</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* 手动输入绑定 */}
           <TabsContent value="manual">
@@ -327,7 +518,7 @@ export default function AccountContent() {
                   <div className="text-center py-12 text-gray-500">
                     <UserCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                     <p>暂无已绑定的公众号</p>
-                    <p className="text-sm">切换到「AppID/AppSecret绑定」添加公众号</p>
+                    <p className="text-sm">使用「扫码授权」或「AppID绑定」添加公众号</p>
                   </div>
                 ) : (
                   <div className="grid gap-4">
@@ -363,29 +554,27 @@ export default function AccountContent() {
                           <p className="text-sm text-gray-500 truncate">
                             @{account.alias || account.user_name || account.app_id}
                           </p>
-                          <p className="text-xs text-gray-400 mt-1">
+                          <p className="text-xs text-gray-400 truncate">
                             AppID: {account.app_id}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            绑定时间: {new Date(account.created_at).toLocaleDateString('zh-CN')}
                           </p>
                         </div>
 
                         {/* 操作 */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex-shrink-0 flex gap-2">
                           {account.qrcode_url && (
-                            <Button variant="outline" size="sm" asChild>
-                              <a href={account.qrcode_url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="h-4 w-4 mr-1" />
-                                二维码
-                              </a>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => window.open(account.qrcode_url, '_blank')}
+                            >
+                              <QrCode className="h-4 w-4 mr-1" />
+                              二维码
                             </Button>
                           )}
                           <Button 
-                            variant="outline" 
+                            variant="destructive" 
                             size="sm"
                             onClick={() => handleDeleteAccount(account.app_id)}
-                            className="text-red-500 hover:text-red-600 hover:border-red-300"
                           >
                             <Trash2 className="h-4 w-4 mr-1" />
                             解绑
@@ -399,39 +588,6 @@ export default function AccountContent() {
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* 使用说明 */}
-        <Card className="mt-6 bg-gradient-to-br from-blue-50 to-purple-50">
-          <CardHeader>
-            <CardTitle className="text-lg">使用说明</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-gray-600">
-            <div className="flex gap-3">
-              <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
-                <span className="text-xs font-bold text-primary">1</span>
-              </div>
-              <p><strong>获取凭证：</strong>登录微信公众平台，在「设置与开发」→「基本配置」中获取AppID和AppSecret</p>
-            </div>
-            <div className="flex gap-3">
-              <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
-                <span className="text-xs font-bold text-primary">2</span>
-              </div>
-              <p><strong>完成绑定：</strong>在下方输入AppID和AppSecret，点击确认绑定</p>
-            </div>
-            <div className="flex gap-3">
-              <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
-                <span className="text-xs font-bold text-primary">3</span>
-              </div>
-              <p><strong>一键推送：</strong>在「智能生文」页面生成文章后，点击「一键推送」按钮即可发送文章到公众号草稿箱</p>
-            </div>
-            <div className="flex gap-3">
-              <div className="bg-primary/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
-                <span className="text-xs font-bold text-primary">4</span>
-              </div>
-              <p><strong>安全提示：</strong>AppSecret是公众号的重要凭证，请勿泄露给他人</p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

@@ -92,12 +92,15 @@ export async function POST(request: NextRequest) {
     // 如果没有配置第三方平台，返回演示URL
     if (!COMPONENT_APPID || !COMPONENT_APP_SECRET) {
       console.log('微信第三方平台未配置，返回模拟授权信息');
+      // 生成模拟授权URL（用于演示）
+      const demoAuthUrl = `https://mp.weixin.qq.com/cgi-bin/loginpage?t=wxm2way&url=${encodeURIComponent(redirectUri || window?.location?.origin + '/account' || 'https://example.com/api/wechat-auth/callback')}`;
       return NextResponse.json({
         success: true,
-        message: '演示模式：微信第三方平台未配置',
+        message: '演示模式：微信第三方平台未配置，使用模拟授权链接',
         demo: true,
+        authUrl: demoAuthUrl,
         data: {
-          authUrl: `https://mp.weixin.qq.com/cgi-bin/loginpage?t=wxm2way&url=${encodeURIComponent(redirectUri || 'https://example.com/api/wechat-auth/callback')}`,
+          authUrl: demoAuthUrl,
           preAuthCode: 'demo_pre_auth_code',
           expiresIn: 1800,
         },
@@ -119,6 +122,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      authUrl,
       data: {
         authUrl,
         preAuthCode,
