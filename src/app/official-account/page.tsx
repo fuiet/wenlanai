@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,7 +64,7 @@ const groups = [
   { id: 1, name: '默认分组', count: 1 },
 ];
 
-export default function OfficialAccountPage() {
+function OfficialAccountContent() {
   const searchParams = useSearchParams();
   const [selectedGroup, setSelectedGroup] = useState('all');
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
@@ -846,5 +846,13 @@ export default function OfficialAccountPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function OfficialAccountPage() {
+  return (
+    <Suspense fallback={<div className="container mx-auto px-4 py-8"><div className="flex items-center justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div></div></div>}>
+      <OfficialAccountContent />
+    </Suspense>
   );
 }
