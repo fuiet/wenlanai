@@ -268,9 +268,9 @@ export default function OfficialAccountPage() {
     return null;
   };
 
-  const filteredAccounts = mockAccounts.filter(account => {
+  const filteredAccounts = accounts.filter(account => {
     if (selectedGroup === 'all') return true;
-    return account.groupName === selectedGroup;
+    return account.nickname === selectedGroup;
   });
 
   const handleAddGroup = () => {
@@ -376,7 +376,7 @@ export default function OfficialAccountPage() {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="accounts" className="flex items-center gap-2">
             <UserCheck className="h-4 w-4" />
-            公众号列表 ({mockAccounts.length})
+            公众号列表 ({accounts.length})
           </TabsTrigger>
           <TabsTrigger value="auth" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
@@ -413,7 +413,7 @@ export default function OfficialAccountPage() {
               <CardContent className="p-6">
                 <h3 className="mb-4 text-lg font-semibold text-gray-900">分组筛选</h3>
                 <p className="mb-4 text-sm text-gray-500">
-                  {groups.length} 个分组 · {mockAccounts.length} 个公众号
+                  {groups.length} 个分组 · {accounts.length} 个公众号
                 </p>
                 <div className="space-y-2">
                   <Button
@@ -423,11 +423,11 @@ export default function OfficialAccountPage() {
                   >
                     {selectedGroup === 'all' ? (
                       <Badge className="mr-2 bg-orange-500">
-                        {mockAccounts.length} 个
+                        {accounts.length} 个
                       </Badge>
                     ) : (
                       <span className="mr-2 text-sm text-gray-500">
-                        {mockAccounts.length} 个
+                        {accounts.length} 个
                       </span>
                     )}
                     全部公众号
@@ -512,24 +512,24 @@ export default function OfficialAccountPage() {
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-4 flex-1">
                           <Avatar className="h-16 w-16 border-2 border-orange-200">
-                            <AvatarImage src={account.avatar} alt={account.name} />
+                            <AvatarImage src={account.head_img} alt={account.nickname} />
                             <AvatarFallback className="bg-orange-500 text-white text-xl">
-                              {account.name.charAt(0)}
+                              {(account.nickname || '未命名').charAt(0)}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
                             <h4 className="mb-1 text-xl font-semibold text-gray-900">
-                              {account.name}
+                              {account.nickname || '未命名公众号'}
                             </h4>
                             <p className="mb-3 text-sm text-gray-500 font-mono">
-                              {account.appId}
+                              {account.app_id}
                             </p>
                             <div className="flex flex-wrap gap-2">
                               <Badge
                                 variant="secondary"
-                                className={account.status === 'authorized' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}
+                                className={account.is_authorized ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}
                               >
-                                {account.status === 'authorized' ? (
+                                {account.is_authorized ? (
                                   <>
                                     <CheckCircle className="mr-1 h-3 w-3" />
                                     已授权
@@ -543,13 +543,13 @@ export default function OfficialAccountPage() {
                               </Badge>
                               <Badge
                                 variant="outline"
-                                className={account.accountStatus === 'normal' ? 'border-orange-200 text-orange-700' : 'border-red-200 text-red-700'}
+                                className={account.verify_type_info >= 0 ? 'border-orange-200 text-orange-700' : 'border-red-200 text-red-700'}
                               >
-                                {account.accountStatus === 'normal' ? '正常' : '异常'}
+                                {account.verify_type_info >= 0 ? '已认证' : '未认证'}
                               </Badge>
-                              <Badge variant="outline">{account.groupName}</Badge>
+                              <Badge variant="outline">{account.alias || '公众号'}</Badge>
                               <span className="text-xs text-gray-400 flex items-center">
-                                创建于 {account.createTime}
+                                创建于 {new Date(account.created_at).toLocaleDateString('zh-CN')}
                               </span>
                             </div>
                           </div>
