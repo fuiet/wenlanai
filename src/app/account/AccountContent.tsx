@@ -54,6 +54,7 @@ export default function AccountContent() {
   const [loading, setLoading] = useState(true);
   const [isBinding, setIsBinding] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [defaultTab, setDefaultTab] = useState<'scan' | 'manual' | 'list'>('list');
   
   // 绑定表单状态
   const [bindAppId, setBindAppId] = useState('');
@@ -69,9 +70,21 @@ export default function AccountContent() {
   useEffect(() => {
     const success = searchParams.get('success');
     const error = searchParams.get('error');
+    const tab = searchParams.get('tab');
+    
+    // 根据URL参数设置默认Tab
+    if (tab === 'manual') {
+      setDefaultTab('manual');
+    } else if (tab === 'scan') {
+      setDefaultTab('scan');
+    } else if (accounts.length > 0) {
+      // 如果有已绑定账号，默认显示列表
+      setDefaultTab('list');
+    }
     
     if (success) {
       setStatusMessage({ type: 'success', message: '公众号授权成功！' });
+      setDefaultTab('list');
     } else if (error) {
       const errorMessages: Record<string, string> = {
         no_auth_code: '授权失败：未获取到授权码',
@@ -85,7 +98,7 @@ export default function AccountContent() {
         message: errorMessages[error] || '授权失败：未知错误' 
       });
     }
-  }, [searchParams]);
+  }, [searchParams, accounts]);
 
   // 加载公众号列表
   const loadAccounts = async () => {
@@ -301,7 +314,7 @@ export default function AccountContent() {
         )}
 
         {/* 绑定方式切换 */}
-        <Tabs defaultValue="scan" className="mb-6">
+        <Tabs defaultValue={defaultTab} className="mb-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="scan" className="flex items-center gap-2">
               <QrCode className="h-4 w-4" />

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   PenTool,
   Wand2,
@@ -33,7 +34,8 @@ import {
   XCircle,
   RefreshCw,
   Bot,
-  UserCheck
+  UserCheck,
+  SendHorizontal
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -184,6 +186,23 @@ function SmartWritingContent() {
     humanizationScore: number;
     changedParagraphs: number;
   } | null>(null);
+  
+  // 公众号账号选择相关状态
+  const [showAccountDialog, setShowAccountDialog] = useState(false);
+  const [accounts, setAccounts] = useState<Array<{
+    id: number;
+    app_id: string;
+    nickname: string;
+    head_img: string;
+    user_name: string;
+    alias: string;
+    principal_type: string;
+    verify_type_info: number;
+    qrcode_url: string;
+    is_authorized: boolean;
+  }>>([]);
+  const [accountsLoading, setAccountsLoading] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   
   const streamRef = useRef(false);
 
@@ -385,8 +404,36 @@ function SmartWritingContent() {
     }
   };
 
-  // 一键推送到公众号草稿箱
+  // 加载公众号账号列表
+  const loadAccounts = async () => {
+    setAccountsLoading(true);
+    try {
+      const response = await fetch('/api/wechat-auth/url');
+      const result = await response.json();
+      if (result.success) {
+        setAccounts(result.accounts || []);
+      }
+    } catch (error) {
+      console.error('加载账号失败:', error);
+    } finally {
+      setAccountsLoading(false);
+    }
+  };
+
+  // 一键推送到公众号 - 先选择账号
   const handlePushDraft = async () => {
+    if (!generatedContent.trim()) {
+      alert('没有可推送的内容');
+      return;
+    }
+
+    // 加载账号列表并显示选择弹窗
+    await loadAccounts();
+    setShowAccountDialog(true);
+  };
+
+  // 执行真正的推送
+  const executePushToAccount = async (appId: string) => {
     if (!generatedContent.trim()) {
       alert('没有可推送的内容');
       return;
@@ -410,9 +457,10 @@ function SmartWritingContent() {
 
     setIsPushing(true);
     setPushSuccess(false);
+    setShowAccountDialog(false);
 
     try {
-      // 调用推送API
+      // 调用推送API，指定账号
       const response = await fetch('/api/push-to-wechat', {
         method: 'POST',
         headers: {
@@ -422,6 +470,7 @@ function SmartWritingContent() {
           title: title || '未命名文章',
           content: generatedContent,
           imageUrls: pushImageUrls,
+          appId: appId,
         }),
       });
 
@@ -455,6 +504,22 @@ function SmartWritingContent() {
     } finally {
       setIsPushing(false);
     }
+  };
+
+  // 获取账号类型徽章
+  const getAccountTypeBadge = (account: { principal_type: string }) => {
+    const typeMap: Record<string, string> = {
+      0: '订阅号',
+      1: '服务号',
+      2: '企业微信',
+    };
+    const type = typeMap[account.principal_type] || '公众号';
+    
+    return (
+      <Badge variant="outline" className="text-xs">
+        {type}
+      </Badge>
+    );
   };
 
   // 将图片随机插入到文章中
@@ -1485,6 +1550,111 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
           </CardContent>
         </Card>
       </div>
+
+      {/* 公众号账号选择弹窗 */}
+      <Dialog open={showAccountDialog} onOpenChange={setShowAccountDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SendHorizontal className="h-5 w-5 text-orange-500" />
+              选择推送公众号
+            </DialogTitle>
+            <DialogDescription>
+              选择要推送到的公众号账号
+            </DialogDescription>
+          </DialogHeader>
+          
+          {accountsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : accounts.length === 0 ? (
+            <div className="text-center py-8">
+              <UserCheck className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-gray-500 mb-4">暂无已绑定的公众号</p>
+              <p className="text-sm text-gray-400 mb-4">请先在账号管理中添加公众号</p>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setShowAccountDialog(false);
+                  window.location.href = '/account';
+                }}
+              >
+                去账号管理
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {accounts.map((account) => (
+                <div 
+                  key={account.id}
+                  className="flex items-center gap-4 p-4 border rounded-lg bg-white hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => executePushToAccount(account.app_id)}
+                >
+                  {/* 头像 */}
+                  <div className="flex-shrink-0">
+                    {account.head_img ? (
+                      <img 
+                        src={account.head_img} 
+                        alt={account.nickname}
+                        className="w-12 h-12 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
+                        <User className="h-6 w-6 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 信息 */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-gray-900 truncate">
+                        {account.nickname || '未命名公众号'}
+                      </h3>
+                      {getAccountTypeBadge(account)}
+                    </div>
+                    <p className="text-sm text-gray-500 truncate">
+                      @{account.alias || account.user_name || account.app_id}
+                    </p>
+                  </div>
+
+                  {/* 推送图标 */}
+                  <div className="flex-shrink-0">
+                    <Button 
+                      size="sm"
+                      className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                      disabled={isPushing}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        executePushToAccount(account.app_id);
+                      }}
+                    >
+                      {isPushing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <SendHorizontal className="h-4 w-4 mr-1" />
+                          推送
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <div className="flex justify-end mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAccountDialog(false)}
+            >
+              取消
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
