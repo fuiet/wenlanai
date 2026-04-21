@@ -12,8 +12,7 @@ import {
   UserCheck,
   Book,
   Mail,
-  Crown,
-  Settings
+  Crown
 } from 'lucide-react';
 
 const navItems = [
@@ -21,7 +20,6 @@ const navItems = [
   { href: '/prompt-library', label: '提示词库', icon: BookOpen },
   { href: '/smart-writing', label: '智能生文', icon: PenTool },
   { href: '/format-article', label: '一键排版', icon: LayoutTemplate },
-  { href: '/account', label: '账号管理', icon: Settings },
   { href: '/official-account', label: '公众号', icon: UserCheck },
   { href: '/tutorial', label: '使用教程', icon: Book },
   { href: '/contact', label: '联系我们', icon: Mail },
