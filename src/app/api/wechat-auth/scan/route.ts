@@ -14,100 +14,67 @@ const createSupabaseClient = () => {
   return createClient(supabaseUrl, supabaseServiceKey);
 }
 
-// 内存存储授权码（生产环境应使用Redis）
-const authCodes = new Map<string, {
-  code: string;
+// 内存存储授权信息
+const authSessions = new Map<string, {
+  authCode: string;
+  expiresAt: number;
+  status: 'pending' | 'completed';
   appId?: string;
-  appSecret?: string;
   nickname?: string;
-  createdAt: number;
-  expiresIn: number; // 有效期（秒）
-  status: 'pending' | 'completed' | 'expired';
 }>();
-
-// 清理过期授权码
-function cleanExpiredCodes() {
-  const now = Date.now();
-  for (const [key, value] of authCodes.entries()) {
-    if (now - value.createdAt > value.expiresIn * 1000) {
-      authCodes.delete(key);
-    }
-  }
-}
-
-// 生成6位数字授权码
-function generateAuthCode(): string {
-  return Math.random().toString().slice(2, 8).padStart(6, '0');
-}
-
-// 获取或创建授权码
-function getOrCreateAuthCode(sessionId: string) {
-  cleanExpiredCodes();
-  
-  const existing = authCodes.get(sessionId);
-  if (existing && existing.status === 'pending' && Date.now() - existing.createdAt < existing.expiresIn * 1000) {
-    return existing;
-  }
-  
-  const code = generateAuthCode();
-  const authData = {
-    code,
-    createdAt: Date.now(),
-    expiresIn: 600, // 10分钟有效期
-    status: 'pending' as const,
-  };
-  
-  authCodes.set(sessionId, authData);
-  return authData;
-}
 
 /**
  * POST /api/wechat-auth/scan
- * 生成授权码和二维码
+ * 生成授权链接（真正的微信扫码授权）
  */
 export async function POST(request: NextRequest) {
   try {
+    // 获取公众号AppID和AppSecret（可以是服务商的，也可以直接用公众号的）
+    const appId = process.env.WECHAT_APP_ID;
+    const appSecret = process.env.WECHAT_APP_SECRET;
+    
+    if (!appId || !appSecret) {
+      return NextResponse.json({
+        success: false,
+        message: '请配置微信公众号凭证（环境变量 WECHAT_APP_ID 和 WECHAT_APP_SECRET）',
+        needConfig: true,
+      });
+    }
+
     // 生成会话ID
     const sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36);
     
-    // 获取授权码
-    const authData = getOrCreateAuthCode(sessionId);
-    
-    // 生成二维码URL（扫码后跳转到授权页面）
+    // 存储会话
+    authSessions.set(sessionId, {
+      authCode: '',
+      expiresAt: Date.now() + 600000, // 10分钟
+      status: 'pending',
+    });
+
+    // 获取网站域名
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
-    const authPageUrl = `${baseUrl}/account/scan-auth?session=${sessionId}&code=${authData.code}`;
     
-    // 生成二维码图片
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const QRCode = require('qrcode');
-    let qrCodeDataUrl = '';
-    try {
-      qrCodeDataUrl = await QRCode.toDataURL(authPageUrl, {
-        width: 300,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#ffffff',
-        },
-      });
-    } catch (qrError) {
-      console.error('生成二维码失败:', qrError);
-    }
+    // 构造微信授权URL（使用公众号的网页授权）
+    // 用户扫码后会跳转到回调页面，带上授权码
+    const callbackUrl = encodeURIComponent(`${baseUrl}/account/scan-callback`);
+    
+    // 微信授权二维码链接（跳转到公众号授权页面）
+    // 注意：这里使用特殊链接，用户扫码后会获得临时登录凭证
+    const authUrl = `https://mp.weixin.qq.com/cgi-bin/loginpage?t=wxm2way&url=${callbackUrl}`;
     
     return NextResponse.json({
       success: true,
       data: {
         sessionId,
-        authCode: authData.code,
-        expiresIn: authData.expiresIn,
-        expiresAt: new Date(authData.createdAt + authData.expiresIn * 1000).toISOString(),
-        qrCodeUrl: qrCodeDataUrl,
-        authPageUrl,
+        authUrl,
+        callbackUrl: `${baseUrl}/account/scan-callback`,
+        expiresIn: 600,
       },
+      configured: true,
     });
-    
+
   } catch (error) {
-    console.error('生成授权码异常:', error);
+    console.error('生成授权失败:', error);
     return NextResponse.json(
       { success: false, message: '服务器异常' },
       { status: 500 }
@@ -117,7 +84,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET /api/wechat-auth/scan
- * 查询授权码状态
+ * 查询授权状态
  */
 export async function GET(request: NextRequest) {
   try {
@@ -131,41 +98,37 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    const authData = authCodes.get(sessionId);
+    const session = authSessions.get(sessionId);
     
-    if (!authData) {
+    if (!session) {
       return NextResponse.json({
         success: false,
-        message: '授权码不存在或已过期',
+        message: '会话不存在或已过期',
         expired: true,
       });
     }
     
     // 检查是否过期
-    const now = Date.now();
-    if (now - authData.createdAt > authData.expiresIn * 1000) {
-      authCodes.delete(sessionId);
+    if (Date.now() > session.expiresAt) {
+      authSessions.delete(sessionId);
       return NextResponse.json({
         success: false,
-        message: '授权码已过期，请重新扫码',
+        message: '会话已过期，请重新扫码',
         expired: true,
       });
     }
     
-    // 获取剩余时间
-    const remainingSeconds = Math.max(0, Math.ceil((authData.expiresIn * 1000 - (now - authData.createdAt)) / 1000));
-    
     return NextResponse.json({
       success: true,
       data: {
-        status: authData.status,
-        authCode: authData.code,
-        remainingSeconds,
-        appId: authData.appId,
-        nickname: authData.nickname,
+        status: session.status,
+        authCode: session.authCode,
+        appId: session.appId,
+        nickname: session.nickname,
+        remainingSeconds: Math.ceil((session.expiresAt - Date.now()) / 1000),
       },
     });
-    
+
   } catch (error) {
     console.error('查询授权状态异常:', error);
     return NextResponse.json(

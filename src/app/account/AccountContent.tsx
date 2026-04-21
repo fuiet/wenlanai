@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,18 +13,17 @@ import {
   XCircle, 
   Key,
   Trash2,
-  ExternalLink,
   AlertCircle,
   Loader2,
   UserCircle,
   Shield,
   QrCode,
   Smartphone,
-  ArrowLeft,
   Copy,
   Check,
   RefreshCw,
-  Timer
+  ExternalLink,
+  Settings
 } from 'lucide-react';
 
 interface WechatAccount {
@@ -44,10 +43,9 @@ interface WechatAccount {
 
 interface ScanAuthData {
   sessionId: string;
-  authCode: string;
-  expiresAt: string;
-  qrCodeUrl: string;
-  remainingSeconds: number;
+  authUrl: string;
+  callbackUrl: string;
+  expiresIn: number;
 }
 
 export default function AccountContent() {
@@ -57,10 +55,6 @@ export default function AccountContent() {
   const [isBinding, setIsBinding] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   
-  // 检查URL参数确定默认标签
-  const urlTab = searchParams.get('tab');
-  const defaultTab = urlTab === 'manual' || urlTab === 'list' ? urlTab : 'scan';
-  
   // 绑定表单状态
   const [bindAppId, setBindAppId] = useState('');
   const [bindAppSecret, setBindAppSecret] = useState('');
@@ -68,10 +62,8 @@ export default function AccountContent() {
   // 扫码授权状态
   const [scanLoading, setScanLoading] = useState(false);
   const [scanAuthData, setScanAuthData] = useState<ScanAuthData | null>(null);
-  const [inputAuthCode, setInputAuthCode] = useState('');
-  const [remainingTime, setRemainingTime] = useState(600);
-  const [isVerifying, setIsVerifying] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
 
   // 检查URL中的状态参数
   useEffect(() => {
@@ -116,11 +108,10 @@ export default function AccountContent() {
     loadAccounts();
   }, []);
 
-  // 生成二维码授权
+  // 生成微信授权链接
   const generateScanAuth = async () => {
     setScanLoading(true);
     setScanAuthData(null);
-    setInputAuthCode('');
     
     try {
       const response = await fetch('/api/wechat-auth/scan', {
@@ -130,103 +121,51 @@ export default function AccountContent() {
       const result = await response.json();
       
       if (result.success && result.data) {
-        setScanAuthData(result.data);
-        setRemainingTime(result.data.expiresIn);
+        setScanAuthData(result.data as ScanAuthData);
+        setIsConfigured(result.configured || false);
+        
+        // 如果有授权URL，直接打开新窗口
+        if (result.data.authUrl) {
+          window.open(result.data.authUrl, '_blank');
+        }
+      } else if (result.needConfig) {
+        // 需要配置环境变量
+        setStatusMessage({ 
+          type: 'error', 
+          message: result.message || '请配置微信公众号凭证（WECHAT_APP_ID 和 WECHAT_APP_SECRET）' 
+        });
+        setIsConfigured(false);
       } else {
         setStatusMessage({ 
           type: 'error', 
-          message: result.message || '生成授权码失败' 
+          message: result.message || '生成授权链接失败' 
         });
       }
     } catch (error) {
-      console.error('生成授权码失败:', error);
-      setStatusMessage({ type: 'error', message: '生成授权码失败' });
+      console.error('生成授权链接失败:', error);
+      setStatusMessage({ type: 'error', message: '生成授权链接失败' });
     } finally {
       setScanLoading(false);
     }
   };
 
-  // 倒计时
-  useEffect(() => {
-    if (!scanAuthData) return;
+  // 复制授权链接
+  const copyAuthUrl = async () => {
+    if (!scanAuthData?.authUrl) return;
     
-    const timer = setInterval(() => {
-      setRemainingTime(prev => {
-        if (prev <= 1) {
-          setScanAuthData(null);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    
-    return () => clearInterval(timer);
-  }, [scanAuthData]);
-
-  // 验证授权码并绑定
-  const handleVerifyCode = async () => {
-    if (!inputAuthCode.trim() || inputAuthCode.length !== 6) {
-      setStatusMessage({ type: 'error', message: '请输入6位授权码' });
-      return;
-    }
-
-    if (!scanAuthData) {
-      setStatusMessage({ type: 'error', message: '请先生成授权二维码' });
-      return;
-    }
-
-    setIsVerifying(true);
-    setStatusMessage(null);
-
     try {
-      // 验证授权码
-      const response = await fetch(`/api/wechat-auth/scan?sessionId=${scanAuthData.sessionId}`);
-      const result = await response.json();
-
-      if (result.success) {
-        if (result.data.status === 'completed' && result.data.appId) {
-          // 授权完成，使用授权的AppId绑定
-          const bindResponse = await fetch('/api/wechat-auth/bind', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              appId: result.data.appId,
-            }),
-          });
-
-          const bindResult = await bindResponse.json();
-
-          if (bindResult.success) {
-            setStatusMessage({ 
-              type: 'success', 
-              message: `绑定成功！公众号「${bindResult.data?.nickname || result.data.nickname || result.data.appId}」已绑定` 
-            });
-            setScanAuthData(null);
-            setInputAuthCode('');
-            loadAccounts();
-          } else {
-            setStatusMessage({ 
-              type: 'error', 
-              message: bindResult.message || '绑定失败' 
-            });
-          }
-        } else {
-          setStatusMessage({ 
-            type: 'info', 
-            message: '请使用微信扫码获取授权码完成授权' 
-          });
-        }
-      } else {
-        setStatusMessage({ 
-          type: 'error', 
-          message: result.message || '授权码验证失败' 
-        });
-      }
+      await navigator.clipboard.writeText(scanAuthData.authUrl);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
     } catch (error) {
-      console.error('验证授权码失败:', error);
-      setStatusMessage({ type: 'error', message: '验证授权码失败' });
-    } finally {
-      setIsVerifying(false);
+      const textArea = document.createElement('textarea');
+      textArea.value = scanAuthData.authUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
     }
   };
 
@@ -299,26 +238,6 @@ export default function AccountContent() {
     }
   };
 
-  // 复制授权码
-  const copyAuthCode = async () => {
-    if (!scanAuthData?.authCode) return;
-    
-    try {
-      await navigator.clipboard.writeText(scanAuthData.authCode);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (error) {
-      const textArea = document.createElement('textarea');
-      textArea.value = scanAuthData.authCode;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    }
-  };
-
   // 获取账号类型徽章
   const getAccountTypeBadge = (account: WechatAccount) => {
     const typeMap: Record<string, string> = {
@@ -340,17 +259,10 @@ export default function AccountContent() {
     if (account.verify_type_info === -1) {
       return <Badge variant="destructive" className="text-xs">未认证</Badge>;
     }
-    if (account.verify_type_info === 0 || account.verify_type_info === 1 || account.verify_type_info === 2 || account.verify_type_info === 3 || account.verify_type_info === 4 || account.verify_type_info === 5) {
+    if (account.verify_type_info >= 0) {
       return <Badge variant="default" className="text-xs bg-green-500">已认证</Badge>;
     }
     return null;
-  };
-
-  // 格式化时间
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -389,7 +301,7 @@ export default function AccountContent() {
         )}
 
         {/* 绑定方式切换 */}
-        <Tabs defaultValue={defaultTab} className="mb-6">
+        <Tabs defaultValue="scan" className="mb-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="scan" className="flex items-center gap-2">
               <QrCode className="h-4 w-4" />
@@ -411,169 +323,150 @@ export default function AccountContent() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <QrCode className="h-5 w-5 text-blue-500" />
-                  扫码授权公众号
+                  微信扫码授权
                 </CardTitle>
                 <CardDescription>
-                  打开微信扫一扫，授权绑定您的公众号
+                  使用微信公众号管理员扫码，快速完成授权绑定
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {!scanAuthData ? (
-                  <>
-                    {/* 生成二维码按钮 */}
-                    <Button 
-                      onClick={generateScanAuth}
-                      disabled={scanLoading}
-                      className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
-                      size="lg"
-                    >
-                      {scanLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          正在生成授权码...
-                        </>
-                      ) : (
-                        <>
-                          <QrCode className="mr-2 h-4 w-4" />
-                          生成授权二维码
-                        </>
-                      )}
-                    </Button>
+                {/* 未配置提示 */}
+                {isConfigured === false && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h4 className="font-medium text-red-900 mb-2 flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      需要配置微信凭证
+                    </h4>
+                    <p className="text-sm text-red-700 mb-3">
+                      请在服务器环境变量中配置以下凭证：
+                    </p>
+                    <div className="bg-white rounded p-3 font-mono text-sm space-y-1">
+                      <div>WECHAT_APP_ID=您的AppID</div>
+                      <div>WECHAT_APP_SECRET=您的AppSecret</div>
+                    </div>
+                    <p className="text-xs text-red-600 mt-3">
+                      配置地址：微信公众平台 → 设置与开发 → 基本配置
+                    </p>
+                  </div>
+                )}
 
-                    {/* 操作说明 */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+                {/* 生成授权按钮 */}
+                <Button 
+                  onClick={generateScanAuth}
+                  disabled={scanLoading}
+                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
+                  size="lg"
+                >
+                  {scanLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      正在生成授权链接...
+                    </>
+                  ) : (
+                    <>
+                      <QrCode className="mr-2 h-4 w-4" />
+                      打开微信授权页面
+                    </>
+                  )}
+                </Button>
+
+                {/* 授权链接显示 */}
+                {scanAuthData?.authUrl && (
+                  <div className="space-y-4">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <h4 className="font-medium text-green-900 mb-2 flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4" />
+                        授权链接已生成
+                      </h4>
+                      <p className="text-sm text-green-700 mb-3">
+                        请在微信中打开以下链接，或让管理员扫码授权
+                      </p>
+                      <div className="flex gap-2">
+                        <Input 
+                          value={scanAuthData.authUrl} 
+                          readOnly 
+                          className="font-mono text-sm flex-1"
+                        />
+                        <Button 
+                          onClick={copyAuthUrl}
+                          variant="outline"
+                          size="icon"
+                        >
+                          {isCopied ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button 
+                          onClick={() => window.open(scanAuthData.authUrl, '_blank')}
+                          variant="outline"
+                          size="icon"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* 授权步骤 */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                       <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
                         <Smartphone className="h-4 w-4" />
-                        扫码授权步骤
+                        授权步骤
                       </h4>
                       <ol className="text-sm text-blue-700 space-y-2">
                         <li className="flex items-start gap-2">
                           <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">1</span>
-                          <span>点击上方按钮生成授权二维码</span>
+                          <span>点击上方按钮或在微信中打开授权链接</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">2</span>
-                          <span>用微信扫一扫识别二维码</span>
+                          <span>使用公众号管理员微信扫码</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">3</span>
-                          <span>在微信中复制显示的授权码</span>
+                          <span>确认授权后页面将自动跳转</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">4</span>
-                          <span>返回此处输入授权码完成绑定</span>
+                          <span>返回此页面查看绑定结果</span>
                         </li>
                       </ol>
                     </div>
-                  </>
-                ) : (
-                  <div className="grid md:grid-cols-2 gap-6">
-                    {/* 左侧：二维码 */}
-                    <div className="space-y-4">
-                      {/* 二维码 */}
-                      <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center">
-                        {scanAuthData.qrCodeUrl ? (
-                          <img 
-                            src={scanAuthData.qrCodeUrl} 
-                            alt="授权二维码" 
-                            className="w-48 h-48"
-                          />
-                        ) : (
-                          <div className="w-48 h-48 bg-gray-100 flex items-center justify-center">
-                            <QrCode className="h-16 w-16 text-gray-400" />
-                          </div>
-                        )}
-                        
-                        {/* 授权码显示 */}
-                        <div className="mt-4 text-center">
-                          <p className="text-xs text-gray-500 mb-1">授权码</p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-2xl font-bold font-mono tracking-widest text-blue-600">
-                              {scanAuthData.authCode}
-                            </span>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={copyAuthCode}
-                              className="h-8 w-8 p-0"
-                            >
-                              {isCopied ? (
-                                <Check className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
 
-                        {/* 倒计时 */}
-                        <div className="mt-2 flex items-center gap-1 text-sm text-gray-500">
-                          <Timer className="h-4 w-4" />
-                          <span>有效期：{formatTime(remainingTime)}</span>
-                        </div>
-                      </div>
+                    {/* 重新生成 */}
+                    <Button 
+                      onClick={generateScanAuth}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      重新生成授权链接
+                    </Button>
+                  </div>
+                )}
 
-                      {/* 重新生成 */}
-                      <Button 
-                        onClick={generateScanAuth}
-                        variant="outline"
-                        className="w-full"
-                      >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        重新生成
-                      </Button>
-                    </div>
-
-                    {/* 右侧：输入授权码 */}
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="authCode">输入授权码</Label>
-                        <Input
-                          id="authCode"
-                          placeholder="请输入6位授权码"
-                          value={inputAuthCode}
-                          onChange={(e) => setInputAuthCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                          className="text-center text-xl font-mono tracking-widest"
-                          maxLength={6}
-                        />
-                        <p className="text-xs text-gray-500 text-center">
-                          在微信扫码后的页面复制授权码
-                        </p>
-                      </div>
-
-                      <Button 
-                        onClick={handleVerifyCode}
-                        disabled={isVerifying || inputAuthCode.length !== 6}
-                        className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                        size="lg"
-                      >
-                        {isVerifying ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            验证中...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            验证并绑定
-                          </>
-                        )}
-                      </Button>
-
-                      {/* 操作提示 */}
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                        <h4 className="font-medium text-amber-900 mb-2 flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4" />
-                          操作提示
-                        </h4>
-                        <ul className="text-sm text-amber-700 space-y-1 list-disc list-inside">
-                          <li>用微信扫描左侧二维码</li>
-                          <li>微信中会显示6位授权码</li>
-                          <li>复制授权码填入左侧输入框</li>
-                          <li>点击「验证并绑定」完成授权</li>
-                        </ul>
-                      </div>
-                    </div>
+                {/* 操作说明（无链接时显示） */}
+                {!scanAuthData && isConfigured !== false && (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                      <Smartphone className="h-4 w-4" />
+                      扫码授权步骤
+                    </h4>
+                    <ol className="text-sm text-blue-700 space-y-2">
+                      <li className="flex items-start gap-2">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">1</span>
+                        <span>点击上方按钮打开微信授权页面</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">2</span>
+                        <span>使用公众号管理员微信扫码确认</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">3</span>
+                        <span>授权成功后自动完成绑定</span>
+                      </li>
+                    </ol>
                   </div>
                 )}
               </CardContent>
