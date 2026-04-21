@@ -381,23 +381,51 @@ function SmartWritingContent() {
         return urlMatch ? urlMatch[1] : '';
       }).filter(Boolean);
 
-      // 构建复制内容（纯文本格式，方便粘贴到公众号后台）
-      let copyText = `【${title || '未命名文章'}】\n\n`;
+      // 构建适合公众号后台的复制内容
+      let copyText = `${title || '未命名文章'}\n`;
+      copyText += '='.repeat(30) + '\n\n';
+      
+      // 处理文章内容：保留段落结构，移除 Markdown 格式符号
       copyText += generatedContent
-        .replace(/[#*`_\[\]]/g, '') // 移除Markdown格式
-        .replace(/\n\n\n+/g, '\n\n') // 合并多余空行
+        .replace(/^#{1,6}\s+/gm, '') // 移除标题标记
+        .replace(/\*\*(.*?)\*\*/g, '$1') // 移除加粗标记，保留文字
+        .replace(/\*(.*?)\*/g, '$1') // 移除斜体标记，保留文字
+        .replace(/`{1,3}[^`]*`{1,3}/g, (match) => match.replace(/`/g, '')) // 移除代码标记
+        .replace(/!\[.*?\]\(.*?\)/g, '') // 移除图片语法
+        .replace(/\[(.*?)\]\(.*?\)/g, '$1') // 保留链接文字
+        .replace(/^[-*+]\s+/gm, '• ') // 将列表符号转换为圆点
+        .replace(/^\d+\.\s+/gm, (match) => match) // 保留有序列表
+        .replace(/^>+\s*/gm, '') // 移除引用符号
+        .replace(/^---+$/gm, '') // 移除分隔线
+        .replace(/\n{3,}/g, '\n\n') // 合并多余空行
         .trim();
       
-      // 添加图片链接
+      // 添加图片链接（方便上传到公众号）
       if (imageUrls.length > 0) {
-        copyText += '\n\n---\n【图片链接】\n';
+        copyText += '\n\n' + '-'.repeat(30) + '\n';
+        copyText += '【封面图及配图链接】\n';
         imageUrls.forEach((url, index) => {
-          copyText += `图片${index + 1}: ${url}\n`;
+          copyText += `${index + 1}. ${url}\n`;
         });
       }
 
+      // 复制到剪贴板
       await navigator.clipboard.writeText(copyText);
-      alert(`文章已复制到剪贴板！\n\n请打开公众号后台，粘贴文章内容。\n\n如需上传图片，请使用图片链接中的图片。`);
+      
+      // 显示成功提示
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+      
+      // 提供打开公众号后台的选项
+      const choice = confirm(
+        `✅ 文章已复制到剪贴板！\n\n` +
+        `包含：标题 + 正文 + ${imageUrls.length}张图片链接\n\n` +
+        `点击"确定"打开公众号后台粘贴\n点击"取消"留在当前页面`
+      );
+      
+      if (choice) {
+        window.open('https://mp.weixin.qq.com', '_blank');
+      }
     } catch (error) {
       console.error('复制失败:', error);
       alert('复制失败，请手动选择内容复制');
@@ -446,14 +474,33 @@ function SmartWritingContent() {
       return urlMatch ? urlMatch[1] : '';
     }).filter(Boolean);
 
-    // 先尝试复制内容（作为备份）
-    let copySuccess = false;
-    try {
-      await navigator.clipboard.writeText(generatedContent);
-      copySuccess = true;
-    } catch {
-      // 复制失败不影响推送
-    }
+    // 构建适合公众号的复制内容（作为备用）
+    const buildCopyContent = () => {
+      let copyText = `${title || '未命名文章'}\n`;
+      copyText += '='.repeat(30) + '\n\n';
+      copyText += generatedContent
+        .replace(/^#{1,6}\s+/gm, '')
+        .replace(/\*\*(.*?)\*\*/g, '$1')
+        .replace(/\*(.*?)\*/g, '$1')
+        .replace(/`{1,3}[^`]*`{1,3}/g, (m: string) => m.replace(/`/g, ''))
+        .replace(/!\[.*?\]\(.*?\)/g, '')
+        .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+        .replace(/^[-*+]\s+/gm, '• ')
+        .replace(/^>+\s*/gm, '')
+        .replace(/^---+$/gm, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+      
+      if (pushImageUrls.length > 0) {
+        copyText += '\n\n' + '-'.repeat(30) + '\n【封面图及配图链接】\n';
+        pushImageUrls.forEach((url, index) => {
+          copyText += `${index + 1}. ${url}\n`;
+        });
+      }
+      return copyText;
+    };
+
+    const copyContent = buildCopyContent();
 
     setIsPushing(true);
     setPushSuccess(false);
@@ -478,27 +525,41 @@ function SmartWritingContent() {
 
       if (result.success) {
         setPushSuccess(true);
-        alert(`推送成功！文章已发送到公众号草稿箱`);
+        alert(`✅ 推送成功！\n\n文章已发送到公众号草稿箱\n${result.message || ''}`);
       } else {
-        // API推送失败时，提供复制选项
-        if (copySuccess) {
-          const choice = confirm(`${result.message || '推送失败'}\n\n已自动复制文章内容到剪贴板。\n\n点击"确定"打开公众号后台，点击"取消"查看复制内容。`);
+        // API推送失败时，先复制内容，再询问是否打开公众号后台
+        try {
+          await navigator.clipboard.writeText(copyContent);
+          const choice = confirm(
+            `⚠️ ${result.message || 'API推送失败'}\n\n` +
+            `✅ 文章内容已自动复制到剪贴板\n` +
+            `📋 包含：标题 + 正文 + ${pushImageUrls.length}张图片链接\n\n` +
+            `点击"确定"打开公众号后台手动粘贴\n` +
+            `点击"取消"留在当前页面`
+          );
           if (choice) {
             window.open('https://mp.weixin.qq.com', '_blank');
           }
-        } else {
+        } catch {
           alert(`${result.message || '推送失败'}\n\n请手动复制文章内容后，粘贴到公众号后台。`);
         }
       }
     } catch (error) {
       console.error('推送失败:', error);
-      // 网络错误时，提供复制选项
-      if (copySuccess) {
-        const choice = confirm('推送失败，但文章内容已复制到剪贴板。\n\n点击"确定"打开公众号后台，点击"取消"查看复制内容。');
+      // 网络错误时，尝试复制内容
+      try {
+        await navigator.clipboard.writeText(copyContent);
+        const choice = confirm(
+          `⚠️ 网络错误\n\n` +
+          `✅ 文章内容已自动复制到剪贴板\n` +
+          `📋 包含：标题 + 正文 + ${pushImageUrls.length}张图片链接\n\n` +
+          `点击"确定"打开公众号后台手动粘贴\n` +
+          `点击"取消"留在当前页面`
+        );
         if (choice) {
           window.open('https://mp.weixin.qq.com', '_blank');
         }
-      } else {
+      } catch {
         alert('推送失败，请手动复制文章内容');
       }
     } finally {
@@ -930,7 +991,7 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                 className="flex-1 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
               >
                 <Copy className="mr-2 h-4 w-4" />
-                一键复制
+                {copied ? '已复制' : '一键复制'}
               </Button>
               <Button
                 onClick={handleGenerateImage}
@@ -958,7 +1019,7 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                 {isPushing ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    推送中...
+                    处理中...
                   </>
                 ) : pushSuccess ? (
                   <>
@@ -970,15 +1031,19 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                     className="flex items-center cursor-pointer"
                     onClick={() => window.location.href = '/official-account?tab=auth'}
                   >
-                    <img 
-                      src="https://code.coze.cn/api/sandbox/coze_coding/file/proxy?expire_time=-1&file_path=assets%2Fimage.png&nonce=ac7b2e9a-b02e-4eb0-89b9-5b77ac909da2&project_id=7626301097891610687&sign=b8a8799c6cf1f5d4977ccbcc3759ef23592d9cac6dc1eb1f7786d0f635ee0d00" 
-                      alt="" 
-                      className="mr-2 h-4 w-4 object-contain" 
-                    />
-                    一键推送
+                    <SendHorizontal className="mr-2 h-4 w-4" />
+                    复制并推送
                   </span>
                 )}
               </Button>
+            </div>
+          )}
+
+          {/* 推送说明 */}
+          {generatedContent && (
+            <div className="text-xs text-gray-500 text-center mt-2 space-y-1">
+              <p>💡 提示：点击按钮后，文章内容将自动复制到剪贴板</p>
+              <p>📋 包含：标题 + 正文 + 图片链接，可直接粘贴到公众号后台</p>
             </div>
           )}
 
