@@ -1,4 +1,3 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { execSync } from 'child_process';
 import * as dotenv from 'dotenv';
 
@@ -68,17 +67,14 @@ except Exception as e:
   }
 }
 
-function getSupabaseCredentials(): SupabaseCredentials {
+function getSupabaseCredentials(): SupabaseCredentials | null {
   loadEnv();
 
   const url = process.env.COZE_SUPABASE_URL;
   const anonKey = process.env.COZE_SUPABASE_ANON_KEY;
 
-  if (!url) {
-    throw new Error('COZE_SUPABASE_URL is not set');
-  }
-  if (!anonKey) {
-    throw new Error('COZE_SUPABASE_ANON_KEY is not set');
+  if (!url || !anonKey) {
+    return null;
   }
 
   return { url, anonKey };
@@ -89,8 +85,28 @@ function getSupabaseServiceRoleKey(): string | undefined {
   return process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
 }
 
-function getSupabaseClient(token?: string): SupabaseClient {
-  const { url, anonKey } = getSupabaseCredentials();
+// 延迟导入 Supabase
+let supabaseModule: typeof import('@supabase/supabase-js') | null = null;
+
+async function getSupabaseModule() {
+  if (!supabaseModule) {
+    supabaseModule = await import('@supabase/supabase-js');
+  }
+  return supabaseModule;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getSupabaseClient(token?: string): any {
+  const credentials = getSupabaseCredentials();
+  
+  if (!credentials) {
+    return null;
+  }
+
+  const { url, anonKey } = credentials;
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { createClient } = require('@supabase/supabase-js');
 
   let key: string;
   if (token) {

@@ -17,6 +17,15 @@ export async function POST(request: NextRequest) {
 
     const client = getSupabaseClient();
 
+    // 如果数据库未配置，返回成功但跳过存储
+    if (!client) {
+      return NextResponse.json({
+        success: true,
+        demo: true,
+        message: `检测到 ${articles.length} 篇文章，数据库未配置，跳过存储`,
+      });
+    }
+
     // 批量插入文章
     const articlesToInsert = articles.map((article: {
       title: string;
@@ -80,6 +89,21 @@ export async function GET(request: NextRequest) {
 
     const client = getSupabaseClient();
 
+    // 如果数据库未配置，返回空数据
+    if (!client) {
+      return NextResponse.json({
+        success: true,
+        demo: true,
+        data: [],
+        total: 0,
+        message: '数据库未配置，无法获取文章',
+        dateRange: {
+          cutoffDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          timeRange: '30天',
+        },
+      });
+    }
+
     // 计算30天前的日期
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -140,6 +164,15 @@ export async function DELETE(request: NextRequest) {
     }
 
     const client = getSupabaseClient();
+
+    // 如果数据库未配置，返回成功
+    if (!client) {
+      return NextResponse.json({
+        success: true,
+        demo: true,
+        message: '数据库未配置，无法删除',
+      });
+    }
 
     const { error } = await client
       .from('hot_articles')

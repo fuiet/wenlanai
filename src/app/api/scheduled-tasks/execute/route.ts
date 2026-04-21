@@ -10,9 +10,28 @@ export async function POST(request: NextRequest) {
     const { taskId } = await request.json();
 
     const client = getSupabaseClient();
+    const config = new Config();
+    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
+    const searchClient = new SearchClient(config, customHeaders);
 
     // 获取任务配置
     let taskConfig;
+    
+    // 如果数据库未配置，返回演示响应
+    if (!client) {
+      return NextResponse.json({
+        success: true,
+        demo: true,
+        message: '演示模式：数据库未配置，无法执行任务',
+        data: {
+          articlesCount: 0,
+          categories: ['情感', '职场'],
+          lastRun: new Date().toISOString(),
+          nextRun: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        },
+      });
+    }
+
     if (taskId) {
       const { data, error } = await client
         .from('scheduled_tasks')
@@ -43,11 +62,6 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
-
-    // 配置搜索客户端
-    const config = new Config();
-    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
-    const searchClient = new SearchClient(config, customHeaders);
 
     // 获取要搜索的分类列表
     const categories = taskConfig.categories || ['情感', '职场'];

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,7 @@ interface WechatAccount {
   updated_at: string;
 }
 
-export default function AccountPage() {
+function AccountContent() {
   const searchParams = useSearchParams();
   const [accounts, setAccounts] = useState<WechatAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,16 +113,21 @@ export default function AccountPage() {
       const result = await response.json();
 
       if (result.success) {
-        setStatusMessage({ type: 'success', message: result.message || '绑定成功！' });
+        setStatusMessage({ 
+          type: 'success', 
+          message: `绑定成功！公众号「${result.data?.nickname || bindAppId}」已绑定` 
+        });
         setBindAppId('');
         setBindAppSecret('');
-        // 刷新列表
         loadAccounts();
       } else {
-        setStatusMessage({ type: 'error', message: result.message || '绑定失败' });
+        setStatusMessage({ 
+          type: 'error', 
+          message: result.message || '绑定失败，请检查AppID和AppSecret是否正确' 
+        });
       }
     } catch (error) {
-      console.error('绑定失败:', error);
+      console.error('绑定公众号失败:', error);
       setStatusMessage({ type: 'error', message: '绑定失败，请稍后重试' });
     } finally {
       setIsBinding(false);
@@ -131,68 +136,63 @@ export default function AccountPage() {
 
   // 删除公众号
   const handleDeleteAccount = async (appId: string) => {
-    if (!confirm('确定要解绑该公众号吗？')) return;
+    if (!confirm('确定要解绑该公众号吗？')) {
+      return;
+    }
 
     try {
       const response = await fetch(`/api/wechat-auth/account/${appId}`, {
         method: 'DELETE',
       });
+
       const result = await response.json();
 
       if (result.success) {
-        setAccounts(accounts.filter(a => a.app_id !== appId));
         setStatusMessage({ type: 'success', message: '解绑成功' });
+        loadAccounts();
       } else {
         setStatusMessage({ type: 'error', message: result.message || '解绑失败' });
       }
     } catch (error) {
-      console.error('解绑失败:', error);
-      setStatusMessage({ type: 'error', message: '解绑失败' });
+      console.error('解绑公众号失败:', error);
+      setStatusMessage({ type: 'error', message: '解绑失败，请稍后重试' });
     }
   };
 
-  // 获取账号类型标签
+  // 获取账号类型徽章
   const getAccountTypeBadge = (account: WechatAccount) => {
-    const typeMap: Record<string, { label: string; color: string }> = {
-      '0': { label: '订阅号', color: 'bg-blue-100 text-blue-700' },
-      '1': { label: '服务号', color: 'bg-green-100 text-green-700' },
-      '2': { label: '企业微信', color: 'bg-purple-100 text-purple-700' },
-      '3': { label: '小程序', color: 'bg-orange-100 text-orange-700' },
+    const typeMap: Record<string, string> = {
+      0: '订阅号',
+      1: '服务号',
+      2: '企业微信',
     };
-    const type = account.verify_type_info?.toString() || '0';
-    const info = typeMap[type] || typeMap['0'];
+    const type = typeMap[account.principal_type] || '公众号';
+    
     return (
-      <Badge className={info.color}>
-        {info.label}
+      <Badge variant="outline" className="text-xs">
+        {type}
       </Badge>
     );
   };
 
   // 获取认证状态
   const getVerifyStatus = (account: WechatAccount) => {
-    if (account.verify_type_info === 0) {
-      return <Badge variant="outline" className="text-gray-500">未认证</Badge>;
-    } else if (account.verify_type_info >= 1) {
-      return <Badge className="bg-green-100 text-green-700">已认证</Badge>;
+    if (account.verify_type_info === -1) {
+      return <Badge variant="destructive" className="text-xs">未认证</Badge>;
     }
-    return <Badge variant="outline">未知</Badge>;
+    if (account.verify_type_info === 0 || account.verify_type_info === 1 || account.verify_type_info === 2 || account.verify_type_info === 3 || account.verify_type_info === 4 || account.verify_type_info === 5) {
+      return <Badge variant="default" className="text-xs bg-green-500">已认证</Badge>;
+    }
+    return null;
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
-        {/* Header */}
+    <div className="container mx-auto py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+        {/* 页面标题 */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">公众号管理</h1>
-          <p className="text-gray-600">绑定您的微信公众号，用于一键推送文章到公众号草稿箱</p>
+          <p className="text-gray-600">绑定您的微信公众号，开启一键推送功能</p>
         </div>
 
         {/* 状态消息 */}
@@ -431,5 +431,31 @@ export default function AccountPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function AccountLoading() {
+  return (
+    <div className="container mx-auto py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">公众号管理</h1>
+          <p className="text-gray-600">绑定您的微信公众号，开启一键推送功能</p>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function AccountPage() {
+  return (
+    <Suspense fallback={<AccountLoading />}>
+      <AccountContent />
+    </Suspense>
   );
 }

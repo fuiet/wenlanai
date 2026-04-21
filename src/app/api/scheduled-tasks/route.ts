@@ -26,6 +26,22 @@ export async function POST(request: NextRequest) {
 
     const client = getSupabaseClient();
 
+    // 如果数据库未配置，返回成功但跳过存储
+    if (!client) {
+      return NextResponse.json({
+        success: true,
+        demo: true,
+        message: '定时任务已创建（演示模式），数据库未配置',
+        data: {
+          id: Date.now(),
+          task_name: taskName,
+          task_type: taskType,
+          schedule_time: scheduleTime,
+          is_active: isActive,
+        },
+      });
+    }
+
     // 计算下次执行时间
     const [hours, minutes] = scheduleTime.split(':').map(Number);
     const now = new Date();
@@ -74,6 +90,16 @@ export async function GET() {
   try {
     const client = getSupabaseClient();
 
+    // 如果数据库未配置，返回空列表
+    if (!client) {
+      return NextResponse.json({
+        success: true,
+        demo: true,
+        data: [],
+        message: '数据库未配置',
+      });
+    }
+
     const { data, error } = await client
       .from('scheduled_tasks')
       .select('*')
@@ -111,6 +137,15 @@ export async function PUT(request: NextRequest) {
     }
 
     const client = getSupabaseClient();
+
+    // 如果数据库未配置，返回成功
+    if (!client) {
+      return NextResponse.json({
+        success: true,
+        demo: true,
+        message: '定时任务已更新（演示模式），数据库未配置',
+      });
+    }
 
     const updateData: {
       task_name?: string;
@@ -176,6 +211,15 @@ export async function DELETE(request: NextRequest) {
     }
 
     const client = getSupabaseClient();
+
+    // 如果数据库未配置，返回成功
+    if (!client) {
+      return NextResponse.json({
+        success: true,
+        demo: true,
+        message: '定时任务已删除（演示模式），数据库未配置',
+      });
+    }
 
     const { error } = await client
       .from('scheduled_tasks')

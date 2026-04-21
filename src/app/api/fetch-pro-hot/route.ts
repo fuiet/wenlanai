@@ -436,32 +436,40 @@ export async function POST(request: NextRequest) {
     if (uniqueArticles.length > 0) {
       const client = getSupabaseClient();
 
-      // 先删除旧数据（可选）
-      // await client.from('hot_articles').delete().neq('id', 0);
+      if (client) {
+        try {
+          // 先删除旧数据（可选）
+          // await client.from('hot_articles').delete().neq('id', 0);
 
-      // 批量插入
-      const articlesToSave = uniqueArticles.slice(0, 100).map(article => ({
-        title: article.title,
-        account: article.account,
-        url: article.url || null,
-        reads: article.reads,
-        likes: article.likes,
-        shares: article.shares,
-        publish_date: article.publish_date,
-        category: article.category,
-        snippet: article.snippet || null,
-        source: article.source,
-        created_at: new Date().toISOString(),
-      }));
+          // 批量插入
+          const articlesToSave = uniqueArticles.slice(0, 100).map(article => ({
+            title: article.title,
+            account: article.account,
+            url: article.url || null,
+            reads: article.reads,
+            likes: article.likes,
+            shares: article.shares,
+            publish_date: article.publish_date,
+            category: article.category,
+            snippet: article.snippet || null,
+            source: article.source,
+            created_at: new Date().toISOString(),
+          }));
 
-      const { error } = await client
-        .from('hot_articles')
-        .insert(articlesToSave);
+          const { error } = await client
+            .from('hot_articles')
+            .insert(articlesToSave);
 
-      if (error) {
-        console.error('保存数据失败:', error);
+          if (error) {
+            console.error('保存数据失败:', error);
+          } else {
+            console.log(`成功保存 ${articlesToSave.length} 篇爆款文章`);
+          }
+        } catch (err) {
+          console.error('数据库操作失败:', err);
+        }
       } else {
-        console.log(`成功保存 ${articlesToSave.length} 篇爆款文章`);
+        console.log('数据库未配置，跳过存储');
       }
     }
 

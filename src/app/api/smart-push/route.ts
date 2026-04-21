@@ -10,6 +10,22 @@ export async function POST(request: NextRequest) {
 
     const client = getSupabaseClient();
 
+    // 如果数据库未配置，返回空数据和默认偏好
+    if (!client) {
+      return NextResponse.json({
+        success: true,
+        demo: true,
+        data: [],
+        preferences: {
+          preferred_categories: ['情感', '职场'],
+          min_reads: 10000,
+          search_strategy: 'default',
+          custom_keywords: [],
+        },
+        message: '数据库未配置，无法获取文章',
+      });
+    }
+
     // 获取用户偏好设置
     let userPreferences;
     if (userId) {
@@ -81,10 +97,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 根据自定义关键词过滤
-    let filteredArticles = data || [];
+    let filteredArticles = (data || []) as Array<{ title: string; snippet?: string | null; [key: string]: unknown }>;
     if (preferences.custom_keywords && preferences.custom_keywords.length > 0) {
       const keywords = preferences.custom_keywords as string[];
-      filteredArticles = filteredArticles.filter(article =>
+      filteredArticles = filteredArticles.filter((article: { title: string; snippet?: string | null }) =>
         keywords.some(keyword =>
           article.title.toLowerCase().includes(keyword.toLowerCase()) ||
           article.snippet?.toLowerCase().includes(keyword.toLowerCase())

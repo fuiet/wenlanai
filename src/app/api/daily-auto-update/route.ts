@@ -230,29 +230,33 @@ export async function POST(request: NextRequest) {
       console.log(`去重后剩余 ${uniqueArticles.length} 篇文章`);
 
       // 先删除超过30天的旧数据
-      const { error: deleteError } = await client
-        .from('hot_articles')
-        .delete()
-        .lt('publish_date', cutoffDate);
+      if (client) {
+        const { error: deleteError } = await client
+          .from('hot_articles')
+          .delete()
+          .lt('publish_date', cutoffDate);
 
-      if (deleteError) {
-        console.warn(`删除30天前的旧数据失败:`, deleteError);
+        if (deleteError) {
+          console.warn(`删除30天前的旧数据失败:`, deleteError);
+        } else {
+          console.log(`已删除30天前的旧数据`);
+        }
+
+        // 使用 upsert 插入/更新数据
+        const { error: insertError } = await client
+          .from('hot_articles')
+          .upsert(uniqueArticles, {
+            onConflict: 'url',
+          });
+
+        if (insertError) {
+          throw new Error(`保存文章失败: ${insertError.message}`);
+        }
+
+        console.log(`成功保存 ${uniqueArticles.length} 篇文章`);
       } else {
-        console.log(`已删除30天前的旧数据`);
+        console.log('数据库未配置，跳过存储');
       }
-
-      // 使用 upsert 插入/更新数据
-      const { error: insertError } = await client
-        .from('hot_articles')
-        .upsert(uniqueArticles, {
-          onConflict: 'url',
-        });
-
-      if (insertError) {
-        throw new Error(`保存文章失败: ${insertError.message}`);
-      }
-
-      console.log(`成功保存 ${uniqueArticles.length} 篇文章`);
     }
 
     // 获取实际保存的文章日期范围
@@ -289,6 +293,20 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     const client = getSupabaseClient();
+    
+    // 如果数据库未配置，返回演示数据
+    if (!client) {
+      return NextResponse.json({
+        success: true,
+        demo: true,
+        data: {
+          lastUpdateDate: null,
+          today: new Date().toISOString().split('T')[0],
+          message: '数据库未配置',
+        },
+      });
+    }
+    
     const { data, error } = await client
       .from('hot_articles')
       .select('publish_date')

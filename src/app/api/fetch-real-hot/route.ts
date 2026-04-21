@@ -265,18 +265,26 @@ export async function POST(request: NextRequest) {
     if (sortedArticles.length > 0) {
       const client = getSupabaseClient();
 
-      // 先删除旧数据
-      await client.from('hot_articles').delete().neq('id', 0);
+      if (client) {
+        try {
+          // 先删除旧数据
+          await client.from('hot_articles').delete().neq('id', 0);
 
-      // 批量插入
-      const { error } = await client
-        .from('hot_articles')
-        .insert(sortedArticles.slice(0, 100));
+          // 批量插入
+          const { error } = await client
+            .from('hot_articles')
+            .insert(sortedArticles.slice(0, 100));
 
-      if (error) {
-        console.error('保存数据失败:', error);
+          if (error) {
+            console.error('保存数据失败:', error);
+          } else {
+            console.log(`成功保存 ${sortedArticles.length} 篇真实爆款文章`);
+          }
+        } catch (err) {
+          console.error('数据库操作失败:', err);
+        }
       } else {
-        console.log(`成功保存 ${sortedArticles.length} 篇真实爆款文章`);
+        console.log('数据库未配置，跳过存储');
       }
     }
 

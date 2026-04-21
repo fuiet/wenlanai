@@ -78,6 +78,20 @@ export async function POST(request: NextRequest) {
     // 保存到数据库
     const client = getSupabaseClient();
 
+    // 如果数据库未配置，返回成功但跳过存储
+    if (!client) {
+      return NextResponse.json({
+        success: true,
+        demo: true,
+        message: `检测到 ${articles.length} 篇文章，数据库未配置，跳过存储`,
+        data: {
+          totalImported: 0,
+          totalDetected: articles.length,
+          sampleData: articles.slice(0, 5),
+        },
+      });
+    }
+
     // 使用 upsert 插入/更新数据（基于URL去重）
     const { error: insertError } = await client
       .from('hot_articles')

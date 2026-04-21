@@ -37,6 +37,18 @@ export async function POST(request: NextRequest) {
       console.log(`开始导入 ${articles.length} 篇文章`);
 
       const supabase = getSupabaseClient();
+      
+      // 如果数据库未配置，返回成功但提示无法存储
+      if (!supabase) {
+        return NextResponse.json({
+          success: true,
+          importedCount: 0,
+          totalCount: articles.length,
+          message: `检测到 ${articles.length} 篇文章，数据库未配置，无法存储。请配置 Supabase 环境变量以启用数据存储。`,
+          demo: true,
+        });
+      }
+      
       const insertedArticles: DajialaArticle[] = [];
       const errors: string[] = [];
 
