@@ -347,6 +347,44 @@ function SmartWritingContent() {
     setCopied(false);
   };
 
+  // 一键复制文章（包含标题、内容、图片链接）
+  const handleCopyArticle = async () => {
+    if (!generatedContent.trim()) {
+      alert('没有可复制的内容');
+      return;
+    }
+
+    try {
+      // 提取文章中的图片URL
+      const imageMatches = generatedContent.match(/!\[.*?\]\((.*?)\)/g) || [];
+      const imageUrls = imageMatches.map((match) => {
+        const urlMatch = match.match(/\((.*?)\)/);
+        return urlMatch ? urlMatch[1] : '';
+      }).filter(Boolean);
+
+      // 构建复制内容（纯文本格式，方便粘贴到公众号后台）
+      let copyText = `【${title || '未命名文章'}】\n\n`;
+      copyText += generatedContent
+        .replace(/[#*`_\[\]]/g, '') // 移除Markdown格式
+        .replace(/\n\n\n+/g, '\n\n') // 合并多余空行
+        .trim();
+      
+      // 添加图片链接
+      if (imageUrls.length > 0) {
+        copyText += '\n\n---\n【图片链接】\n';
+        imageUrls.forEach((url, index) => {
+          copyText += `图片${index + 1}: ${url}\n`;
+        });
+      }
+
+      await navigator.clipboard.writeText(copyText);
+      alert(`文章已复制到剪贴板！\n\n请打开公众号后台，粘贴文章内容。\n\n如需上传图片，请使用图片链接中的图片。`);
+    } catch (error) {
+      console.error('复制失败:', error);
+      alert('复制失败，请手动选择内容复制');
+    }
+  };
+
   // 一键推送到公众号草稿箱
   const handlePushDraft = async () => {
     if (!generatedContent.trim()) {
@@ -354,17 +392,26 @@ function SmartWritingContent() {
       return;
     }
 
+    // 提取文章中的图片URL（用于推送到公众号）
+    const imageMatches = generatedContent.match(/!\[.*?\]\((.*?)\)/g) || [];
+    const pushImageUrls = imageMatches.map((match) => {
+      const urlMatch = match.match(/\((.*?)\)/);
+      return urlMatch ? urlMatch[1] : '';
+    }).filter(Boolean);
+
+    // 先尝试复制内容（作为备份）
+    let copySuccess = false;
+    try {
+      await navigator.clipboard.writeText(generatedContent);
+      copySuccess = true;
+    } catch {
+      // 复制失败不影响推送
+    }
+
     setIsPushing(true);
     setPushSuccess(false);
 
     try {
-      // 提取文章中的图片URL（用于推送到公众号）
-      const imageMatches = generatedContent.match(/!\[.*?\]\((.*?)\)/g) || [];
-      const pushImageUrls = imageMatches.map((match) => {
-        const urlMatch = match.match(/\((.*?)\)/);
-        return urlMatch ? urlMatch[1] : '';
-      }).filter(Boolean);
-
       // 调用推送API
       const response = await fetch('/api/push-to-wechat', {
         method: 'POST',
@@ -384,11 +431,27 @@ function SmartWritingContent() {
         setPushSuccess(true);
         alert(`推送成功！文章已发送到公众号草稿箱`);
       } else {
-        alert(result.message || '推送失败，请稍后重试');
+        // API推送失败时，提供复制选项
+        if (copySuccess) {
+          const choice = confirm(`${result.message || '推送失败'}\n\n已自动复制文章内容到剪贴板。\n\n点击"确定"打开公众号后台，点击"取消"查看复制内容。`);
+          if (choice) {
+            window.open('https://mp.weixin.qq.com', '_blank');
+          }
+        } else {
+          alert(`${result.message || '推送失败'}\n\n请手动复制文章内容后，粘贴到公众号后台。`);
+        }
       }
     } catch (error) {
       console.error('推送失败:', error);
-      alert('推送失败，请稍后重试');
+      // 网络错误时，提供复制选项
+      if (copySuccess) {
+        const choice = confirm('推送失败，但文章内容已复制到剪贴板。\n\n点击"确定"打开公众号后台，点击"取消"查看复制内容。');
+        if (choice) {
+          window.open('https://mp.weixin.qq.com', '_blank');
+        }
+      } else {
+        alert('推送失败，请手动复制文章内容');
+      }
     } finally {
       setIsPushing(false);
     }
@@ -797,21 +860,12 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                 清空重写
               </Button>
               <Button
-                onClick={handleCopy}
+                onClick={handleCopyArticle}
                 variant="outline"
-                className="flex-1"
+                className="flex-1 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
               >
-                {copied ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    已复制
-                  </>
-                ) : (
-                  <>
-                    <Copy className="mr-2 h-4 w-4" />
-                    复制内容
-                  </>
-                )}
+                <Copy className="mr-2 h-4 w-4" />
+                一键复制
               </Button>
               <Button
                 onClick={handleGenerateImage}
