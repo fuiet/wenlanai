@@ -14,27 +14,45 @@ const createSupabaseClient = () => {
   return createClient(supabaseUrl, supabaseServiceKey);
 }
 
-// 微信第三方平台配置
-const COMPONENT_APPID = process.env.WECHAT_COMPONENT_APPID || '';
-const COMPONENT_APP_SECRET = process.env.WECHAT_COMPONENT_APP_SECRET || '';
+/**
+ * 从数据库获取第三方平台配置
+ */
+async function getComponentConfig() {
+  const supabaseClient = createSupabaseClient();
+  if (!supabaseClient) {
+    return null;
+  }
+  
+  try {
+    const { data } = await supabaseClient
+      .from('wechat_config')
+      .select('config_value')
+      .eq('config_key', 'component')
+      .single();
+    
+    if (data?.config_value) {
+      return JSON.parse(data.config_value);
+    }
+  } catch (error) {
+    console.error('获取第三方平台配置失败:', error);
+  }
+  
+  return null;
+}
 
 /**
  * 获取Component Access Token
  */
-async function getComponentAccessToken(): Promise<string | null> {
-  if (!COMPONENT_APPID || !COMPONENT_APP_SECRET) {
-    return null;
-  }
-
+async function getComponentAccessToken(config: { appId: string; appSecret: string }): Promise<string | null> {
   try {
     const response = await fetch(
-      `https://api.weixin.qq.com/cgi-bin/component/api_component_token`,
+      'https://api.weixin.qq.com/cgi-bin/component/api_component_token',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          component_appid: COMPONENT_APPID,
-          component_appsecret: COMPONENT_APP_SECRET,
+          component_appid: config.appId,
+          component_appsecret: config.appSecret,
         }),
       }
     );
@@ -49,14 +67,14 @@ async function getComponentAccessToken(): Promise<string | null> {
 /**
  * 使用授权码获取授权信息
  */
-async function queryAuth(authCode: string, componentAccessToken: string) {
+async function queryAuth(authCode: string, config: { appId: string }, componentAccessToken: string) {
   const response = await fetch(
     `https://api.weixin.qq.com/cgi-bin/component/api_query_auth?component_access_token=${componentAccessToken}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        component_appid: COMPONENT_APPID,
+        component_appid: config.appId,
         authorization_code: authCode,
       }),
     }
@@ -67,14 +85,14 @@ async function queryAuth(authCode: string, componentAccessToken: string) {
 /**
  * 获取公众号基本信息
  */
-async function getAuthorizerInfo(authorizerAppid: string, componentAccessToken: string) {
+async function getAuthorizerInfo(authorizerAppid: string, config: { appId: string }, componentAccessToken: string) {
   const response = await fetch(
     `https://api.weixin.qq.com/cgi-bin/component/api_get_authorizer_info?component_access_token=${componentAccessToken}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        component_appid: COMPONENT_APPID,
+        component_appid: config.appId,
         authorizer_appid: authorizerAppid,
       }),
     }
@@ -93,8 +111,11 @@ export async function GET(request: NextRequest) {
     const expiresIn = searchParams.get('expires_in');
     const authAppId = searchParams.get('auth_appid');
 
+    // 从数据库获取配置
+    const config = await getComponentConfig();
+    
     // 如果是演示模式，直接返回成功页面
-    if (!COMPONENT_APPID || !COMPONENT_APP_SECRET) {
+    if (!config?.appId || !config?.appSecret) {
       // 构建演示用HTML页面
       const html = `
 <!DOCTYPE html>
@@ -142,6 +163,16 @@ export async function GET(request: NextRequest) {
       margin-top: 20px;
       font-weight: 500;
     }
+    .warning {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 20px 0;
+      text-align: left;
+    }
+    .warning-title { font-weight: bold; color: #856404; margin-bottom: 8px; }
+    .warning-text { color: #856404; font-size: 14px; line-height: 1.6; }
   </style>
 </head>
 <body>
@@ -154,8 +185,14 @@ export async function GET(request: NextRequest) {
       <div class="info-item"><strong>有效期：</strong>${expiresIn || 1800}秒</div>
       <div class="info-item"><strong>授权AppID：</strong>${authAppId || 'demo_appid'}</div>
     </div>
-    <p style="font-size: 12px; color: #999;">此为演示数据，实际使用需配置微信第三方平台</p>
-    <a href="/account" class="btn">前往公众号管理</a>
+    <div class="warning">
+      <div class="warning-title">⚠️ 重要提示</div>
+      <div class="warning-text">
+        此为演示模式，数据不会被保存。<br>
+        要实现真正的公众号绑定和推送功能，请先配置微信第三方平台。
+      </div>
+    </div>
+    <a href="/official-account" class="btn">前往公众号管理</a>
   </div>
 </body>
 </html>
@@ -167,20 +204,20 @@ export async function GET(request: NextRequest) {
 
     // 真实授权回调处理
     if (!authCode) {
-      return NextResponse.redirect(new URL('/account?error=no_auth_code', request.url));
+      return NextResponse.redirect(new URL('/official-account?tab=auth&error=no_auth_code', request.url));
     }
 
     // 获取Component Access Token
-    const componentAccessToken = await getComponentAccessToken();
+    const componentAccessToken = await getComponentAccessToken(config);
     if (!componentAccessToken) {
-      return NextResponse.redirect(new URL('/account?error=token_failed', request.url));
+      return NextResponse.redirect(new URL('/official-account?tab=auth&error=token_failed', request.url));
     }
 
     // 使用授权码换取授权信息
-    const authInfo = await queryAuth(authCode, componentAccessToken);
+    const authInfo = await queryAuth(authCode, config, componentAccessToken);
     if (!authInfo.authorization_info) {
       console.error('授权信息获取失败:', authInfo);
-      return NextResponse.redirect(new URL('/account?error=auth_failed', request.url));
+      return NextResponse.redirect(new URL('/official-account?tab=auth&error=auth_failed', request.url));
     }
 
     const authInfoData = authInfo.authorization_info;
@@ -188,6 +225,7 @@ export async function GET(request: NextRequest) {
     // 获取公众号基本信息
     const authorizerInfo = await getAuthorizerInfo(
       authInfoData.authorizer_appid,
+      config,
       componentAccessToken
     );
 
@@ -200,43 +238,67 @@ export async function GET(request: NextRequest) {
     // 保存到数据库
     const supabaseClient = createSupabaseClient();
     if (!supabaseClient) {
-      return NextResponse.redirect(new URL('/account?error=database_not_configured', request.url));
+      return NextResponse.redirect(new URL('/official-account?tab=auth&error=database_not_configured', request.url));
     }
     
-    const { error } = await supabaseClient
+    // 检查是否已存在
+    const { data: existing } = await supabaseClient
       .from('wechat_accounts')
-      .upsert({
-        app_id: authInfoData.authorizer_appid,
-        authorizer_appid: authInfoData.authorizer_appid,
-        nickname: authorizerData.nickname,
-        head_img: authorizerData.head_img,
-        principal_type: authorizerData.principal_type,
-        verify_type_info: authorizerData.verify_type_info,
-        user_name: authorizerData.user_name,
-        alias: authorizerData.alias,
-        qrcode_url: authorizerData.qrcode_url,
-        business_info: authorizerData.business_info ? JSON.stringify(authorizerData.business_info) : null,
-        authorizer_access_token: authInfoData.authorizer_access_token,
-        authorizer_refresh_token: authInfoData.authorizer_refresh_token,
-        func_info: authInfoData.func_info ? JSON.stringify(authInfoData.func_info) : null,
-        token_expires_at: tokenExpiresAt.toISOString(),
-        refresh_expires_at: refreshExpiresAt.toISOString(),
-        is_authorized: true,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'app_id',
-      });
+      .select('id')
+      .eq('app_id', authInfoData.authorizer_appid)
+      .single();
 
-    if (error) {
-      console.error('保存授权信息失败:', error);
-      return NextResponse.redirect(new URL('/account?error=save_failed', request.url));
+    if (existing) {
+      // 更新
+      await supabaseClient
+        .from('wechat_accounts')
+        .update({
+          nickname: authorizerData.nickname,
+          head_img: authorizerData.head_img,
+          principal_type: authorizerData.principal_type,
+          verify_type_info: authorizerData.verify_type_info,
+          user_name: authorizerData.user_name,
+          alias: authorizerData.alias,
+          qrcode_url: authorizerData.qrcode_url,
+          business_info: authorizerData.business_info ? JSON.stringify(authorizerData.business_info) : null,
+          authorizer_access_token: authInfoData.authorizer_access_token,
+          authorizer_refresh_token: authInfoData.authorizer_refresh_token,
+          func_info: authInfoData.func_info ? JSON.stringify(authInfoData.func_info) : null,
+          token_expires_at: tokenExpiresAt.toISOString(),
+          refresh_expires_at: refreshExpiresAt.toISOString(),
+          is_authorized: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('app_id', authInfoData.authorizer_appid);
+    } else {
+      // 插入
+      await supabaseClient
+        .from('wechat_accounts')
+        .insert({
+          app_id: authInfoData.authorizer_appid,
+          authorizer_appid: authInfoData.authorizer_appid,
+          nickname: authorizerData.nickname,
+          head_img: authorizerData.head_img,
+          principal_type: authorizerData.principal_type,
+          verify_type_info: authorizerData.verify_type_info,
+          user_name: authorizerData.user_name,
+          alias: authorizerData.alias,
+          qrcode_url: authorizerData.qrcode_url,
+          business_info: authorizerData.business_info ? JSON.stringify(authorizerData.business_info) : null,
+          authorizer_access_token: authInfoData.authorizer_access_token,
+          authorizer_refresh_token: authInfoData.authorizer_refresh_token,
+          func_info: authInfoData.func_info ? JSON.stringify(authInfoData.func_info) : null,
+          token_expires_at: tokenExpiresAt.toISOString(),
+          refresh_expires_at: refreshExpiresAt.toISOString(),
+          is_authorized: true,
+        });
     }
 
     // 成功重定向
-    return NextResponse.redirect(new URL('/account?success=true', request.url));
+    return NextResponse.redirect(new URL('/official-account?tab=list&success=auth_success', request.url));
 
   } catch (error) {
     console.error('授权回调处理异常:', error);
-    return NextResponse.redirect(new URL('/account?error=exception', request.url));
+    return NextResponse.redirect(new URL('/official-account?tab=auth&error=exception', request.url));
   }
 }

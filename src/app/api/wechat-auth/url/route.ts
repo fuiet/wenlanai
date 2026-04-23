@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// 初始化Supabase客户端（延迟初始化，避免环境变量缺失时报错）
+// 初始化Supabase客户端（延迟初始化）
 const createSupabaseClient = () => {
   const supabaseUrl = process.env.COZE_SUPABASE_URL || '';
   const supabaseServiceKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || '';
@@ -15,55 +15,78 @@ const createSupabaseClient = () => {
 }
 
 /**
- * 微信第三方平台配置
- * 
- * 注意：使用扫码授权需要配置以下环境变量：
- * - WECHAT_COMPONENT_APPID: 第三方平台AppID
- * - WECHAT_COMPONENT_APP_SECRET: 第三方平台AppSecret
- * - WECHAT_REDIRECT_URI: 授权回调地址
- * 
- * 如果未配置第三方平台，将返回模拟数据用于演示
+ * 从数据库获取第三方平台配置
  */
-
-// 获取环境变量
-const COMPONENT_APPID = process.env.WECHAT_COMPONENT_APPID || '';
-const COMPONENT_APP_SECRET = process.env.WECHAT_COMPONENT_APP_SECRET || '';
-
-/**
- * 获取预授权码
- */
-async function getPreAuthCode(): Promise<string | null> {
-  if (!COMPONENT_APPID || !COMPONENT_APP_SECRET) {
+async function getComponentConfig() {
+  const supabaseClient = createSupabaseClient();
+  if (!supabaseClient) {
     return null;
   }
-
+  
   try {
-    // 获取component_access_token
-    const tokenUrl = `https://api.weixin.qq.com/cgi-bin/component/api_component_token`;
+    const { data } = await supabaseClient
+      .from('wechat_config')
+      .select('config_value')
+      .eq('config_key', 'component')
+      .single();
+    
+    if (data?.config_value) {
+      return JSON.parse(data.config_value);
+    }
+  } catch (error) {
+    console.error('获取第三方平台配置失败:', error);
+  }
+  
+  return null;
+}
+
+/**
+ * 获取Component Access Token
+ */
+async function getComponentAccessToken(config: { appId: string; appSecret: string }): Promise<{ token: string | null; expiresIn?: number }> {
+  try {
+    const tokenUrl = 'https://api.weixin.qq.com/cgi-bin/component/api_component_token';
     const tokenResponse = await fetch(tokenUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        component_appid: COMPONENT_APPID,
-        component_appsecret: COMPONENT_APP_SECRET,
+        component_appid: config.appId,
+        component_appsecret: config.appSecret,
       }),
     });
     const tokenData = await tokenResponse.json();
 
-    if (!tokenData.component_access_token) {
+    if (tokenData.errcode) {
       console.error('获取component_access_token失败:', tokenData);
-      return null;
+      return { token: null };
     }
 
-    const componentAccessToken = tokenData.component_access_token;
+    return { 
+      token: tokenData.component_access_token,
+      expiresIn: tokenData.expires_in 
+    };
+  } catch (error) {
+    console.error('获取Component Access Token异常:', error);
+    return { token: null };
+  }
+}
 
-    // 获取预授权码
-    const preAuthUrl = `https://api.weixin.qq.com/cgi-bin/component/api_create_preauthcode?component_access_token=${componentAccessToken}`;
+/**
+ * 获取预授权码
+ */
+async function getPreAuthCode(config: { appId: string; appSecret: string }): Promise<string | null> {
+  const { token } = await getComponentAccessToken(config);
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const preAuthUrl = `https://api.weixin.qq.com/cgi-bin/component/api_create_preauthcode?component_access_token=${token}`;
     const preAuthResponse = await fetch(preAuthUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        component_appid: COMPONENT_APPID,
+        component_appid: config.appId,
       }),
     });
     const preAuthData = await preAuthResponse.json();
@@ -89,36 +112,36 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { redirectUri } = body;
 
-    // 如果没有配置第三方平台，返回演示URL
-    if (!COMPONENT_APPID || !COMPONENT_APP_SECRET) {
-      console.log('微信第三方平台未配置，返回模拟授权信息');
-      // 生成模拟授权URL（用于演示）
-      const demoAuthUrl = `https://mp.weixin.qq.com/cgi-bin/loginpage?t=wxm2way&url=${encodeURIComponent(redirectUri || window?.location?.origin + '/account' || 'https://example.com/api/wechat-auth/callback')}`;
+    // 从数据库获取配置
+    const config = await getComponentConfig();
+    
+    // 如果没有配置第三方平台，返回演示模式
+    if (!config?.appId || !config?.appSecret) {
+      console.log('微信第三方平台未配置，返回演示模式');
       return NextResponse.json({
         success: true,
-        message: '演示模式：微信第三方平台未配置，使用模拟授权链接',
         demo: true,
-        authUrl: demoAuthUrl,
+        message: '演示模式：第三方平台未配置，请先配置第三方平台',
         data: {
-          authUrl: demoAuthUrl,
-          preAuthCode: 'demo_pre_auth_code',
-          expiresIn: 1800,
+          authUrl: null,
+          preAuthCode: null,
+          expiresIn: 0,
         },
       });
     }
 
     // 获取预授权码
-    const preAuthCode = await getPreAuthCode();
+    const preAuthCode = await getPreAuthCode(config);
     if (!preAuthCode) {
       return NextResponse.json(
-        { success: false, message: '获取预授权码失败' },
+        { success: false, message: '获取预授权码失败，请检查第三方平台配置是否正确' },
         { status: 500 }
       );
     }
 
     // 构建授权URL
-    const callbackUrl = redirectUri || `${process.env.NEXT_PUBLIC_SITE_URL || 'https://example.com'}/api/wechat-auth/callback`;
-    const authUrl = `https://mp.weixin.qq.com/cgi-bin/componentloginpage?component_appid=${COMPONENT_APPID}&pre_auth_code=${preAuthCode}&redirect_uri=${encodeURIComponent(callbackUrl)}&auth_type=1`;
+    const callbackUrl = redirectUri || `${process.env.COZE_PROJECT_DOMAIN_DEFAULT}/api/wechat-auth/callback`;
+    const authUrl = `https://mp.weixin.qq.com/cgi-bin/componentloginpage?component_appid=${config.appId}&pre_auth_code=${preAuthCode}&redirect_uri=${encodeURIComponent(callbackUrl)}&auth_type=1`;
 
     return NextResponse.json({
       success: true,
@@ -145,15 +168,14 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   try {
-    // 初始化Supabase
     const supabaseClient = createSupabaseClient();
+    const config = await getComponentConfig();
     
     // 查询已授权的公众号
     if (!supabaseClient) {
-      // Supabase未配置，返回空数据
       return NextResponse.json({
         success: true,
-        configured: !!(COMPONENT_APPID && COMPONENT_APP_SECRET),
+        configured: !!(config?.appId && config?.appSecret),
         accounts: [],
         count: 0,
         demo: true,
@@ -176,7 +198,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      configured: !!(COMPONENT_APPID && COMPONENT_APP_SECRET),
+      configured: !!(config?.appId && config?.appSecret),
       accounts: accounts || [],
       count: accounts?.length || 0,
     });

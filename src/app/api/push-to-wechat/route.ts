@@ -15,67 +15,64 @@ const createSupabaseClient = () => {
 }
 
 /**
- * 一键推送到公众号草稿箱 API
- * 
- * 支持两种推送方式：
- * 1. 使用已授权的公众号（优先）
- * 2. 使用环境变量配置的公众号（备用）
- * 
- * 请求格式：
- * POST /api/push-to-wechat
- * {
- *   "title": "文章标题",
- *   "content": "文章内容（Markdown格式）",
- *   "imageUrls": ["图片URL数组"],
- *   "appId": "指定推送的公众号AppID（可选）"
- * }
- * 
- * 响应格式：
- * {
- *   "success": true,
- *   "message": "推送成功",
- *   "data": {
- *     "draftId": "草稿ID"
- *   }
- * }
+ * 从数据库获取第三方平台配置
  */
-
-// 公众号API配置（备用）
-const WECHAT_APP_ID = process.env.WECHAT_APP_ID || '';
-const WECHAT_APP_SECRET = process.env.WECHAT_APP_SECRET || '';
-
-// 第三方平台配置
-const COMPONENT_APPID = process.env.WECHAT_COMPONENT_APPID || '';
-const COMPONENT_APP_SECRET = process.env.WECHAT_COMPONENT_APP_SECRET || '';
+async function getComponentConfig() {
+  const supabaseClient = createSupabaseClient();
+  if (!supabaseClient) {
+    return null;
+  }
+  
+  try {
+    const { data } = await supabaseClient
+      .from('wechat_config')
+      .select('config_value')
+      .eq('config_key', 'component')
+      .single();
+    
+    if (data?.config_value) {
+      return JSON.parse(data.config_value);
+    }
+  } catch (error) {
+    console.error('获取第三方平台配置失败:', error);
+  }
+  
+  return null;
+}
 
 /**
  * 从数据库获取已授权的公众号
  */
-async function getAuthorizedAccount(preferredAppId?: string) {
+async function getAuthorizedAccount(appId?: string) {
+  const supabaseClient = createSupabaseClient();
+  if (!supabaseClient) {
+    return null;
+  }
+  
   try {
-    const supabaseClient = createSupabaseClient();
-    if (!supabaseClient) {
-      return null;
-    }
-    
-    const query = supabaseClient
+    let query = supabaseClient
       .from('wechat_accounts')
       .select('*')
-      .eq('is_authorized', true)
-      .gt('token_expires_at', new Date().toISOString());
+      .eq('is_authorized', true);
+
+    if (appId) {
+      query = query.eq('app_id', appId);
+    }
 
     const { data, error } = await query.single();
 
     if (error || !data) {
-      // 尝试查找任何已授权的账号
-      const { data: anyAccount } = await supabaseClient
-        .from('wechat_accounts')
-        .select('*')
-        .eq('is_authorized', true)
-        .limit(1)
-        .single();
-      
-      return anyAccount || null;
+      // 如果没找到指定账号，返回任意一个已授权的账号
+      if (!appId) {
+        const { data: anyAccount } = await supabaseClient
+          .from('wechat_accounts')
+          .select('*')
+          .eq('is_authorized', true)
+          .limit(1)
+          .single();
+        return anyAccount || null;
+      }
+      return null;
     }
 
     return data;
@@ -86,29 +83,31 @@ async function getAuthorizedAccount(preferredAppId?: string) {
 }
 
 /**
- * 获取Component Access Token（第三方平台）
+ * 获取Component Access Token
  */
-async function getComponentAccessToken(): Promise<string | null> {
-  if (!COMPONENT_APPID || !COMPONENT_APP_SECRET) {
-    return null;
-  }
-
+async function getComponentAccessToken(config: { appId: string; appSecret: string }): Promise<string | null> {
   try {
     const response = await fetch(
-      `https://api.weixin.qq.com/cgi-bin/component/api_component_token`,
+      'https://api.weixin.qq.com/cgi-bin/component/api_component_token',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          component_appid: COMPONENT_APPID,
-          component_appsecret: COMPONENT_APP_SECRET,
+          component_appid: config.appId,
+          component_appsecret: config.appSecret,
         }),
       }
     );
     const data = await response.json();
-    return data.component_access_token || null;
+
+    if (data.errcode) {
+      console.error('获取component_access_token失败:', data);
+      return null;
+    }
+
+    return data.component_access_token;
   } catch (error) {
-    console.error('获取Component Access Token失败:', error);
+    console.error('获取Component Access Token异常:', error);
     return null;
   }
 }
@@ -116,8 +115,12 @@ async function getComponentAccessToken(): Promise<string | null> {
 /**
  * 刷新授权Access Token
  */
-async function refreshAuthorizerToken(authorizerAppId: string, authorizerRefreshToken: string) {
-  const componentAccessToken = await getComponentAccessToken();
+async function refreshAuthorizerToken(
+  config: { appId: string; appSecret: string },
+  authorizerAppId: string,
+  authorizerRefreshToken: string
+): Promise<string | null> {
+  const componentAccessToken = await getComponentAccessToken(config);
   if (!componentAccessToken) {
     return null;
   }
@@ -129,7 +132,7 @@ async function refreshAuthorizerToken(authorizerAppId: string, authorizerRefresh
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          component_appid: COMPONENT_APPID,
+          component_appid: config.appId,
           authorizer_appid: authorizerAppId,
           authorizer_refresh_token: authorizerRefreshToken,
         }),
@@ -164,34 +167,31 @@ async function refreshAuthorizerToken(authorizerAppId: string, authorizerRefresh
 }
 
 /**
- * 获取微信Access Token（通过第三方平台或直接）
+ * 获取Authorizer Access Token
  */
-async function getAccessToken(account?: { 
-  authorizer_access_token?: string;
-  authorizer_refresh_token?: string;
-  authorizer_appid?: string;
-}): Promise<{ token: string | null; account: typeof account }> {
-  // 如果有已授权账号
+async function getAccessToken(
+  config: { appId: string; appSecret: string },
+  account?: { 
+    authorizer_access_token?: string;
+    authorizer_refresh_token?: string;
+    authorizer_appid?: string;
+    app_id?: string;
+  }
+): Promise<{ token: string | null; account: typeof account }> {
+  // 如果有已授权账号的token
   if (account?.authorizer_access_token) {
     return { token: account.authorizer_access_token, account };
   }
 
-  // 如果配置了第三方平台
-  if (COMPONENT_APPID && COMPONENT_APP_SECRET && account?.authorizer_refresh_token && account?.authorizer_appid) {
-    const newToken = await refreshAuthorizerToken(account.authorizer_appid, account.authorizer_refresh_token);
-    return { token: newToken, account };
-  }
-
-  // 降级：使用环境变量
-  if (WECHAT_APP_ID && WECHAT_APP_SECRET) {
-    try {
-      const response = await fetch(
-        `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${WECHAT_APP_ID}&secret=${WECHAT_APP_SECRET}`
-      );
-      const data = await response.json();
-      return { token: data.access_token || null, account };
-    } catch (error) {
-      console.error('获取Access Token失败:', error);
+  // 如果有refresh_token，尝试刷新
+  if (account?.authorizer_refresh_token && account?.authorizer_appid) {
+    const newToken = await refreshAuthorizerToken(
+      config,
+      account.authorizer_appid,
+      account.authorizer_refresh_token
+    );
+    if (newToken) {
+      return { token: newToken, account };
     }
   }
 
@@ -201,7 +201,10 @@ async function getAccessToken(account?: {
 /**
  * 上传图片到微信素材库
  */
-async function uploadImageToWechat(accessToken: string, imageUrl: string, useComponentApi: boolean = false): Promise<string | null> {
+async function uploadImageToWechat(
+  accessToken: string,
+  imageUrl: string
+): Promise<string | null> {
   try {
     // 下载图片
     const imageResponse = await fetch(imageUrl);
@@ -212,18 +215,13 @@ async function uploadImageToWechat(accessToken: string, imageUrl: string, useCom
     const formData = new FormData();
     formData.append('media', imageBlob, 'image.jpg');
 
-    let uploadUrl = `https://api.weixin.qq.com/cgi-bin/media/upload?access_token=${accessToken}&type=image`;
-    if (useComponentApi && COMPONENT_APPID) {
-      const componentAccessToken = await getComponentAccessToken();
-      if (componentAccessToken) {
-        uploadUrl = `https://api.weixin.qq.com/cgi-bin/media/upload?access_token=${componentAccessToken}&type=image`;
+    const uploadResponse = await fetch(
+      `https://api.weixin.qq.com/cgi-bin/media/upload?access_token=${accessToken}&type=image`,
+      {
+        method: 'POST',
+        body: formData,
       }
-    }
-
-    const uploadResponse = await fetch(uploadUrl, {
-      method: 'POST',
-      body: formData,
-    });
+    );
 
     const result = await uploadResponse.json();
     
@@ -242,7 +240,7 @@ async function uploadImageToWechat(accessToken: string, imageUrl: string, useCom
 /**
  * 将Markdown内容转换为微信文章格式
  */
-function processContentForWechat(content: string, uploadedImages: string[], originalImages: string[]): string {
+function processContentForWechat(content: string): string {
   let processed = content;
   
   // 转换Markdown标题为HTML
@@ -256,7 +254,7 @@ function processContentForWechat(content: string, uploadedImages: string[], orig
   // 转换斜体
   processed = processed.replace(/\*(.*?)\*/g, '<em>$1</em>');
   
-  // 转换图片
+  // 转换图片语法为空（因为图片会单独上传）
   processed = processed.replace(/!\[.*?\]\(.*?\)/g, '');
   
   // 转换段落
@@ -296,103 +294,107 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 获取第三方平台配置
+    const config = await getComponentConfig();
+    
     // 获取要使用的公众号账号
     let account = await getAuthorizedAccount(appId);
     
     // 如果指定了appId但未找到对应的账号
     if (appId && (!account || account.app_id !== appId)) {
-      const supabaseClient = createSupabaseClient();
-      if (supabaseClient) {
-        const { data: specificAccount } = await supabaseClient
-          .from('wechat_accounts')
-          .select('*')
-          .eq('app_id', appId)
-          .single();
-        
-        if (specificAccount) {
-          account = specificAccount;
-        }
-      }
+      account = await getAuthorizedAccount(appId);
     }
 
-    // 获取Access Token
-    const { token } = await getAccessToken(account);
+    // 如果有第三方平台配置和已授权账号，执行真实推送
+    if (config?.appId && config?.appSecret && account) {
+      // 获取Access Token
+      const { token } = await getAccessToken(config, account);
 
-    // 如果有有效的Access Token，执行真实推送
-    if (token) {
-      const useComponentApi = !!(COMPONENT_APPID && account);
-
-      // 上传图片到微信素材库
-      const uploadedImages: string[] = [];
-      for (const imageUrl of imageUrls) {
-        const mediaId = await uploadImageToWechat(token, imageUrl, useComponentApi);
-        if (mediaId) {
-          uploadedImages.push(mediaId);
+      if (token) {
+        // 上传图片到微信素材库
+        const uploadedImages: string[] = [];
+        for (const imageUrl of imageUrls) {
+          const mediaId = await uploadImageToWechat(token, imageUrl);
+          if (mediaId) {
+            uploadedImages.push(mediaId);
+          }
         }
-      }
 
-      // 处理内容
-      const processedContent = processContentForWechat(content, uploadedImages, imageUrls);
+        // 处理内容
+        const processedContent = processContentForWechat(content);
 
-      // 构建草稿
-      const articles = [
-        {
-          title: title || '未命名文章',
-          author: '',
-          digest: content.substring(0, 54) + '...',
-          content: processedContent,
-          content_source_url: '',
-          thumb_media_id: uploadedImages[0] || '',
-          need_open_comment: 1,
-          only_fans_can_comment: 0,
-          is_article: 1,
-        },
-      ];
-
-      // 创建草稿
-      const draftUrl = useComponentApi
-        ? `https://api.weixin.qq.com/cgi-bin/draft/add?access_token=${token}`
-        : `https://api.weixin.qq.com/cgi-bin/draft/add?access_token=${token}`;
-
-      const draftResponse = await fetch(draftUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ articles }),
-      });
-
-      const draftResult = await draftResponse.json();
-
-      if (draftResult.media_id) {
-        return NextResponse.json({
-          success: true,
-          message: `推送成功！文章已发送到${account?.nickname || '公众号'}草稿箱`,
-          data: {
-            draftId: draftResult.media_id,
-            account: account?.nickname || '公众号',
+        // 构建草稿
+        const articles = [
+          {
+            title: title || '未命名文章',
+            author: '',
+            digest: content.substring(0, 54) + '...',
+            content: processedContent,
+            content_source_url: '',
+            thumb_media_id: uploadedImages[0] || '',
+            need_open_comment: 1,
+            only_fans_can_comment: 0,
+            is_article: 1,
           },
-        });
-      }
+        ];
 
-      console.error('创建草稿失败:', draftResult);
+        // 创建草稿
+        const draftUrl = `https://api.weixin.qq.com/cgi-bin/draft/add?access_token=${token}`;
+
+        const draftResponse = await fetch(draftUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ articles }),
+        });
+
+        const draftResult = await draftResponse.json();
+
+        if (draftResult.media_id) {
+          return NextResponse.json({
+            success: true,
+            message: `推送成功！文章已发送到${account?.nickname || '公众号'}草稿箱`,
+            data: {
+              draftId: draftResult.media_id,
+              account: account?.nickname || '公众号',
+            },
+          });
+        }
+
+        console.error('创建草稿失败:', draftResult);
+        
+        // 如果API调用失败，返回具体错误
+        if (draftResult.errcode) {
+          return NextResponse.json({
+            success: false,
+            message: `微信API错误：${draftResult.errmsg || '创建草稿失败'}`,
+            error: draftResult,
+          });
+        }
+      }
     }
 
-    // 模拟成功响应（演示模式）
-    console.log('推送模式：演示（无可用Access Token）');
+    // 如果没有配置，返回提示
+    if (!config?.appId || !config?.appSecret) {
+      return NextResponse.json({
+        success: false,
+        message: '请先配置微信第三方平台',
+        requireConfig: true,
+      });
+    }
+
+    // 如果没有已授权的公众号
+    if (!account) {
+      return NextResponse.json({
+        success: false,
+        message: '请先绑定公众号',
+        requireAuth: true,
+      });
+    }
+
+    // 其他错误
     return NextResponse.json({
-      success: true,
-      message: account 
-        ? `模拟推送成功！文章已发送到${account.nickname}草稿箱（演示模式）` 
-        : '模拟推送成功（演示模式）',
-      data: {
-        draftId: `mock_${Date.now()}`,
-        title: title || '未命名文章',
-        contentLength: content.length,
-      },
-      demo: true,
-      account: account ? {
-        nickname: account.nickname,
-        appId: account.app_id,
-      } : null,
+      success: false,
+      message: '推送失败，请稍后重试',
     });
 
   } catch (error) {
@@ -410,14 +412,14 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   try {
+    const config = await getComponentConfig();
     const account = await getAuthorizedAccount();
     
     return NextResponse.json({
       success: true,
       message: '推送API正常',
       config: {
-        componentConfigured: !!(COMPONENT_APPID && COMPONENT_APP_SECRET),
-        appIdConfigured: !!(WECHAT_APP_ID && WECHAT_APP_SECRET),
+        componentConfigured: !!(config?.appId && config?.appSecret),
         hasAuthorizedAccount: !!account,
         account: account ? {
           nickname: account.nickname,

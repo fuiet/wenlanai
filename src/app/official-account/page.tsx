@@ -85,6 +85,14 @@ function OfficialAccountContent() {
   const [scanAuthUrl, setScanAuthUrl] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
+  // 第三方平台配置相关状态
+  const [componentAppId, setComponentAppId] = useState('');
+  const [componentAppSecret, setComponentAppSecret] = useState('');
+  const [componentRedirectUri, setComponentRedirectUri] = useState('');
+  const [isConfiguring, setIsConfiguring] = useState(false);
+  const [configStatus, setConfigStatus] = useState<{ configured: boolean; appId?: string } | null>(null);
+  const [showConfigSuccess, setShowConfigSuccess] = useState(false);
+
   // 模拟待推送文章数据
   const mockArticles = [
     {
@@ -111,6 +119,8 @@ function OfficialAccountContent() {
     const tab = searchParams.get('tab');
     if (tab === 'auth') {
       setDefaultTab('auth');
+    } else if (tab === 'config') {
+      setDefaultTab('config');
     }
   }, [searchParams]);
 
@@ -130,8 +140,96 @@ function OfficialAccountContent() {
     }
   };
 
+  // 加载第三方平台配置状态
+  const loadConfigStatus = async () => {
+    try {
+      const response = await fetch('/api/wechat-config');
+      const result = await response.json();
+      if (result.success) {
+        setConfigStatus({
+          configured: result.configured,
+          appId: result.config?.appId,
+        });
+        if (result.config?.appId) {
+          setComponentAppId(result.config.appId);
+        }
+      }
+    } catch (error) {
+      console.error('加载配置状态失败:', error);
+    }
+  };
+
+  // 保存第三方平台配置
+  const saveComponentConfig = async () => {
+    if (!componentAppId.trim() || !componentAppSecret.trim()) {
+      setStatusMessage({ type: 'error', message: '请输入完整的AppID和AppSecret' });
+      return;
+    }
+
+    if (!componentAppId.startsWith('wx')) {
+      setStatusMessage({ type: 'error', message: 'AppID格式不正确，应以wx开头' });
+      return;
+    }
+
+    setIsConfiguring(true);
+    setStatusMessage(null);
+
+    try {
+      const response = await fetch('/api/wechat-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appId: componentAppId.trim(),
+          appSecret: componentAppSecret.trim(),
+          redirectUri: componentRedirectUri.trim() || undefined,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setStatusMessage({ type: 'success', message: '第三方平台配置成功！' });
+        setShowConfigSuccess(true);
+        setConfigStatus({ configured: true, appId: componentAppId });
+        setComponentAppSecret(''); // 清空密钥显示
+      } else {
+        setStatusMessage({ type: 'error', message: result.message || '配置保存失败' });
+      }
+    } catch (error) {
+      console.error('保存配置失败:', error);
+      setStatusMessage({ type: 'error', message: '保存失败，请稍后重试' });
+    } finally {
+      setIsConfiguring(false);
+    }
+  };
+
+  // 删除第三方平台配置
+  const deleteComponentConfig = async () => {
+    if (!confirm('确定要删除第三方平台配置吗？删除后将无法使用扫码授权功能。')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/wechat-config', {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        setStatusMessage({ type: 'success', message: '配置已删除' });
+        setConfigStatus({ configured: false });
+        setComponentAppId('');
+        setComponentAppSecret('');
+      }
+    } catch (error) {
+      console.error('删除配置失败:', error);
+      setStatusMessage({ type: 'error', message: '删除失败' });
+    }
+  };
+
   useEffect(() => {
     loadAccounts();
+    loadConfigStatus();
   }, []);
 
   // 生成微信扫码授权
@@ -373,14 +471,19 @@ function OfficialAccountContent() {
 
       {/* Tab切换 */}
       <Tabs defaultValue={defaultTab} className="mb-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="accounts" className="flex items-center gap-2">
             <UserCheck className="h-4 w-4" />
             公众号列表 ({accounts.length})
           </TabsTrigger>
           <TabsTrigger value="auth" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            账号管理 ({accounts.length})
+            <QrCode className="h-4 w-4" />
+            扫码授权
+          </TabsTrigger>
+          <TabsTrigger value="config" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            平台配置
+            {configStatus?.configured && <span className="ml-1 text-green-500">✓</span>}
           </TabsTrigger>
         </TabsList>
 
@@ -764,6 +867,178 @@ function OfficialAccountContent() {
                 )}
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
+
+        {/* 平台配置Tab */}
+        <TabsContent value="config" className="mt-6">
+          <div className="max-w-2xl mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-purple-500" />
+                  微信第三方平台配置
+                </CardTitle>
+                <CardDescription>
+                  配置您的微信第三方平台，才能使用扫码授权和推送到草稿箱功能
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* 配置状态 */}
+                <div className={`p-4 rounded-lg ${configStatus?.configured ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                  <div className="flex items-center gap-2">
+                    {configStatus?.configured ? (
+                      <>
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                        <span className="font-medium text-green-700">已配置第三方平台</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-5 w-5 text-yellow-500" />
+                        <span className="font-medium text-yellow-700">未配置第三方平台</span>
+                      </>
+                    )}
+                  </div>
+                  {configStatus?.configured && (
+                    <p className="text-sm text-green-600 mt-2">
+                      AppID: {configStatus.appId}
+                    </p>
+                  )}
+                  {!configStatus?.configured && (
+                    <p className="text-sm text-yellow-600 mt-2">
+                      请先配置第三方平台，才能使用扫码授权和推送到草稿箱功能
+                    </p>
+                  )}
+                </div>
+
+                {/* 配置表单 */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="componentAppId">第三方平台 AppID</Label>
+                    <Input
+                      id="componentAppId"
+                      value={componentAppId}
+                      onChange={(e) => setComponentAppId(e.target.value)}
+                      placeholder="wx开头，例如：wx1234567890abcdef"
+                      disabled={isConfiguring}
+                    />
+                    <p className="text-xs text-gray-500">
+                      登录微信公众平台 → 第三方平台 → 查看平台信息
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="componentAppSecret">第三方平台 AppSecret</Label>
+                    <Input
+                      id="componentAppSecret"
+                      type="password"
+                      value={componentAppSecret}
+                      onChange={(e) => setComponentAppSecret(e.target.value)}
+                      placeholder="输入AppSecret"
+                      disabled={isConfiguring}
+                    />
+                    <p className="text-xs text-gray-500">
+                      重要：请妥善保管，不要泄露给他人
+                    </p>
+                  </div>
+
+                  {/* 状态消息 */}
+                  {statusMessage && (
+                    <div className={`p-3 rounded-lg text-sm ${
+                      statusMessage.type === 'success' ? 'bg-green-50 text-green-700' :
+                      statusMessage.type === 'error' ? 'bg-red-50 text-red-700' :
+                      'bg-blue-50 text-blue-700'
+                    }`}>
+                      {statusMessage.type === 'success' && <CheckCircle className="h-4 w-4 inline mr-2" />}
+                      {statusMessage.type === 'error' && <AlertCircle className="h-4 w-4 inline mr-2" />}
+                      {statusMessage.message}
+                    </div>
+                  )}
+
+                  {/* 操作按钮 */}
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={saveComponentConfig}
+                      disabled={isConfiguring}
+                      className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                    >
+                      {isConfiguring ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          保存中...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          保存配置
+                        </>
+                      )}
+                    </Button>
+                    {configStatus?.configured && (
+                      <Button
+                        onClick={deleteComponentConfig}
+                        variant="outline"
+                        className="text-red-600 border-red-200 hover:bg-red-50"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        删除配置
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* 申请教程 */}
+                <div className="border-t pt-6">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <ExternalLink className="h-4 w-4" />
+                    如何申请微信第三方平台？
+                  </h4>
+                  <div className="space-y-3 text-sm text-gray-600">
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="font-medium text-gray-700 mb-2">第一步：注册微信开放平台账号</p>
+                      <p>访问微信开放平台 (open.weixin.qq.com)，注册开发者账号</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="font-medium text-gray-700 mb-2">第二步：创建第三方平台</p>
+                      <p>在管理中心创建第三方平台，填写平台信息</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="font-medium text-gray-700 mb-2">第三步：获取AppID和AppSecret</p>
+                      <p>在第三方平台详情页获取AppID和AppSecret，填入上方表单</p>
+                    </div>
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-blue-700">
+                        <strong>提示：</strong>申请第三方平台需要资质认证（个人或企业）。资质审核通过后即可使用。
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 配置成功提示 */}
+            {showConfigSuccess && (
+              <Card className="mt-6 bg-green-50 border-green-200">
+                <CardContent className="py-6">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-green-700">配置成功！</h4>
+                      <p className="text-sm text-green-600 mt-1">
+                        现在可以切换到「扫码授权」选项卡，授权您的公众号了。
+                      </p>
+                      <Button
+                        onClick={() => setDefaultTab('auth')}
+                        className="mt-3 bg-green-600 hover:bg-green-700"
+                        size="sm"
+                      >
+                        去扫码授权
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
       </Tabs>
