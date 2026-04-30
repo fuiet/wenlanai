@@ -1,0 +1,8 @@
+# 微信第三方平台授权事件接收服务 - 依赖包
+# 安装命令: pip install -r requirements.txt
+
+# Web框架
+Flask>=2.0.0
+
+# AES加解密 (微信使用AES-256-CBC)
+pycryptodome>=3.15.0
