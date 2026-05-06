@@ -42,7 +42,31 @@ import rehypeHighlight from 'rehype-highlight';
 import { EnhancedArticle, SimpleArticlePreview } from '@/components/enhanced-article';
 import 'highlight.js/styles/github-dark.css';
 
-// 提示词数据结构
+// 提示词模板类型
+interface PromptTemplate {
+  id: number;
+  name: string;
+  category: string;
+  description: string;
+  prompt: string;
+  tags: string[];
+  isCustom: boolean;
+  // 人设信息
+  persona?: {
+    author_name?: string;
+    personality?: string;
+    persona补充?: string;
+  };
+  // 文章配置
+  article_config?: {
+    field?: string;
+    target_audience?: string;
+    word_count?: number;
+  };
+  created_at?: string;
+}
+
+// 兼容旧的 Prompt 类型
 interface Prompt {
   id: number;
   name: string;
@@ -140,6 +164,10 @@ function SmartWritingContent() {
   const [searchEnabled, setSearchEnabled] = useState(true); // 默认启用联网搜索
   const [prompts, setPrompts] = useState<Prompt[]>(defaultPrompts);
   
+  // 提示词模板相关状态
+  const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(null);
+  
   // AI检测相关状态
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectResult, setDetectResult] = useState<DetectResult | null>(null);
@@ -194,6 +222,26 @@ function SmartWritingContent() {
         }
       }
     }
+  }, []);
+
+  // 获取用户的提示词模板
+  const fetchPromptTemplates = async () => {
+    try {
+      const response = await fetch('/api/prompt-templates');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.templates) {
+          setPromptTemplates(data.templates);
+        }
+      }
+    } catch (error) {
+      console.error('获取提示词模板失败:', error);
+    }
+  };
+
+  // 页面加载时获取提示词模板
+  useEffect(() => {
+    fetchPromptTemplates();
   }, []);
 
   // 从URL参数中获取标题和提示词

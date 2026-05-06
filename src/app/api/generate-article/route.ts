@@ -3,8 +3,28 @@ import { LLMClient, SearchClient, Config, HeaderUtils } from 'coze-coding-dev-sd
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, title, searchEnabled = true } = await request.json();
+    const { prompt, title, searchEnabled = true, templateId } = await request.json();
     const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
+
+    // 如果传入了模板ID，获取模板详情
+    let templateInfo = null;
+    if (templateId) {
+      try {
+        const { getSupabaseAdmin } = await import('@/lib/supabase-admin');
+        const supabase = getSupabaseAdmin();
+        const { data, error } = await supabase
+          .from('prompt_templates')
+          .select('*')
+          .eq('id', templateId)
+          .single();
+        
+        if (!error && data) {
+          templateInfo = data;
+        }
+      } catch (e) {
+        console.error('获取模板失败:', e);
+      }
+    }
 
     const config = new Config();
     const llmClient = new LLMClient(config, customHeaders);
@@ -53,7 +73,41 @@ ${searchResults}
     }
 
     // 构建system prompt
-    const systemPrompt = prompt || `你是一位专业的公众号文章写作专家，擅长创作1000字左右的爆款文章。
+    let systemPrompt = '';
+    
+    if (templateInfo) {
+      // 使用提示词模板构建system prompt
+      const personaInfo = templateInfo.personality || '';
+      const personaSupplement = templateInfo.persona_supplement || '';
+      const authorName = templateInfo.author_name || '';
+      const field = templateInfo.field || '';
+      const targetAudience = templateInfo.target_audience || '';
+      const wordCount = templateInfo.word_count || 1000;
+      const minWord = Math.floor(wordCount * 0.95);
+      const maxWord = Math.ceil(wordCount * 1.05);
+      
+      systemPrompt = templateInfo.prompt || `你是一位专业的公众号文章写作专家。`;
+      
+      // 添加人设信息
+      if (authorName || personaInfo || personaSupplement) {
+        systemPrompt += `
+
+【作者人设】
+${authorName ? `作者姓名：${authorName}` : ''}
+${personaInfo ? `人物性格：${personaInfo}` : ''}
+${personaSupplement ? `人设补充：${personaSupplement}` : ''}`;
+      }
+      
+      // 添加文章配置
+      systemPrompt += `
+
+【文章配置】
+${field ? `文章领域：${field}` : ''}
+${targetAudience ? `目标受众：${targetAudience}` : ''}
+字数要求：${minWord}-${maxWord}字（严格控制）`;
+    } else {
+      // 默认的system prompt
+      systemPrompt = prompt || `你是一位专业的公众号文章写作专家，擅长创作1000字左右的爆款文章。
 
 【核心要求】字数必须严格控制在950-1050字之间，这是最高优先级！
 
@@ -77,6 +131,7 @@ ${searchResults}
 - 使用 - 无序列表列举要点
 
 请严格按以上要求创作，确保字数精准！`;
+    }
 
     // 从用户提示词中解析字数要求，默认为1000字左右
     let wordCountRequirement = '1000字左右（±100字，约900-1100字）';
