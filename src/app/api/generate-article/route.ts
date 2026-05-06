@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { LLMClient, SearchClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
+import { LLMClient, SearchClient, ImageGenerationClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
     const config = new Config();
     const llmClient = new LLMClient(config, customHeaders);
     const searchClient = new SearchClient(config, customHeaders);
+    const imageClient = new ImageGenerationClient(config, customHeaders);
 
     // 如果启用搜索或投喂素材，先获取实时数据
     let searchContext = '';
@@ -50,13 +51,12 @@ export async function POST(request: NextRequest) {
         const searchResponse = await searchClient.advancedSearch(searchQuery, {
           searchType: 'web',
           count: 10,
-          timeRange: '1m', // 只获取最近1个月的数据
+          timeRange: '1m',
           needSummary: true,
           needContent: true,
         });
 
         if (searchResponse.web_items && searchResponse.web_items.length > 0) {
-          // 构建搜索上下文
           const searchResults = searchResponse.web_items.map((item, index) => {
             return `[搜索结果${index + 1}]
 标题: ${item.title}
@@ -88,11 +88,8 @@ ${searchResults}
     let systemPrompt = '';
     
     if (templateInfo && templateInfo.prompt) {
-      // 直接使用提示词模板的完整提示词
-      // 模板已包含完整的角色定位、写作风格、文章结构等内容
       systemPrompt = templateInfo.prompt;
       
-      // 检查模板是否已有字数要求
       const wordPatterns = [
         /约\s*([0-9]+)\s*字/,
         /([0-9]+)\s*字左右/,
@@ -108,7 +105,6 @@ ${searchResults}
         }
       }
       
-      // 如果模板没有明确字数要求，添加默认控制
       if (!hasWordCount) {
         const wordCount = templateInfo.word_count || 1000;
         const minWord = Math.floor(wordCount * 0.95);
@@ -116,7 +112,6 @@ ${searchResults}
         systemPrompt += `\n\n【重要提醒】字数必须严格控制在${minWord}-${maxWord}字之间，这是最高优先级！`;
       }
     } else if (templateInfo) {
-      // 模板存在但没有prompt内容时的降级处理
       const personaInfo = templateInfo.personality || '';
       const personaSupplement = templateInfo.persona_supplement || '';
       const authorName = templateInfo.author_name || '';
@@ -134,7 +129,6 @@ ${field ? `\n【文章领域】${field}` : ''}
 ${targetAudience ? `\n【目标受众】${targetAudience}` : ''}
 【字数要求】${minWord}-${maxWord}字（严格控制）`;
     } else {
-      // 默认的system prompt
       systemPrompt = prompt || `你是一位专业的公众号文章写作专家，擅长创作1000字左右的爆款文章。
 
 【核心要求】字数必须严格控制在950-1050字之间，这是最高优先级！
@@ -161,36 +155,6 @@ ${targetAudience ? `\n【目标受众】${targetAudience}` : ''}
 请严格按以上要求创作，确保字数精准！`;
     }
 
-    // 从用户提示词中解析字数要求，默认为1000字左右
-    let wordCountRequirement = '1000字左右（±100字，约900-1100字）';
-    const wordPatterns = [
-      /约\s*([0-9]+)\s*字/,
-      /([0-9]+)\s*字左右/,
-      /字数[为是]?\s*([0-9]+)/,
-      /([0-9]+)\s*字.*左右/,
-      /控制在\s*([0-9]+)\s*字/,
-      /[约大约]\s*([0-9]+)\s*字/,
-    ];
-    
-    // 安全地解析prompt中的字数要求
-    const promptStr = prompt || '';
-    for (const pattern of wordPatterns) {
-      const match = promptStr.match(pattern);
-      if (match && match[1]) {
-        const targetWord = parseInt(match[1]);
-        // 如果字数在合理范围内（500-3000），使用这个字数
-        if (targetWord >= 500 && targetWord <= 3000) {
-          const minWord = Math.floor(targetWord * 0.9);
-          const maxWord = Math.ceil(targetWord * 1.1);
-          wordCountRequirement = `${targetWord}字左右（±${Math.floor(targetWord * 0.1)}字，约${minWord}-${maxWord}字）`;
-          break;
-        }
-      }
-    }
-    
-    // 构建用户消息 - 严格1000字
-    const wordCountReq = '950-1050字（绝不超过1100字）';
-    
     // 添加投喂素材信息
     const materialContext = enableMaterial && (materialLinks || materialRequirements) ? `
 ## 投喂参考素材
@@ -200,6 +164,8 @@ ${materialRequirements ? `### 创作要求/大纲/观点素材
 ${materialRequirements}` : ''}
 
 ---` : '';
+    
+    const wordCountReq = '950-1050字（绝不超过1100字）';
     
     const userContent = searchContext || materialContext
       ? `# 任务：创作一篇约1000字的公众号文章
@@ -269,75 +235,127 @@ ${title || '（由AI自动生成爆款标题）'}
       { role: 'user' as const, content: userContent },
     ];
 
-    // 创建流式响应
-    const encoder = new TextEncoder();
-    const stream = llmClient.stream(messages, {
-      model: 'deepseek-v3-2-251201', // 使用 DeepSeek V3 模型
-      temperature: 0.8,
-      streaming: true,
-    });
+    // 步骤1: 生成文章文本
+    let articleContent = '';
+    console.log('开始生成文章...');
+    
+    try {
+      const stream = llmClient.stream(messages, {
+        model: 'deepseek-v3-2-251201',
+        temperature: 0.8,
+        streaming: false,
+      });
 
-    const customStream = new ReadableStream({
-      async start(controller) {
-        let closed = false;
-        const closeOrError = (err?: Error) => {
-          if (!closed) {
-            closed = true;
-            if (err) {
-              try {
-                controller.error(err);
-              } catch {
-                // Controller already closed, ignore
-              }
-            } else {
-              try {
-                controller.close();
-              } catch {
-                // Controller already closed, ignore
-              }
-            }
-          }
-        };
-
-        try {
-          for await (const chunk of stream) {
-            if (closed) break;
-            if (chunk.content) {
-              const text = chunk.content.toString();
-              try {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: text })}\n\n`));
-              } catch {
-                // Controller closed, stop sending
-                break;
-              }
-            }
-          }
-          if (!closed) {
-            try {
-              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-            } catch {
-              // Ignore
-            }
-            closeOrError();
-          }
-        } catch (error) {
-          console.error('流式输出错误:', error);
-          closeOrError(error instanceof Error ? error : new Error(String(error)));
+      for await (const chunk of stream) {
+        if (chunk.content) {
+          articleContent += chunk.content.toString();
         }
-      },
+      }
+      console.log('文章生成完成，长度:', articleContent.length);
+    } catch (error) {
+      console.error('生成文章失败:', error);
+      return Response.json(
+        { error: '生成文章失败，请稍后重试' },
+        { status: 500 }
+      );
+    }
+
+    if (!articleContent.trim()) {
+      return Response.json(
+        { error: '生成文章内容为空，请重试' },
+        { status: 500 }
+      );
+    }
+
+    // 步骤2: 生成图片（如果启用且数量 > 0）
+    let images: { url: string; prompt: string; position?: number }[] = [];
+    
+    if (imageSource === 'ai' && imageCount > 0) {
+      console.log(`开始生成 ${imageCount} 张图片...`);
+      
+      try {
+        // 根据文章内容生成图片提示词
+        const imagePromptMessages = [
+          { 
+            role: 'system' as const, 
+            content: '你是一个专业的图片描述专家，根据文章内容生成适合的图片描述。描述要具体、生动，适合AI绘图使用。' 
+          },
+          { 
+            role: 'user' as const, 
+            content: `根据以下文章内容，生成${imageCount}个不同的图片描述（每个描述50-100字），用于为文章配图。\n\n要求：\n1. 每个描述要对应文章的不同段落或主题\n2. 描述要具体、有画面感\n3. 不要使用人脸特写，优先使用场景、物品、概念图\n4. 风格：温暖、真实、生活化\n5. 格式：直接输出描述文字，每行一个，用序号分隔\n\n文章内容：\n${articleContent.substring(0, 2000)}` 
+          },
+        ];
+
+        const imagePromptStream = llmClient.stream(imagePromptMessages, {
+          model: 'deepseek-v3-2-251201',
+          temperature: 0.7,
+          streaming: false,
+        });
+
+        let imagePromptText = '';
+        for await (const chunk of imagePromptStream) {
+          if (chunk.content) {
+            imagePromptText += chunk.content.toString();
+          }
+        }
+
+        // 解析图片提示词
+        const promptLines = imagePromptText
+          .split('\n')
+          .filter(line => line.trim())
+          .slice(0, imageCount)
+          .map(line => line.replace(/^\d+[.、:：]\s*/, '').trim());
+
+        // 生成每张图片
+        for (let i = 0; i < promptLines.length; i++) {
+          const prompt = promptLines[i] || `文章配图，${title || '相关主题'}`;
+          console.log(`生成图片 ${i + 1}: ${prompt.substring(0, 50)}...`);
+          
+          try {
+            const imageResult = await imageClient.generate({
+              prompt: prompt,
+              size: '2K',
+              watermark: false,
+              responseFormat: 'url',
+            });
+
+            if (imageResult.data && imageResult.data.length > 0) {
+              const imageData = imageResult.data[0];
+              if (imageData.url) {
+                images.push({
+                  url: imageData.url,
+                  prompt: prompt,
+                  position: i + 1,
+                });
+                console.log(`图片 ${i + 1} 生成成功`);
+              }
+            }
+          } catch (imgError) {
+            console.error(`图片 ${i + 1} 生成失败:`, imgError);
+          }
+        }
+      } catch (error) {
+        console.error('图片生成过程出错:', error);
+        // 图片生成失败不影响文章返回
+      }
+    }
+
+    console.log(`生成完成：文章 ${articleContent.length} 字，图片 ${images.length} 张`);
+
+    return Response.json({
+      success: true,
+      content: articleContent,
+      images: images,
+      imageCount: images.length,
+      message: images.length > 0 
+        ? `文章生成完成，已生成 ${images.length} 张配图` 
+        : '文章生成完成',
     });
 
-    return new Response(customStream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    });
   } catch (error) {
-    console.error('生成文章失败:', error);
+    console.error('生成失败:', error);
     return Response.json(
-      { error: '生成文章失败，请稍后重试' },
+      { error: '生成失败，请稍后重试' },
       { status: 500 }
     );
   }

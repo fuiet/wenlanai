@@ -298,12 +298,67 @@ export default function SmartWritingPage() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          // 创建文章记录
-          const newArticle: Article = {
-            id: data.articleId || Date.now(),
+          // 将图片插入到文章内容中
+          let finalContent = data.content || '';
+          if (data.images && data.images.length > 0) {
+            // 将图片均匀分布在文章中
+            const sections = finalContent.split(/\n(?=#|\n#{1,2}\s)/);
+            const insertPoints: number[] = [];
+            
+            if (sections.length > 2) {
+              // 在开头和每1/3位置插入
+              const insertCount = Math.min(data.images.length, sections.length - 1);
+              for (let i = 0; i < insertCount; i++) {
+                const pos = Math.floor((i + 1) * sections.length / (insertCount + 1));
+                insertPoints.push(pos);
+              }
+            } else {
+              // 简单模式：在文章开头插入第一张图片
+              insertPoints.push(0);
+            }
+            
+            let imgIndex = 0;
+            finalContent = sections.map((section: string, idx: number) => {
+              let result = section;
+              if (insertPoints.includes(idx) && imgIndex < data.images.length) {
+                const img = data.images[imgIndex];
+                result = `\n![${img.prompt || '配图'}](${img.url})\n` + result;
+                imgIndex++;
+              }
+              return result;
+            }).join('');
+          }
+          
+          // 保存到数据库
+          let savedArticle: Article | null = null;
+          try {
+            const saveResponse = await fetch('/api/articles', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: data.title || articleTitle || '未命名文章',
+                content: finalContent,
+                image_urls: data.images?.map((img: { url: string }) => img.url) || [],
+                group_id: parseInt(selectedGroupId)
+              })
+            });
+            
+            if (saveResponse.ok) {
+              const saveData = await saveResponse.json();
+              if (saveData.success) {
+                savedArticle = saveData.article;
+              }
+            }
+          } catch (saveError) {
+            console.error('保存文章失败:', saveError);
+          }
+          
+          // 更新列表
+          const newArticle: Article = savedArticle || {
+            id: Date.now(),
             title: data.title || articleTitle || '未命名文章',
-            content: data.content || '',
-            image_urls: data.imageUrls || [],
+            content: finalContent,
+            image_urls: data.images?.map((img: { url: string }) => img.url) || [],
             group_id: parseInt(selectedGroupId),
             status: 'generated',
             push_status: 'pending',
@@ -311,9 +366,11 @@ export default function SmartWritingPage() {
             updated_at: new Date().toISOString()
           };
           setArticles([newArticle, ...articles]);
-          alert('文章生成成功！');
+          alert(`文章生成成功！${data.images?.length > 0 ? `已生成 ${data.images.length} 张配图` : ''}`);
         }
       } else {
+        const errorText = await response.text();
+        console.error('生成失败:', errorText);
         throw new Error('生成失败');
       }
     } catch (error) {
