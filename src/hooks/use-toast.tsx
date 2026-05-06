@@ -54,7 +54,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 export function useToast() {
   const context = useContext(ToastContext);
   if (!context) {
-    // 返回一个简单的实现
     return {
       toast: (props: Omit<Toast, 'id'>) => {
         console.log('Toast:', props);
@@ -63,4 +62,9 @@ export function useToast() {
     };
   }
   return context;
+}
+
+// Toaster 组件（用于在布局中使用）
+export function Toaster() {
+  return null; // Toast 已经在 ToastProvider 中渲染
 }
