@@ -1229,27 +1229,7 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                         )}
                       </div>
                       
-                      {/* 右侧字数统计 */}
-                      {generatedContent && (
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            实际字数: <span className="font-semibold">{countChineseChars(generatedContent)}</span>
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            目标: <span className="font-semibold">1000</span>
-                          </Badge>
-                          {countChineseChars(generatedContent) <= 1100 && countChineseChars(generatedContent) >= 900 ? (
-                            <Badge className="bg-green-500 text-white text-xs">符合要求</Badge>
-                          ) : (
-                            <Badge className="bg-red-500 text-white text-xs">
-                              {countChineseChars(generatedContent) > 1100 ? '超出' : '不足'}
-                              {countChineseChars(generatedContent) > 1100 
-                                ? countChineseChars(generatedContent) - 1100 
-                                : 900 - countChineseChars(generatedContent)}字
-                            </Badge>
-                          )}
-                        </div>
-                      )}
+
                     </div>
 
                     {/* 改写结果预览 - 当有改写结果时显示 */}
