@@ -618,8 +618,8 @@ function SmartWritingContent() {
       // 如果当前位置需要插入图片
       if (imageIndex < imagePositions.length && i === imagePositions[imageIndex]) {
         const imageUrl = images[imageIndex];
-        // 使用Markdown格式插入图片
-        result += `\n\n![插图${imageIndex + 1}](${imageUrl})\n\n`;
+        // 使用Markdown格式插入图片，不显示图片描述文字
+        result += `\n\n![](${imageUrl})\n\n`;
         imageIndex++;
       }
 
@@ -1233,11 +1233,6 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                         目标: 1000±100字
                       </Badge>
                       <WordCountIndicator actual={generatedContent.replace(/[#*`_\[\]()]/g, '').length} target={1000} minDiff={100} />
-                      {imageUrls.length > 0 && (
-                        <Badge variant="outline" className="text-sm">
-                          插图: {imageUrls.length}张
-                        </Badge>
-                      )}
                       {/* 降低AI率按钮 - 在文章内容Tab中直接显示 */}
                       {generatedContent && (
                         <Button
