@@ -24,6 +24,7 @@ export default function AuthPage() {
   
   // 邮箱注册状态
   const [registerEmail, setRegisterEmail] = useState('');
+  const [registerUsername, setRegisterUsername] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
   const [registerCode, setRegisterCode] = useState('');
@@ -174,8 +175,13 @@ export default function AuthPage() {
 
   // 邮箱注册/登录
   const handleEmailAuth = async () => {
-    if (!registerEmail || !registerPassword || !registerCode) {
-      toast({ title: '请填写完整信息', variant: 'destructive' });
+    if (!registerEmail || !registerUsername || !registerPassword || !registerCode) {
+      toast({ title: '请填写完整信息', description: '用户名、邮箱、密码和验证码都不能为空', variant: 'destructive' });
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_\u4e00-\u9fa5]{2,20}$/.test(registerUsername)) {
+      toast({ title: '用户名格式不正确', description: '用户名需2-20位，可包含中文、字母、数字和下划线', variant: 'destructive' });
       return;
     }
 
@@ -191,6 +197,7 @@ export default function AuthPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: registerEmail,
+          username: registerUsername,
           password: registerPassword,
           confirmPassword: registerConfirmPassword,
           code: registerCode
@@ -364,6 +371,18 @@ export default function AuthPage() {
                         )}
                       </Button>
                     </div>
+                  </div>
+
+                  {/* 用户名 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="username">用户名</Label>
+                    <Input
+                      id="username"
+                      type="text"
+                      placeholder="请输入用户名"
+                      value={registerUsername}
+                      onChange={(e) => setRegisterUsername(e.target.value)}
+                    />
                   </div>
 
                   {/* 验证码 */}
