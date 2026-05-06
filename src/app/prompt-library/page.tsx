@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { 
   X, FileText, Target, User, Settings, Zap, Plus, Info, AlertTriangle, 
   Lightbulb, Check, Rocket, Loader2, Trash2, Edit2, Copy, BookOpen, 
-  Sparkles, ArrowLeft
+  Sparkles, ArrowLeft, Eye, Clock, MessageSquare, Settings2, ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -106,19 +106,36 @@ const titleFormatOptions = [
   { value: "summary", label: "总结归纳式", desc: "提炼精华, 如: 关于...的一切" },
 ];
 
-const categoryOptions = [
-  { value: "情感", icon: "❤️" },
-  { value: "职场", icon: "💼" },
-  { value: "科技", icon: "💻" },
-  { value: "财经", icon: "💰" },
-  { value: "娱乐", icon: "🎭" },
-  { value: "生活", icon: "🍽️" },
-  { value: "其他", icon: "📌" },
-];
+const categoryIconMap: Record<string, string> = {
+  "情感": "❤️",
+  "职场": "💼",
+  "科技": "💻",
+  "财经": "💰",
+  "娱乐": "🎭",
+  "生活": "🍽️",
+  "军事": "⚔️",
+  "其他": "📌",
+};
+
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return "刚刚";
+  if (diffMins < 60) return `${diffMins}分钟前`;
+  if (diffHours < 24) return `${diffHours}小时前`;
+  if (diffDays < 30) return `${diffDays}天前`;
+  return date.toLocaleDateString("zh-CN");
+}
 
 export default function PromptLibraryPage() {
   const router = useRouter();
-  const [showCreateForm, setShowCreateForm] = useState(false); // 默认显示管理列表，点击按钮才显示创建表单
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     name: "",
     category: "",
@@ -142,7 +159,6 @@ export default function PromptLibraryPage() {
   const [generatedPrompt, setGeneratedPrompt] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  // 管理功能相关状态
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -200,52 +216,6 @@ export default function PromptLibraryPage() {
 
     setIsGenerating(true);
     try {
-      // 构建分析提示词
-      let analysisPrompt = `你是一位顶尖的自媒体写作专家，擅长分析文章风格并提炼写作提示词。\n\n`;
-
-      if (formData.feedType === "link") {
-        analysisPrompt += `请分析以下链接对应的文章内容，理解其写作风格、内容结构和爆款元素：\n${formData.referenceLinks}\n\n`;
-      } else {
-        analysisPrompt += `请分析以下文章内容，理解其写作风格、内容结构和爆款元素：\n${formData.referenceText}\n\n`;
-      }
-
-      analysisPrompt += `## 人设信息\n`;
-      if (formData.authorName) {
-        analysisPrompt += `- 作者名称：${formData.authorName}\n`;
-      }
-      if (formData.personality) {
-        const personality = personalityOptions.find(p => p.value === formData.personality);
-        analysisPrompt += `- 人物性格：${personality?.label || formData.personality}\n`;
-      }
-      if (formData.personaSupplement) {
-        analysisPrompt += `- 人设补充：${formData.personaSupplement}\n`;
-      }
-
-      analysisPrompt += `\n## 文章配置\n`;
-      if (formData.field) {
-        const field = fieldOptions.find(f => f.value === formData.field);
-        analysisPrompt += `- 文章领域：${field?.label || formData.field}\n`;
-      }
-      if (formData.targetAudience) {
-        const audience = audienceOptions.find(a => a.value === formData.targetAudience);
-        analysisPrompt += `- 目标受众：${audience?.label || formData.targetAudience}\n`;
-      }
-      if (formData.titleFormat) {
-        const titleFmt = titleFormatOptions.find(t => t.value === formData.titleFormat);
-        analysisPrompt += `- 二级标题格式：${titleFmt?.label || formData.titleFormat}\n`;
-      }
-      analysisPrompt += `- 字数要求：约${formData.wordCount}字\n`;
-
-      analysisPrompt += `\n## 输出要求\n`;
-      analysisPrompt += `请生成一段完整的AI写作提示词，要求：\n`;
-      analysisPrompt += `1. 开头介绍你的身份定位\n`;
-      analysisPrompt += `2. 说明你的写作风格和特点\n`;
-      analysisPrompt += `3. 明确文章的结构要求\n`;
-      analysisPrompt += `4. 强调目标受众和预期效果\n`;
-      analysisPrompt += `5. 提出具体的写作要求\n`;
-      analysisPrompt += `6. 如果有参考文章，融入其风格特点\n\n`;
-      analysisPrompt += `请直接输出提示词内容，不要其他解释说明。`;
-
       const response = await fetch("/api/generate-prompt-template", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -330,7 +300,7 @@ export default function PromptLibraryPage() {
           titleFormat: "",
           wordCount: 996,
         });
-        setShowCreateForm(false); // 返回列表
+        setShowCreateForm(false);
         fetchTemplates();
       } else {
         toast.error(data.error || "保存失败");
@@ -358,10 +328,14 @@ export default function PromptLibraryPage() {
   };
 
   const handleUseTemplate = (template: PromptTemplate) => {
-    // 将提示词ID存储到localStorage，供智能生文页面使用
     localStorage.setItem("selectedPromptTemplate", JSON.stringify(template));
     router.push("/smart-writing");
   };
+
+  // 过滤后的提示词列表
+  const filteredTemplates = selectedCategory
+    ? templates.filter((t) => t.category === selectedCategory)
+    : templates;
 
   const canGenerate = formData.category && 
     ((formData.feedType === "link" && formData.referenceLinks.trim()) || 
@@ -371,22 +345,22 @@ export default function PromptLibraryPage() {
     <div className="min-h-screen bg-gray-50">
       {/* 顶部标题栏 */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-between px-6 py-4">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-white" />
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                <MessageSquare className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">提示词库</h1>
-                <p className="text-sm text-gray-500">管理和使用您的文章生成提示词</p>
+                <h1 className="text-2xl font-bold text-gray-900">提示词库</h1>
+                <p className="text-sm text-gray-500">管理和生成AI提示词</p>
               </div>
             </div>
             <Button
               onClick={() => setShowCreateForm(true)}
-              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg"
             >
-              <Sparkles className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4 mr-2" />
               生成提示词
             </Button>
           </div>
@@ -394,7 +368,7 @@ export default function PromptLibraryPage() {
       </div>
 
       {/* 主要内容 */}
-      <div className="max-w-5xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-6 py-6">
         {showCreateForm ? (
           /* 一键生成提示词表单 */
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -416,7 +390,7 @@ export default function PromptLibraryPage() {
             </div>
 
             {/* 表单内容 */}
-            <div className="px-6 py-6 space-y-6">
+            <div className="px-6 py-6 space-y-6 max-w-2xl mx-auto">
               {/* 提示词名称 */}
               <FormSection icon={<FileText className="w-5 h-5" />} label="提示词名称" optional>
                 <p className="text-sm text-gray-500 mb-3">便于区分和选择, 不填写将自动生成</p>
@@ -432,27 +406,28 @@ export default function PromptLibraryPage() {
               <FormSection icon={<Target className="w-5 h-5 text-red-500" />} label="选择赛道" required>
                 <p className="text-sm text-gray-500 mb-3">按内容领域分类, 方便管理和筛选提示词</p>
                 {!showNewCategory ? (
-                  <div className="relative">
-                    <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
-                      <SelectTrigger className="border-gray-200">
-                        <SelectValue placeholder="选择赛道" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((cat) => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                        <div
-                          className="flex items-center gap-2 px-2 py-2 text-orange-500 cursor-pointer hover:bg-orange-50 rounded-b-lg"
-                          onClick={() => setShowNewCategory(true)}
-                        >
-                          <Plus className="w-4 h-4" />
-                          <span>新建赛道</span>
-                        </div>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
+                    <SelectTrigger className="border-gray-200">
+                      <SelectValue placeholder="选择赛道" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          <div className="flex items-center gap-2">
+                            <span>{categoryIconMap[cat] || "📌"}</span>
+                            <span>{cat}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                      <div
+                        className="flex items-center gap-2 px-2 py-2 text-orange-500 cursor-pointer hover:bg-orange-50 rounded-b-lg"
+                        onClick={() => setShowNewCategory(true)}
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>新建赛道</span>
+                      </div>
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <div className="bg-blue-50 rounded-xl p-4 space-y-3">
                     <Input
@@ -679,7 +654,7 @@ export default function PromptLibraryPage() {
 
             {/* 底部操作栏 */}
             <div className="border-t border-gray-100 px-6 py-4 bg-gray-50 rounded-b-xl">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between max-w-2xl mx-auto">
                 <div className="flex items-center gap-2 text-sm">
                   {canGenerate ? (
                     <>
@@ -746,86 +721,199 @@ export default function PromptLibraryPage() {
             </div>
           </div>
         ) : (
-          /* 提示词列表 */
-          <div className="space-y-6">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-              </div>
-            ) : templates.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-xl border border-gray-200">
-                <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-600 mb-2">暂无提示词</h3>
-                <p className="text-gray-400 mb-4">创建您的第一个提示词模板，开始智能创作</p>
-                <Button onClick={() => setShowCreateForm(true)} className="bg-orange-500 hover:bg-orange-600 text-white">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  生成提示词
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {templates.map((template) => (
-                  <div
-                    key={template.id}
-                    className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-shadow"
+          /* 提示词列表 + 左侧分类栏 */
+          <div className="flex gap-6">
+            {/* 左侧分类栏 */}
+            <div className="w-64 shrink-0">
+              <div className="bg-white rounded-xl border border-gray-200 p-4 sticky top-24">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-900">赛道分类</h3>
+                  <span className="text-xs text-gray-400">
+                    {categories.length}个分类 · {templates.length}个提示词
+                  </span>
+                </div>
+                
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setSelectedCategory(null)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
+                      selectedCategory === null
+                        ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white"
+                        : "hover:bg-gray-100 text-gray-700"
+                    )}
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">
-                          {categoryOptions.find(c => c.value === template.category)?.icon || "📝"}
-                        </span>
-                        <h3 className="font-semibold text-gray-900">{template.name}</h3>
-                      </div>
-                      <span className="text-xs px-2 py-1 bg-orange-100 text-orange-600 rounded-full">
-                        {template.category}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500 mb-4 line-clamp-3">
-                      {template.description || "无描述"}
-                    </p>
-                    <div className="flex flex-wrap gap-1 mb-4">
-                      {template.field && (
-                        <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
-                          {fieldOptions.find(f => f.value === template.field)?.emoji} {fieldOptions.find(f => f.value === template.field)?.label}
-                        </span>
-                      )}
-                      {template.wordCount && (
-                        <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
-                          {template.wordCount}字
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => handleUseTemplate(template)}
-                        className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                    <MessageSquare className="w-4 h-4" />
+                    <span className="flex-1">全部提示词</span>
+                    <span className={cn(
+                      "text-xs px-2 py-0.5 rounded-full",
+                      selectedCategory === null ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+                    )}>
+                      {templates.length}
+                    </span>
+                  </button>
+                  
+                  {categories.map((cat) => {
+                    const count = templates.filter((t) => t.category === cat).length;
+                    if (count === 0) return null;
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
+                          selectedCategory === cat
+                            ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white"
+                            : "hover:bg-gray-100 text-gray-700"
+                        )}
                       >
-                        <Sparkles className="w-4 h-4 mr-1" />
-                        使用
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                          navigator.clipboard.writeText(template.prompt);
-                          toast.success("已复制到剪贴板");
-                        }}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleDelete(template.id)}
-                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                        <span>{categoryIconMap[cat] || "📌"}</span>
+                        <span className="flex-1">{cat}</span>
+                        <span className={cn(
+                          "text-xs px-2 py-0.5 rounded-full",
+                          selectedCategory === cat ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+                        )}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => setShowNewCategory(true)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-gray-500 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+                  >
+                    <Settings2 className="w-4 h-4" />
+                    <span>管理分类</span>
+                    <ChevronRight className="w-4 h-4 ml-auto" />
+                  </button>
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* 右侧提示词列表 */}
+            <div className="flex-1">
+              <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {selectedCategory ? `${selectedCategory}分类` : '全部提示词'}
+                  </h3>
+                  <span className="text-sm text-gray-500">共{filteredTemplates.length}个提示词</span>
+                </div>
+
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                  </div>
+                ) : filteredTemplates.length === 0 ? (
+                  <div className="text-center py-20">
+                    <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-600 mb-2">暂无提示词</h3>
+                    <p className="text-gray-400 mb-4">创建您的第一个提示词模板，开始智能创作</p>
+                    <Button onClick={() => setShowCreateForm(true)} className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      生成提示词
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredTemplates.map((template) => (
+                      <div
+                        key={template.id}
+                        className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow"
+                      >
+                        {/* 状态标签 */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-600 rounded-full text-xs">
+                              <Check className="w-3 h-3" />
+                              已完成
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                navigator.clipboard.writeText(template.prompt);
+                                toast.success("已复制到剪贴板");
+                              }}
+                              className="h-8 w-8 text-gray-400 hover:text-gray-600"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(template.id)}
+                              className="h-8 w-8 text-gray-400 hover:text-red-500"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* 标题 */}
+                        <h4 className="font-bold text-gray-900 text-lg mb-2">{template.name}</h4>
+
+                        {/* 分类标签 */}
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-600 rounded-full text-xs">
+                            {categoryIconMap[template.category] || "📌"}
+                            {template.category}
+                          </span>
+                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
+                            {fieldOptions.find(f => f.value === template.field)?.label || "通用"}
+                          </span>
+                        </div>
+
+                        {/* 创建时间 */}
+                        <div className="flex items-center gap-1 text-xs text-gray-400 mb-4">
+                          <Clock className="w-3 h-3" />
+                          创建于{formatTimeAgo(template.created_at)}
+                        </div>
+
+                        {/* 提示词预览 */}
+                        <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                          <p className="text-sm text-gray-600 line-clamp-3 font-mono">
+                            {template.prompt.substring(0, 150)}...
+                          </p>
+                        </div>
+
+                        {/* 操作按钮 */}
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleUseTemplate(template)}
+                            className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                          >
+                            <Sparkles className="w-4 h-4 mr-1" />
+                            使用
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              navigator.clipboard.writeText(template.prompt);
+                              toast.success("已复制到剪贴板");
+                            }}
+                          >
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => handleDelete(template.id)}
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
