@@ -75,8 +75,36 @@ ${searchResults}
     // 构建system prompt
     let systemPrompt = '';
     
-    if (templateInfo) {
-      // 使用提示词模板构建system prompt
+    if (templateInfo && templateInfo.prompt) {
+      // 直接使用提示词模板的完整提示词
+      // 模板已包含完整的角色定位、写作风格、文章结构等内容
+      systemPrompt = templateInfo.prompt;
+      
+      // 检查模板是否已有字数要求
+      const wordPatterns = [
+        /约\s*([0-9]+)\s*字/,
+        /([0-9]+)\s*字左右/,
+        /字数[为是]?\s*([0-9]+)/,
+        /字数要求[：为]?\s*([0-9]+)/,
+      ];
+      
+      let hasWordCount = false;
+      for (const pattern of wordPatterns) {
+        if (templateInfo.prompt.match(pattern)) {
+          hasWordCount = true;
+          break;
+        }
+      }
+      
+      // 如果模板没有明确字数要求，添加默认控制
+      if (!hasWordCount) {
+        const wordCount = templateInfo.word_count || 1000;
+        const minWord = Math.floor(wordCount * 0.95);
+        const maxWord = Math.ceil(wordCount * 1.05);
+        systemPrompt += `\n\n【重要提醒】字数必须严格控制在${minWord}-${maxWord}字之间，这是最高优先级！`;
+      }
+    } else if (templateInfo) {
+      // 模板存在但没有prompt内容时的降级处理
       const personaInfo = templateInfo.personality || '';
       const personaSupplement = templateInfo.persona_supplement || '';
       const authorName = templateInfo.author_name || '';
@@ -86,25 +114,13 @@ ${searchResults}
       const minWord = Math.floor(wordCount * 0.95);
       const maxWord = Math.ceil(wordCount * 1.05);
       
-      systemPrompt = templateInfo.prompt || `你是一位专业的公众号文章写作专家。`;
-      
-      // 添加人设信息
-      if (authorName || personaInfo || personaSupplement) {
-        systemPrompt += `
-
-【作者人设】
-${authorName ? `作者姓名：${authorName}` : ''}
-${personaInfo ? `人物性格：${personaInfo}` : ''}
-${personaSupplement ? `人设补充：${personaSupplement}` : ''}`;
-      }
-      
-      // 添加文章配置
-      systemPrompt += `
-
-【文章配置】
-${field ? `文章领域：${field}` : ''}
-${targetAudience ? `目标受众：${targetAudience}` : ''}
-字数要求：${minWord}-${maxWord}字（严格控制）`;
+      systemPrompt = `你是一位专业的公众号文章写作专家。
+${authorName ? `\n【作者姓名】${authorName}` : ''}
+${personaInfo ? `\n【人物性格】${personaInfo}` : ''}
+${personaSupplement ? `\n【人设补充】${personaSupplement}` : ''}
+${field ? `\n【文章领域】${field}` : ''}
+${targetAudience ? `\n【目标受众】${targetAudience}` : ''}
+【字数要求】${minWord}-${maxWord}字（严格控制）`;
     } else {
       // 默认的system prompt
       systemPrompt = prompt || `你是一位专业的公众号文章写作专家，擅长创作1000字左右的爆款文章。
