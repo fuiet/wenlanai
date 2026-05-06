@@ -37,9 +37,9 @@ import {
   UserCheck,
   SendHorizontal
 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import { EnhancedArticle, SimpleArticlePreview } from '@/components/enhanced-article';
 import 'highlight.js/styles/github-dark.css';
 
 // 提示词数据结构
@@ -1328,45 +1328,15 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                         <div>
                           <p className="mb-2 text-xs font-medium text-gray-700">完整改写预览:</p>
                           <ScrollArea className="max-h-32 rounded-lg border bg-white p-2">
-                            <div className="prose prose-sm max-w-none text-sm">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {humanizeResult.rewrittenContent}
-                              </ReactMarkdown>
-                            </div>
+                            <SimpleArticlePreview content={humanizeResult.rewrittenContent} />
                           </ScrollArea>
                         </div>
                       </div>
                     )}
 
-                    {/* Markdown内容 */}
-                    <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:text-center prose-headings:font-bold prose-h1:text-center prose-h1:font-bold">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[rehypeHighlight]}
-                        components={{
-                          // 自定义图片组件，优化显示
-                          img: ({ src, alt, ...props }) => {
-                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                            const { width: _width, height: _height, ...restProps } = props;
-                            const imageAlt = typeof alt === 'string' ? alt : String(alt || '插图');
-                            return (
-                              <div className="my-4 flex justify-center">
-                                <Image
-                                  src={typeof src === 'string' ? src : ''}
-                                  alt={imageAlt}
-                                  width={800}
-                                  height={450}
-                                  className="rounded-lg shadow-md"
-                                  {...restProps}
-                                />
-                              </div>
-                            );
-                          },
-                        }}
-                      >
-                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                        {generatedContent as any}
-                      </ReactMarkdown>
+                    {/* Markdown内容 - 增强版排版 */}
+                    <div className="rounded-lg border bg-white/50 p-4 dark:bg-gray-900/50">
+                      <EnhancedArticle content={generatedContent} />
                     </div>
                   </TabsContent>
                   
@@ -1560,11 +1530,7 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                             <div>
                               <p className="mb-2 text-sm font-medium text-gray-700">完整改写预览:</p>
                               <ScrollArea className="max-h-40 rounded-lg border bg-white p-3">
-                                <div className="prose prose-sm max-w-none">
-                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                    {humanizeResult.rewrittenContent}
-                                  </ReactMarkdown>
-                                </div>
+                                <SimpleArticlePreview content={humanizeResult.rewrittenContent} />
                               </ScrollArea>
                             </div>
                           </div>
