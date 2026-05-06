@@ -149,7 +149,7 @@ export default function PromptLibraryPage() {
     field: "",
     targetAudience: "",
     titleFormat: "",
-    wordCount: 996,
+    wordCount: 1000,
   });
 
   const [showNewCategory, setShowNewCategory] = useState(false);
@@ -298,7 +298,7 @@ export default function PromptLibraryPage() {
           field: "",
           targetAudience: "",
           titleFormat: "",
-          wordCount: 996,
+          wordCount: 1000,
         });
         setShowCreateForm(false);
         fetchTemplates();
@@ -661,14 +661,18 @@ export default function PromptLibraryPage() {
                       <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
                         <Check className="w-3 h-3 text-white" />
                       </div>
-                      <span className="text-gray-700">已选择赛道, 可以开始生成</span>
+                      <span className="text-gray-700">已选择赛道和素材，可以开始生成</span>
                     </>
                   ) : (
                     <>
-                      <div className="w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center">
-                        <span className="text-gray-500 text-xs">!</span>
+                      <div className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center">
+                        <span className="text-white text-xs">!</span>
                       </div>
-                      <span className="text-gray-500">请完成必填项</span>
+                      <span className="text-gray-500">
+                        {formData.category 
+                          ? "请输入参考链接" 
+                          : "请先选择赛道和输入参考链接"}
+                      </span>
                     </>
                   )}
                 </div>
