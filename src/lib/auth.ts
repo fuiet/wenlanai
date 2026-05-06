@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from './supabase-admin';
 
 export const COOKIE_NAME = 'wenlan_session';
 
-export async function createSession(userId: string): Promise<string> {
+export async function createSession(userId: string, request?: Request): Promise<string> {
   const sessionId = uuidv4();
   const supabase = getSupabaseAdmin();
   
@@ -15,15 +15,20 @@ export async function createSession(userId: string): Promise<string> {
     expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7天有效期
   });
   
-  // 设置cookie
-  const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, sessionId, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60, // 7天
-    path: '/',
-  });
+  // 设置cookie（仅在服务端上下文可用时）
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(COOKIE_NAME, sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60, // 7天
+      path: '/',
+    });
+  } catch {
+    // 在某些上下文中无法访问cookie（如API路由的流式响应）
+    // session已存储到数据库，客户端会通过响应头获取
+  }
   
   return sessionId;
 }
