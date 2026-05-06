@@ -159,6 +159,14 @@ export default function PromptLibraryPage() {
   const [generatedPrompt, setGeneratedPrompt] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  // 分类管理弹窗状态
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [editingCategoryName, setEditingCategoryName] = useState<string | null>(null);
+  const [editingCategoryNewName, setEditingCategoryNewName] = useState("");
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(null);
@@ -203,6 +211,83 @@ export default function PromptLibraryPage() {
     setNewCategory({ name: "", description: "" });
     setShowNewCategory(false);
     toast.success("赛道创建成功");
+  };
+
+  // 打开分类管理弹窗
+  const openCategoryManager = () => {
+    setShowCategoryManager(true);
+  };
+
+  // 开始编辑分类名称
+  const startEditingCategory = (catName: string) => {
+    setEditingCategoryName(catName);
+    setEditingCategoryNewName(catName);
+  };
+
+  // 保存编辑的分类名称
+  const saveEditingCategory = () => {
+    if (!editingCategoryName || !editingCategoryNewName.trim()) {
+      toast.error("请输入分类名称");
+      return;
+    }
+    if (editingCategoryNewName === editingCategoryName) {
+      setEditingCategoryName(null);
+      return;
+    }
+    // 检查是否已存在该名称
+    if (categories.includes(editingCategoryNewName)) {
+      toast.error("该分类名称已存在");
+      return;
+    }
+    // 更新分类名称
+    setCategories(categories.map(cat => cat === editingCategoryName ? editingCategoryNewName : cat));
+    // 更新提示词的分类名称
+    setTemplates(templates.map(t => t.category === editingCategoryName ? { ...t, category: editingCategoryNewName } : t));
+    toast.success("分类名称已更新");
+    setEditingCategoryName(null);
+  };
+
+  // 取消编辑
+  const cancelEditingCategory = () => {
+    setEditingCategoryName(null);
+    setEditingCategoryNewName("");
+  };
+
+  // 确认删除分类
+  const confirmDeleteCategory = (catName: string) => {
+    setCategoryToDelete(catName);
+  };
+
+  // 执行删除分类
+  const executeDeleteCategory = () => {
+    if (!categoryToDelete) return;
+    setCategories(categories.filter(cat => cat !== categoryToDelete));
+    if (selectedCategory === categoryToDelete) {
+      setSelectedCategory(null);
+    }
+    toast.success("分类已删除");
+    setCategoryToDelete(null);
+  };
+
+  // 创建新分类（管理弹窗中）
+  const handleCreateCategoryInManager = () => {
+    if (!newCategoryName.trim()) {
+      toast.error("请输入分类名称");
+      return;
+    }
+    if (categories.includes(newCategoryName)) {
+      toast.error("该分类名称已存在");
+      return;
+    }
+    setCategories([...categories, newCategoryName]);
+    toast.success("分类创建成功");
+    setNewCategoryName("");
+    setCreatingCategory(false);
+  };
+
+  // 统计每个分类的提示词数量
+  const getCategoryCount = (catName: string) => {
+    return templates.filter(t => t.category === catName).length;
   };
 
   const handleGenerate = async () => {
@@ -822,7 +907,7 @@ export default function PromptLibraryPage() {
 
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <button
-                    onClick={() => setShowNewCategory(true)}
+                    onClick={openCategoryManager}
                     className="w-full flex items-center gap-2 px-3 py-2 text-gray-500 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
                   >
                     <Settings2 className="w-4 h-4" />
@@ -980,6 +1065,172 @@ export default function PromptLibraryPage() {
                   className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                 >
                   保存修改
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 赛道分类管理弹窗 */}
+        {showCategoryManager && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden">
+              {/* 头部 */}
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center">
+                    <Settings2 className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">赛道分类管理</h3>
+                    <p className="text-xs text-gray-500">管理您的分组 · {categories.length}个</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 分类列表 */}
+              <div className="px-6 py-4 max-h-[400px] overflow-y-auto">
+                <div className="space-y-3">
+                  {categories.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      暂无分类，点击下方创建新分组
+                    </div>
+                  ) : (
+                    categories.map((cat) => {
+                      const count = getCategoryCount(cat);
+                      return (
+                        <div
+                          key={cat}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
+                        >
+                          {editingCategoryName === cat ? (
+                            // 编辑模式
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                value={editingCategoryNewName}
+                                onChange={(e) => setEditingCategoryNewName(e.target.value)}
+                                className="flex-1 h-8 text-sm"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEditingCategory();
+                                  if (e.key === "Escape") cancelEditingCategory();
+                                }}
+                              />
+                              <Button size="sm" onClick={saveEditingCategory} className="h-8 bg-blue-500 hover:bg-blue-600">
+                                保存
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={cancelEditingCategory} className="h-8">
+                                取消
+                              </Button>
+                            </div>
+                          ) : (
+                            // 显示模式
+                            <>
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                                  <span className="text-xs">{categoryIconMap[cat] || "📌"}</span>
+                                </div>
+                                <span className="font-medium text-gray-800">{cat}</span>
+                                <span className="text-xs text-gray-400">({count}个)</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => startEditingCategory(cat)}
+                                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => confirmDeleteCategory(cat)}
+                                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* 创建新分组 */}
+                <div className="mt-4">
+                  {creatingCategory ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="输入分组名称"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        className="flex-1 h-10"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleCreateCategoryInManager();
+                          if (e.key === "Escape") setCreatingCategory(false);
+                        }}
+                      />
+                      <Button onClick={handleCreateCategoryInManager} className="h-10 bg-blue-500 hover:bg-blue-600">
+                        创建
+                      </Button>
+                      <Button variant="outline" onClick={() => setCreatingCategory(false)} className="h-10">
+                        取消
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setCreatingCategory(true)}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl font-medium hover:from-purple-600 hover:to-blue-600 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      创建新分组
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 底部完成按钮 */}
+              <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+                <Button
+                  onClick={() => setShowCategoryManager(false)}
+                  className="w-full bg-gray-600 hover:bg-gray-700 text-white"
+                >
+                  完成
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 删除确认弹窗 */}
+        {categoryToDelete && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
+              <div className="p-6 text-center">
+                <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-500" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">确认删除</h3>
+                <p className="text-gray-500 mb-2">
+                  确定要删除分类"{categoryToDelete}"吗？
+                </p>
+                <p className="text-sm text-gray-400">
+                  该分类下的 {getCategoryCount(categoryToDelete)} 个提示词将被保留，但分类将变为空
+                </p>
+              </div>
+              <div className="flex gap-3 p-4 border-t border-gray-100 bg-gray-50">
+                <Button
+                  variant="outline"
+                  onClick={() => setCategoryToDelete(null)}
+                  className="flex-1"
+                >
+                  取消
+                </Button>
+                <Button
+                  onClick={executeDeleteCategory}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                >
+                  确认删除
                 </Button>
               </div>
             </div>
