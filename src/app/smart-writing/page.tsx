@@ -272,19 +272,35 @@ export default function SmartWritingPage() {
       return;
     }
 
-    setIsGenerating(true);
     setShowCreateDialog(false);
+    
+    // 先获取选中的提示词
+    const prompt = promptTemplates.find(p => p.id.toString() === selectedPromptId);
+    
+    // 创建一个临时的"生成中"文章
+    const tempArticle: Article = {
+      id: Date.now(),
+      title: articleTitle || '正在生成标题...',
+      content: '',
+      image_urls: [],
+      group_id: parseInt(selectedGroupId),
+      status: 'generating',
+      push_status: 'pending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    // 立即添加到列表开头，显示"生成中"状态
+    setArticles([tempArticle, ...articles]);
 
+    // 后台异步生成文章
     try {
-      // 获取选中的提示词
-      const prompt = promptTemplates.find(p => p.id.toString() === selectedPromptId);
-      
       const response = await fetch('/api/generate-article', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          templateId: selectedPromptId,
           title: articleTitle || undefined,
-          prompt: prompt?.prompt || '',
           searchEnabled: true,
           imageSource,
           imageCount: imageSource === 'ai' ? imageCount : 0,
@@ -301,19 +317,16 @@ export default function SmartWritingPage() {
           // 将图片插入到文章内容中
           let finalContent = data.content || '';
           if (data.images && data.images.length > 0) {
-            // 将图片均匀分布在文章中
             const sections = finalContent.split(/\n(?=#|\n#{1,2}\s)/);
             const insertPoints: number[] = [];
             
             if (sections.length > 2) {
-              // 在开头和每1/3位置插入
               const insertCount = Math.min(data.images.length, sections.length - 1);
               for (let i = 0; i < insertCount; i++) {
                 const pos = Math.floor((i + 1) * sections.length / (insertCount + 1));
                 insertPoints.push(pos);
               }
             } else {
-              // 简单模式：在文章开头插入第一张图片
               insertPoints.push(0);
             }
             
@@ -353,39 +366,46 @@ export default function SmartWritingPage() {
             console.error('保存文章失败:', saveError);
           }
           
-          // 更新列表
-          const newArticle: Article = savedArticle || {
-            id: Date.now(),
+          // 更新文章列表中的文章
+          const finalArticle: Article = savedArticle || {
+            id: tempArticle.id,
             title: data.title || articleTitle || '未命名文章',
             content: finalContent,
             image_urls: data.images?.map((img: { url: string }) => img.url) || [],
             group_id: parseInt(selectedGroupId),
             status: 'generated',
             push_status: 'pending',
-            created_at: new Date().toISOString(),
+            created_at: tempArticle.created_at,
             updated_at: new Date().toISOString()
           };
-          setArticles([newArticle, ...articles]);
-          alert(`文章生成成功！${data.images?.length > 0 ? `已生成 ${data.images.length} 张配图` : ''}`);
+          
+          setArticles(articles.map(a => a.id === tempArticle.id ? finalArticle : a));
+        } else {
+          // 生成失败，更新状态
+          setArticles(articles.map(a => a.id === tempArticle.id ? { ...a, status: 'failed' } : a));
+          alert('生成失败，请稍后重试');
         }
       } else {
+        // 请求失败，更新状态
+        setArticles(articles.map(a => a.id === tempArticle.id ? { ...a, status: 'failed' } : a));
         const errorText = await response.text();
         console.error('生成失败:', errorText);
-        throw new Error('生成失败');
+        alert('生成失败，请稍后重试');
       }
     } catch (error) {
       console.error('生成失败:', error);
+      // 请求失败，更新状态
+      setArticles(articles.map(a => a.id === tempArticle.id ? { ...a, status: 'failed' } : a));
       alert('生成失败，请稍后重试');
-    } finally {
-      setIsGenerating(false);
-      // 重置表单
-      setArticleTitle('');
-      setSelectedPromptId('');
-      setSelectedGroupId('');
-      setEnableMaterial(false);
-      setMaterialLinks('');
-      setMaterialRequirements('');
     }
+    
+    // 重置表单
+    setArticleTitle('');
+    setSelectedPromptId('');
+    setSelectedGroupId('');
+    setEnableMaterial(false);
+    setMaterialLinks('');
+    setMaterialRequirements('');
   };
 
   // 推送到微信草稿箱
