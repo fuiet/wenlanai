@@ -80,6 +80,76 @@ function WordCountIndicator({ actual, target, minDiff }: { actual: number; targe
   );
 }
 
+// 智能裁剪文章函数
+function trimArticleToLength(content: string, maxLength: number): string {
+  // 移除markdown格式符号后计算字数
+  const textOnly = content.replace(/[#*`_\[\]()]/g, '');
+  
+  if (textOnly.length <= maxLength) {
+    return content; // 已经符合要求
+  }
+  
+  // 按段落分割，保持格式完整
+  const lines = content.split('\n');
+  const result: string[] = [];
+  let currentLength = 0;
+  
+  for (const line of lines) {
+    const lineTextOnly = line.replace(/[#*`_\[\]()]/g, '');
+    
+    // 如果加上这行会超过限制
+    if (currentLength + lineTextOnly.length > maxLength) {
+      // 检查是否是标题或特殊格式，如果是则保留
+      if (line.startsWith('#') || line.startsWith('---') || line.startsWith('>')) {
+        // 标题或分隔线直接保留
+        result.push(line);
+        currentLength += lineTextOnly.length;
+      } else {
+        // 普通段落，截断到刚好符合字数
+        const remaining = maxLength - currentLength;
+        if (remaining > 50) { // 至少保留50个字符
+          // 找到合适的断点（句号或逗号）
+          let truncated = line.substring(0, remaining * 2); // 先保留更多
+          const lastPeriod = truncated.lastIndexOf('。');
+          const lastQuestion = truncated.lastIndexOf('？');
+          const lastExclaim = truncated.lastIndexOf('！');
+          const lastBreak = Math.max(lastPeriod, lastQuestion, lastExclaim);
+          
+          if (lastBreak > remaining * 0.5) {
+            truncated = truncated.substring(0, lastBreak + 1);
+          } else {
+            truncated = line.substring(0, remaining);
+          }
+          result.push(truncated);
+        }
+        break; // 超出限制，停止添加
+      }
+    } else {
+      result.push(line);
+      currentLength += lineTextOnly.length;
+    }
+  }
+  
+  // 如果结果为空，至少保留标题
+  if (result.length === 0 && content.startsWith('#')) {
+    const titleEnd = content.indexOf('\n');
+    if (titleEnd > 0 && titleEnd < maxLength * 2) {
+      result.push(content.substring(0, titleEnd));
+    }
+  }
+  
+  // 添加结尾提示
+  const finalText = result.join('\n');
+  const finalTextOnly = finalText.replace(/[#*`_\[\]()]/g, '');
+  
+  if (finalTextOnly.length > maxLength) {
+    // 再次截断
+    return finalText.substring(0, maxLength * 2).replace(/[#*`_\[\]()]/g, '').substring(0, maxLength);
+  }
+  
+  return finalText;
+}
+
 // AI检测结果类型
 interface ParagraphDetect {
   index: number;
@@ -1236,6 +1306,25 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                         <Badge variant="outline" className="text-sm">
                           插图: {imageUrls.length}张
                         </Badge>
+                      )}
+                      {/* 精简文章按钮 - 字数超限时显示 */}
+                      {generatedContent && (() => {
+                        const charCount = generatedContent.replace(/[#*`_\[\]()]/g, '').length;
+                        return charCount > 1100;
+                      })() && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => {
+                            // 智能裁剪文章到1100字
+                            const trimmed = trimArticleToLength(generatedContent, 1100);
+                            setGeneratedContent(trimmed);
+                          }}
+                          className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
+                        >
+                          <Sparkles className="mr-1 h-3 w-3" />
+                          精简到1100字
+                        </Button>
                       )}
                       {/* 降低AI率按钮 - 在文章内容Tab中直接显示 */}
                       {generatedContent && (
