@@ -858,52 +858,69 @@ export default function PromptLibraryPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {filteredTemplates.map((template) => (
                       <div
                         key={template.id}
-                        className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-sm transition-shadow cursor-pointer"
-                        onClick={() => handleEditTemplate(template)}
+                        className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"
                       >
-                        {/* 状态和操作 */}
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-600 rounded-full text-xs">
-                              <Check className="w-3 h-3" />
-                              已完成
-                            </span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(template.id);
-                            }}
-                            className="h-6 w-6 text-gray-400 hover:text-red-500"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+                        {/* 状态标签 */}
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-600 rounded-full text-xs">
+                            <Check className="w-3 h-3" />
+                            已完成
+                          </span>
                         </div>
 
                         {/* 标题 */}
-                        <h4 className="font-medium text-gray-900 text-sm mb-2 truncate">{template.name}</h4>
+                        <h4 className="font-bold text-gray-900 text-base mb-2">{template.name}</h4>
 
                         {/* 分类标签 */}
                         <div className="flex items-center gap-1 mb-2">
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded text-xs">
+                          <span className="inline-flex items-center gap-0.5 px-2 py-1 bg-orange-500 text-white rounded-full text-xs font-medium">
                             {categoryIconMap[template.category] || "📌"}
                             {template.category}
                           </span>
-                          <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
-                            {fieldOptions.find(f => f.value === template.field)?.label || "通用"}
+                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
+                            {String((template as unknown as Record<string, unknown>)?.article_count || 1)} 篇
                           </span>
                         </div>
 
                         {/* 创建时间 */}
-                        <div className="flex items-center gap-1 text-xs text-gray-400">
+                        <div className="flex items-center gap-1 text-xs text-gray-400 mb-3">
                           <Clock className="w-3 h-3" />
-                          创建于{formatTimeAgo(template.created_at)}
+                          创建于 {formatTimeAgo(template.created_at)}
+                        </div>
+
+                        {/* 分隔线 */}
+                        <div className="border-t border-gray-100 my-3" />
+
+                        {/* 底部操作栏 */}
+                        <div className="flex items-center justify-between">
+                          {/* 查看按钮 */}
+                          <button
+                            onClick={() => handleEditTemplate(template)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span className="text-sm font-medium">查看</span>
+                          </button>
+
+                          {/* 编辑和删除图标 */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleEditTemplate(template)}
+                              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(template.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
