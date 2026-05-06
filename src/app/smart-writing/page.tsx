@@ -339,6 +339,11 @@ function SmartWritingContent() {
     setCopied(false);
   };
 
+  // 计算文章字数（纯中文）
+  const countChineseChars = (text: string): number => {
+    return (text.match(/[\u4e00-\u9fa5]|[，。！？；：""''（）【】《》、！@#￥%……&*（）]/g) || []).length;
+  };
+
   // 一键复制文章（包含标题、内容、图片链接）
   const handleCopyArticle = async () => {
     if (!generatedContent.trim()) {
@@ -1197,28 +1202,53 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                   
                   <TabsContent value="article" className="mt-3">
                     {/* 工具栏 */}
-                    <div className="mb-4 flex flex-wrap items-center gap-2">
-                      {/* 降低AI率按钮 */}
+                    <div className="mb-4 flex items-center justify-between">
+                      {/* 左侧按钮 */}
+                      <div className="flex flex-wrap gap-2">
+                        {/* 降低AI率按钮 */}
+                        {generatedContent && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleHumanize}
+                            disabled={isHumanizing}
+                            className="text-cyan-500 hover:text-cyan-600"
+                          >
+                            {isHumanizing ? (
+                              <>
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                改写中...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="mr-1 h-3 w-3" />
+                                降低AI率
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                      
+                      {/* 右侧字数统计 */}
                       {generatedContent && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={handleHumanize}
-                          disabled={isHumanizing}
-                          className="text-cyan-500 hover:text-cyan-600"
-                        >
-                          {isHumanizing ? (
-                            <>
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                              改写中...
-                            </>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            实际字数: <span className="font-semibold">{countChineseChars(generatedContent)}</span>
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            目标: <span className="font-semibold">1000</span>
+                          </Badge>
+                          {countChineseChars(generatedContent) <= 1100 && countChineseChars(generatedContent) >= 900 ? (
+                            <Badge className="bg-green-500 text-white text-xs">符合要求</Badge>
                           ) : (
-                            <>
-                              <RefreshCw className="mr-1 h-3 w-3" />
-                              降低AI率
-                            </>
+                            <Badge className="bg-red-500 text-white text-xs">
+                              {countChineseChars(generatedContent) > 1100 ? '超出' : '不足'}
+                              {countChineseChars(generatedContent) > 1100 
+                                ? countChineseChars(generatedContent) - 1100 
+                                : 900 - countChineseChars(generatedContent)}字
+                            </Badge>
                           )}
-                        </Button>
+                        </div>
                       )}
                     </div>
 
