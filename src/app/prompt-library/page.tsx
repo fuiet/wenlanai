@@ -858,95 +858,52 @@ export default function PromptLibraryPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                     {filteredTemplates.map((template) => (
                       <div
                         key={template.id}
-                        className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow"
+                        className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-sm transition-shadow cursor-pointer"
+                        onClick={() => handleEditTemplate(template)}
                       >
-                        {/* 状态标签 */}
-                        <div className="flex items-center justify-between mb-3">
+                        {/* 状态和操作 */}
+                        <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-600 rounded-full text-xs">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-600 rounded-full text-xs">
                               <Check className="w-3 h-3" />
                               已完成
                             </span>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                navigator.clipboard.writeText(template.prompt);
-                                toast.success("已复制到剪贴板");
-                              }}
-                              className="h-8 w-8 text-gray-400 hover:text-gray-600"
-                            >
-                              <Copy className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(template.id)}
-                              className="h-8 w-8 text-gray-400 hover:text-red-500"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(template.id);
+                            }}
+                            className="h-6 w-6 text-gray-400 hover:text-red-500"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                         </div>
 
                         {/* 标题 */}
-                        <h4 className="font-bold text-gray-900 text-lg mb-2">{template.name}</h4>
+                        <h4 className="font-medium text-gray-900 text-sm mb-2 truncate">{template.name}</h4>
 
                         {/* 分类标签 */}
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-600 rounded-full text-xs">
+                        <div className="flex items-center gap-1 mb-2">
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded text-xs">
                             {categoryIconMap[template.category] || "📌"}
                             {template.category}
                           </span>
-                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
+                          <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
                             {fieldOptions.find(f => f.value === template.field)?.label || "通用"}
                           </span>
                         </div>
 
                         {/* 创建时间 */}
-                        <div className="flex items-center gap-1 text-xs text-gray-400 mb-4">
+                        <div className="flex items-center gap-1 text-xs text-gray-400">
                           <Clock className="w-3 h-3" />
                           创建于{formatTimeAgo(template.created_at)}
-                        </div>
-
-                        {/* 提示词预览 */}
-                        <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                          <p className="text-sm text-gray-600 line-clamp-3 font-mono">
-                            {template.prompt.substring(0, 150)}...
-                          </p>
-                        </div>
-
-                        {/* 操作按钮 */}
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => handleEditTemplate(template)}
-                            className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                          >
-                            <Edit2 className="w-4 h-4 mr-1" />
-                            编辑
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              navigator.clipboard.writeText(template.prompt);
-                              toast.success("已复制到剪贴板");
-                            }}
-                          >
-                            <Copy className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => handleDelete(template.id)}
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
                         </div>
                       </div>
                     ))}
@@ -963,7 +920,7 @@ export default function PromptLibraryPage() {
             <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
               {/* 头部 */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-bold text-gray-900">编辑提示词</h3>
+                <h3 className="text-lg font-bold text-gray-900">查看提示词</h3>
                 <Button
                   variant="ghost"
                   size="icon"
