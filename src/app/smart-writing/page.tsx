@@ -53,34 +53,6 @@ interface Prompt {
   isCustom: boolean;
 }
 
-// 字数统计指示器组件
-function WordCountIndicator({ actual, target, minDiff }: { actual: number; target: number; minDiff: number }) {
-  const diff = actual - target;
-  const isInRange = Math.abs(diff) <= minDiff;
-  const isOver = diff > 0;
-  const isUnder = diff < 0;
-  
-  let colorClass = 'bg-green-500';
-  let text = '符合要求';
-  
-  if (!isInRange) {
-    if (isOver) {
-      colorClass = 'bg-red-500';
-      text = `超出${diff}字`;
-    } else {
-      colorClass = 'bg-yellow-500';
-      text = `差${Math.abs(diff)}字`;
-    }
-  }
-  
-  return (
-    <Badge className={`${colorClass} text-white text-sm`}>
-      {text}
-    </Badge>
-  );
-}
-
-
 // AI检测结果类型
 interface ParagraphDetect {
   index: number;
@@ -1224,16 +1196,9 @@ ${p.suggestions ? '建议：' + p.suggestions : ''}
                   </TabsList>
                   
                   <TabsContent value="article" className="mt-3">
-                    {/* 字数统计 - 计算实际中文字符数 */}
+                    {/* 工具栏 */}
                     <div className="mb-4 flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className="text-sm">
-                        实际字数: {generatedContent.replace(/[#*`_\[\]()]/g, '').length}
-                      </Badge>
-                      <Badge variant="outline" className="text-sm">
-                        目标: 1000±100字
-                      </Badge>
-                      <WordCountIndicator actual={generatedContent.replace(/[#*`_\[\]()]/g, '').length} target={1000} minDiff={100} />
-                      {/* 降低AI率按钮 - 在文章内容Tab中直接显示 */}
+                      {/* 降低AI率按钮 */}
                       {generatedContent && (
                         <Button
                           size="sm"
