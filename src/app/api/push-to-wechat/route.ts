@@ -238,36 +238,99 @@ async function uploadImageToWechat(
 }
 
 /**
- * 将Markdown内容转换为微信文章格式
+ * 将Markdown内容转换为微信文章格式（保留丰富排版）
  */
 function processContentForWechat(content: string): string {
   let processed = content;
   
-  // 转换Markdown标题为HTML
-  processed = processed.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-  processed = processed.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-  processed = processed.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+  // 1. 处理分隔线（需要放在标题之前）
+  processed = processed.replace(/^---$/gim, '<hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;"/>');
   
-  // 转换加粗
-  processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  // 2. 处理引用块（> 开头的内容）
+  // 将连续的引用行合并为一个blockquote
+  const quoteBlockRegex = /^(&gt;\s?[^\n]*(?:\n(?:&gt;|\s*$)[^\n]*)*)/gim;
+  processed = processed.replace(quoteBlockRegex, (match) => {
+    const text = match.replace(/^&gt;\s?/gim, '').replace(/\n&gt;\s?/g, '<br/>').replace(/^&gt;/g, '').replace(/&gt;/g, '');
+    return `<blockquote style="margin:16px 0;padding:12px 16px;background:#fef9f3;border-left:4px solid #f59e0b;font-style:italic;color:#78716c;">${text}</blockquote>`;
+  });
   
-  // 转换斜体
+  // 3. 转换Markdown标题为HTML（带样式）
+  processed = processed.replace(/^### (.*$)/gim, '<h3 style="font-size:18px;font-weight:600;margin:20px 0 12px;color:#ea580c;border-left:3px solid #f59e0b;padding-left:12px;">$1</h3>');
+  processed = processed.replace(/^## (.*$)/gim, '<h2 style="font-size:20px;font-weight:700;margin:24px 0 16px;padding-bottom:8px;border-bottom:2px solid #f59e0b;">📌 $1</h2>');
+  processed = processed.replace(/^# (.*$)/gim, '<h1 style="font-size:24px;font-weight:800;text-align:center;margin:24px 0;background:linear-gradient(135deg,#f59e0b,#ea580c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">$1</h1>');
+  
+  // 4. 转换加粗和斜体
+  processed = processed.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong style="color:#ea580c;">$1</strong>');
   processed = processed.replace(/\*(.*?)\*/g, '<em>$1</em>');
   
-  // 转换图片语法为空（因为图片会单独上传）
+  // 5. 转换图片语法为空（因为图片会单独上传到素材库）
   processed = processed.replace(/!\[.*?\]\(.*?\)/g, '');
   
-  // 转换段落
-  processed = processed.split('\n\n').map(p => {
-    if (!p.trim()) return '';
-    if (p.startsWith('<h') || p.startsWith('<p')) return p;
-    if (p.startsWith('- ') || p.startsWith('* ')) {
-      return `<p>${p.replace(/\n/g, '<br/>')}</p>`;
+  // 6. 处理无序列表（- 开头）
+  const ulLines: string[] = [];
+  const result: string[] = [];
+  const lines = processed.split('\n');
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.match(/^[\-\*]\s/)) {
+      ulLines.push(line.replace(/^[\-\*]\s/, ''));
+    } else {
+      if (ulLines.length > 0) {
+        // 生成无序列表HTML
+        const ulItems = ulLines.map(item => `<li style="margin:8px 0;padding-left:8px;">${item}</li>`).join('');
+        result.push(`<ul style="margin:12px 0;padding-left:24px;color:#374151;">${ulItems}</ul>`);
+        ulLines.length = 0;
+      }
+      result.push(line);
     }
-    return `<p>${p.replace(/\n/g, '<br/>')}</p>`;
+  }
+  // 处理末尾的列表
+  if (ulLines.length > 0) {
+    const ulItems = ulLines.map(item => `<li style="margin:8px 0;padding-left:8px;">${item}</li>`).join('');
+    result.push(`<ul style="margin:12px 0;padding-left:24px;color:#374151;">${ulItems}</ul>`);
+  }
+  processed = result.join('\n');
+  
+  // 7. 处理有序列表（数字. 开头）
+  const olLines: string[] = [];
+  const result2: string[] = [];
+  const lines2 = processed.split('\n');
+  
+  for (let i = 0; i < lines2.length; i++) {
+    const line = lines2[i];
+    if (line.match(/^\d+\.\s/)) {
+      olLines.push(line.replace(/^\d+\.\s/, ''));
+    } else {
+      if (olLines.length > 0) {
+        const olItems = olLines.map((item, idx) => 
+          `<li style="margin:8px 0;padding-left:8px;list-style:none;counter-increment:item;"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:white;border-radius:50%;font-size:12px;margin-right:8px;font-weight:bold;">${idx + 1}</span>${item}</li>`
+        ).join('');
+        result2.push(`<ol style="margin:12px 0;padding-left:8px;color:#374151;counter-reset:item;">${olItems}</ol>`);
+        olLines.length = 0;
+      }
+      result2.push(line);
+    }
+  }
+  if (olLines.length > 0) {
+    const olItems = olLines.map((item, idx) => 
+      `<li style="margin:8px 0;padding-left:8px;list-style:none;counter-increment:item;"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:white;border-radius:50%;font-size:12px;margin-right:8px;font-weight:bold;">${idx + 1}</span>${item}</li>`
+    ).join('');
+    result2.push(`<ol style="margin:12px 0;padding-left:8px;color:#374151;counter-reset:item;">${olItems}</ol>`);
+  }
+  processed = result2.join('\n');
+  
+  // 8. 转换段落（处理剩余的普通文本行）
+  const paraLines = processed.split('\n').map(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('<') && trimmed.endsWith('>')) return trimmed;
+    if (trimmed.match(/^[\-\*]\s/)) return trimmed; // 跳过已处理的列表
+    return `<p style="margin:12px 0;line-height:1.8;">${trimmed}</p>`;
   }).join('');
-
-  return processed;
+  
+  return paraLines;
 }
 
 /**
