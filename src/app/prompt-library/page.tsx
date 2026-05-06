@@ -2,459 +2,438 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  BookOpen,
-  Plus,
-  Search,
-  Wand2,
-  Copy,
-  Edit,
-  Trash2,
-  Sparkles,
-  Loader2,
-  Link,
-  FileText,
-  ChevronDown,
-  ChevronUp,
-  User,
-  Settings,
-  FileEdit
-} from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Sparkles, Loader2, Plus, Trash2, Edit2, Copy, Check, X, FileEdit, User, FileText, Settings } from 'lucide-react';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
-// 提示词模板类型
 interface PromptTemplate {
   id: string;
   name: string;
   category: string;
   description: string;
-  // 赛道信息
-  raceType: 'link' | 'text';
-  raceContent: string;
-  // 人设信息
-  persona: {
-    authorName: string;
-    personality: string;
-    personaSupplement: string;
-  };
-  // 文章配置
-  articleConfig: {
-    field: string;
-    targetAudience: string;
-    noSubheading: boolean;
-    wordCount: number;
-  };
-  // 生成的提示词
-  generatedPrompt: string;
+  prompt: string;
   tags: string[];
-  isCustom: boolean;
-  createdAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
-const categories = ['全部', '情感', '职场', '民生', '财经', '科技', '娱乐', '星座', '汽车', '美食', '自定义'];
+interface FormData {
+  name: string;
+  category: string;
+  description: string;
+  raceContent: string;
+  referenceText: string;
+  prompt: string;
+  generatedPrompt: string;
+  authorName: string;
+  personality: string;
+  personaSupplement: string;
+  field: string;
+  targetAudience: string;
+  wordCount: number;
+}
 
-// 文章领域选项
-const articleFields = [
-  '情感故事', '职场成长', '民生百态', '财经投资', '科技数码', 
-  '娱乐八卦', '星座运势', '汽车评测', '美食探店', '教育育儿', 
-  '健康养生', '家居生活', '旅游攻略', '职场人际', '自我成长'
+const categories = [
+  { value: '情感', label: '情感', icon: '💕' },
+  { value: '职场', label: '职场', icon: '💼' },
+  { value: '科技', label: '科技', icon: '🚀' },
+  { value: '财经', label: '财经', icon: '💰' },
+  { value: '娱乐', label: '娱乐', icon: '🎭' },
+  { value: '生活', label: '生活', icon: '🌈' },
+  { value: '其他', label: '其他', icon: '📝' },
 ];
 
-// 目标受众选项
-const targetAudiences = [
-  '职场新人', '职场老手', '企业高管', '创业者和企业家', '自由职业者',
-  '大学生群体', '中年群体', '新手父母', '宝爸宝妈', '中老年群体',
-  '学生群体', '家长群体', '年轻人', '男性用户', '女性用户',
-  '单身人群', '新婚夫妇', '普通大众'
+const fields = [
+  { value: '情感', label: '情感' },
+  { value: '职场', label: '职场' },
+  { value: '科技', label: '科技' },
+  { value: '财经', label: '财经' },
+  { value: '娱乐', label: '娱乐' },
+  { value: '生活', label: '生活' },
+  { value: '教育', label: '教育' },
+  { value: '健康', label: '健康' },
+  { value: '美食', label: '美食' },
+  { value: '旅游', label: '旅游' },
+  { value: '房产', label: '房产' },
+  { value: '汽车', label: '汽车' },
+  { value: '其他', label: '其他' },
 ];
 
-// 默认提示词模板
-const defaultTemplates: PromptTemplate[] = [
-  {
-    id: 'default-1',
-    name: '情感类爆款文案',
-    category: '情感',
-    description: '擅长写触动人心的情感类文章，引发共鸣',
-    raceType: 'text',
-    raceContent: '',
-    persona: {
-      authorName: '',
-      personality: '温暖细腻、善于通过生活细节和真实情感打动读者',
-      personaSupplement: ''
-    },
-    articleConfig: {
-      field: '情感故事',
-      targetAudience: '年轻人',
-      noSubheading: false,
-      wordCount: 1000
-    },
-    generatedPrompt: '你是一位情感类自媒体写作专家，擅长创作触动人心、引发共鸣的爆款文章。你的写作风格温暖细腻，善于通过生活细节和真实情感打动读者。',
-    tags: ['情感', '爆款', '共鸣'],
-    isCustom: false,
-    createdAt: ''
-  },
-  {
-    id: 'default-2',
-    name: '职场成长导师',
-    category: '职场',
-    description: '职场经验分享，帮助职场人成长',
-    raceType: 'text',
-    raceContent: '',
-    persona: {
-      authorName: '',
-      personality: '资深职场导师，拥有10年以上HR和职场管理经验',
-      personaSupplement: ''
-    },
-    articleConfig: {
-      field: '职场成长',
-      targetAudience: '职场新人',
-      noSubheading: false,
-      wordCount: 1000
-    },
-    generatedPrompt: '你是一位资深职场导师，拥有10年以上HR和职场管理经验。擅长分享实用的职场干货和成长建议，帮助职场人解决工作难题。',
-    tags: ['职场', '干货', '成长'],
-    isCustom: false,
-    createdAt: ''
-  }
-];
-
-export default function PromptLibraryPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('全部');
+export default function PromptLibrary() {
+  const [templates, setTemplates] = useState<PromptTemplate[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // 提示词模板状态
-  const [templates, setTemplates] = useState<PromptTemplate[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('wenlan-prompt-templates');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return defaultTemplates;
-        }
-      }
-    }
-    return defaultTemplates;
-  });
-
-  // 新建/编辑表单状态
-  const [formData, setFormData] = useState<PromptTemplate>({
-    id: '',
+  const initialFormData: FormData = {
     name: '',
-    category: '自定义',
+    category: '情感',
     description: '',
-    raceType: 'link',
     raceContent: '',
-    persona: {
-      authorName: '',
-      personality: '',
-      personaSupplement: ''
-    },
-    articleConfig: {
-      field: '情感故事',
-      targetAudience: '年轻人',
-      noSubheading: false,
-      wordCount: 1000
-    },
+    referenceText: '',
+    prompt: '',
     generatedPrompt: '',
-    tags: [],
-    isCustom: true,
-    createdAt: ''
-  });
+    authorName: '',
+    personality: '',
+    personaSupplement: '',
+    field: '',
+    targetAudience: '',
+    wordCount: 1000,
+  };
 
-  // 保存到 localStorage
+  const [formData, setFormData] = useState<FormData>(initialFormData);
+
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('wenlan-prompt-templates', JSON.stringify(templates));
+    fetchTemplates();
+  }, []);
+
+  const fetchTemplates = async () => {
+    try {
+      const response = await fetch('/api/prompt-templates');
+      const data = await response.json();
+      if (data.success) {
+        setTemplates(data.templates || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch templates:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [templates]);
+  };
 
-  const filteredTemplates = templates.filter(t => {
-    const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         t.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === '全部' || t.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  // 生成提示词
   const handleGeneratePrompt = async () => {
-    if (!formData.name.trim()) {
-      toast({ title: '请先填写提示词名称', variant: 'destructive' });
-      return;
-    }
-
-    if (!formData.raceContent.trim()) {
-      toast({ title: '请先填写赛道内容（链接或文本）', variant: 'destructive' });
-      return;
-    }
-
     setIsGenerating(true);
-
     try {
       const response = await fetch('/api/generate-prompt-template', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          raceType: formData.raceType,
           raceContent: formData.raceContent,
-          persona: formData.persona,
-          articleConfig: formData.articleConfig
-        })
+          referenceText: formData.referenceText,
+          authorName: formData.authorName,
+          personality: formData.personality,
+          personaSupplement: formData.personaSupplement,
+          field: formData.field,
+          targetAudience: formData.targetAudience,
+          wordCount: formData.wordCount,
+        }),
       });
 
       const data = await response.json();
-      
       if (data.success) {
-        setFormData(prev => ({ ...prev, generatedPrompt: data.prompt }));
-        toast({ title: '提示词生成成功！', description: '请查看生成结果，可进行微调' });
+        setFormData(prev => ({
+          ...prev,
+          generatedPrompt: data.prompt,
+          prompt: data.prompt,
+        }));
+        toast.success('提示词生成成功！');
       } else {
-        toast({ title: '生成失败', description: data.error || '请稍后重试', variant: 'destructive' });
+        toast.error(data.error || '生成失败');
       }
     } catch (error) {
-      toast({ title: '生成失败', description: '网络错误，请稍后重试', variant: 'destructive' });
+      toast.error('生成失败，请重试');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // 创建提示词模板
-  const handleCreateTemplate = () => {
-    if (!formData.name.trim()) {
-      toast({ title: '请填写提示词名称', variant: 'destructive' });
+  const handleCreateTemplate = async () => {
+    if (!formData.generatedPrompt) {
+      toast.error('请先生成提示词');
       return;
     }
 
-    const newTemplate: PromptTemplate = {
-      ...formData,
-      id: `template-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      isCustom: true
-    };
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/prompt-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          category: formData.category,
+          description: formData.description,
+          prompt: formData.generatedPrompt,
+          authorName: formData.authorName,
+          personality: formData.personality,
+          personaSupplement: formData.personaSupplement,
+          field: formData.field,
+          targetAudience: formData.targetAudience,
+          wordCount: formData.wordCount,
+          raceContent: formData.raceContent,
+          referenceText: formData.referenceText,
+        }),
+      });
 
-    setTemplates([...templates, newTemplate]);
-    setIsCreateDialogOpen(false);
-    resetForm();
-    toast({ title: '创建成功', description: '提示词模板已保存' });
-  };
-
-  // 更新提示词模板
-  const handleUpdateTemplate = () => {
-    if (!editingTemplate || !formData.name.trim()) {
-      toast({ title: '请填写提示词名称', variant: 'destructive' });
-      return;
-    }
-
-    const updatedTemplates = templates.map(t => 
-      t.id === editingTemplate.id ? { ...formData, id: editingTemplate.id, createdAt: t.createdAt } : t
-    );
-
-    setTemplates(updatedTemplates);
-    setIsEditDialogOpen(false);
-    setEditingTemplate(null);
-    resetForm();
-    toast({ title: '保存成功', description: '提示词模板已更新' });
-  };
-
-  // 删除提示词
-  const handleDeleteTemplate = (id: string) => {
-    if (confirm('确定要删除这个提示词吗？')) {
-      setTemplates(templates.filter(t => t.id !== id));
-      toast({ title: '已删除' });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('创建成功！');
+        setIsCreateDialogOpen(false);
+        resetForm();
+        fetchTemplates();
+      } else {
+        toast.error(data.error || '创建失败');
+      }
+    } catch (error) {
+      toast.error('创建失败，请重试');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // 使用提示词
-  const handleUsePrompt = (template: PromptTemplate) => {
-    const params = new URLSearchParams();
-    params.set('templateId', template.id);
-    params.set('template', JSON.stringify(template));
-    window.location.href = `/smart-writing?${params.toString()}`;
+  const handleUpdateTemplate = async () => {
+    if (!editingTemplate) return;
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/prompt-templates?id=${editingTemplate.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          category: formData.category,
+          description: formData.description,
+          prompt: formData.generatedPrompt,
+          authorName: formData.authorName,
+          personality: formData.personality,
+          personaSupplement: formData.personaSupplement,
+          field: formData.field,
+          targetAudience: formData.targetAudience,
+          wordCount: formData.wordCount,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success('更新成功！');
+        setIsEditDialogOpen(false);
+        setEditingTemplate(null);
+        resetForm();
+        fetchTemplates();
+      } else {
+        toast.error(data.error || '更新失败');
+      }
+    } catch (error) {
+      toast.error('更新失败，请重试');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  // 编辑提示词
+  const handleDeleteTemplate = async (id: string) => {
+    if (!confirm('确定要删除这个提示词吗？')) return;
+
+    try {
+      const response = await fetch(`/api/prompt-templates?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success('删除成功！');
+        fetchTemplates();
+      } else {
+        toast.error(data.error || '删除失败');
+      }
+    } catch (error) {
+      toast.error('删除失败，请重试');
+    }
+  };
+
+  const handleCopyPrompt = async (template: PromptTemplate) => {
+    try {
+      await navigator.clipboard.writeText(template.prompt);
+      setCopiedId(template.id);
+      toast.success('已复制到剪贴板');
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (error) {
+      toast.error('复制失败');
+    }
+  };
+
   const handleEditTemplate = (template: PromptTemplate) => {
     setEditingTemplate(template);
-    setFormData({ ...template });
-    setShowAdvanced(true);
+    setFormData({
+      name: template.name,
+      category: template.category,
+      description: template.description || '',
+      raceContent: '',
+      referenceText: '',
+      prompt: template.prompt,
+      generatedPrompt: template.prompt,
+      authorName: (template as Record<string, unknown>).authorName as string || '',
+      personality: (template as Record<string, unknown>).personality as string || '',
+      personaSupplement: (template as Record<string, unknown>).personaSupplement as string || '',
+      field: (template as Record<string, unknown>).field as string || '',
+      targetAudience: (template as Record<string, unknown>).targetAudience as string || '',
+      wordCount: (template as Record<string, unknown>).wordCount as number || 1000,
+    });
     setIsEditDialogOpen(true);
   };
 
-  // 重置表单
   const resetForm = () => {
-    setFormData({
-      id: '',
-      name: '',
-      category: '自定义',
-      description: '',
-      raceType: 'link',
-      raceContent: '',
-      persona: {
-        authorName: '',
-        personality: '',
-        personaSupplement: ''
-      },
-      articleConfig: {
-        field: '情感故事',
-        targetAudience: '年轻人',
-        noSubheading: false,
-        wordCount: 1000
-      },
-      generatedPrompt: '',
-      tags: [],
-      isCustom: true,
-      createdAt: ''
-    });
-    setShowAdvanced(false);
+    setFormData(initialFormData);
+    setEditingTemplate(null);
   };
 
-  // 打开创建对话框
-  const handleOpenCreate = () => {
+  const openCreateDialog = () => {
     resetForm();
     setIsCreateDialogOpen(true);
   };
 
+  const handleDialogToggle = () => {
+    if (!formData.generatedPrompt) {
+      if (!formData.name.trim()) {
+        toast.error('请填写提示词名称');
+        return;
+      }
+      if (!formData.raceContent.trim() && !formData.referenceText.trim()) {
+        toast.error('请先输入链接或文本内容');
+        return;
+      }
+      handleGeneratePrompt();
+    } else {
+      if (editingTemplate) {
+        handleUpdateTemplate();
+      } else {
+        handleCreateTemplate();
+      }
+    }
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Page Header */}
-      <div className="mb-8 flex items-center justify-between">
+    <div className="container mx-auto py-8 px-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900 flex items-center">
-            <BookOpen className="mr-3 h-8 w-8 text-purple-500" />
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
             提示词库
           </h1>
-          <p className="text-gray-600">创建和管理你的人设风格提示词，生成文章时自动应用</p>
+          <p className="text-gray-500 mt-2">管理和使用您的文章生成提示词模板</p>
         </div>
-        <Button 
-          onClick={handleOpenCreate}
+        <Button
+          onClick={openCreateDialog}
           className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
         >
-          <Plus className="mr-2 h-5 w-5" />
+          <Plus className="w-4 h-4 mr-2" />
           创建提示词
         </Button>
       </div>
 
-      {/* Search and Filter */}
-      <div className="mb-6 flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="搜索提示词..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+      {/* 提示词列表 */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {categories.map(cat => (
-            <Button
-              key={cat}
-              variant={selectedCategory === cat ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedCategory(cat)}
-              className={selectedCategory === cat ? 'bg-purple-500' : ''}
+      ) : templates.length === 0 ? (
+        <div className="text-center py-20 bg-gray-50 rounded-xl">
+          <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-600 mb-2">暂无提示词</h3>
+          <p className="text-gray-400 mb-4">创建您的第一个提示词模板，开始智能创作</p>
+          <Button onClick={openCreateDialog} variant="outline">
+            <Plus className="w-4 h-4 mr-2" />
+            创建提示词
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {templates.map((template) => (
+            <div
+              key={template.id}
+              className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-shadow"
             >
-              {cat}
-            </Button>
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">
+                    {categories.find(c => c.value === template.category)?.icon || '📝'}
+                  </span>
+                  <h3 className="font-semibold text-gray-900">{template.name}</h3>
+                </div>
+                <span className="text-xs px-2 py-1 bg-purple-100 text-purple-600 rounded-full">
+                  {template.category}
+                </span>
+              </div>
+
+              {template.description && (
+                <p className="text-sm text-gray-500 mb-3 line-clamp-2">
+                  {template.description}
+                </p>
+              )}
+
+              <div className="text-xs text-gray-400 mb-4">
+                创建于 {new Date(template.created_at).toLocaleDateString('zh-CN')}
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => handleCopyPrompt(template)}
+                >
+                  {copiedId === template.id ? (
+                    <Check className="w-4 h-4 mr-1" />
+                  ) : (
+                    <Copy className="w-4 h-4 mr-1" />
+                  )}
+                  复制
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEditTemplate(template)}
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeleteTemplate(template.id)}
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           ))}
-        </div>
-      </div>
-
-      {/* Template List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredTemplates.map(template => (
-          <Card key={template.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{template.name}</CardTitle>
-                  <Badge variant="secondary" className="mt-1">{template.category}</Badge>
-                </div>
-                {template.isCustom && (
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleEditTemplate(template)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteTemplate(template.id)}>
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-              <CardDescription className="mt-2">{template.description || '暂无描述'}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* 人设信息预览 */}
-              {template.persona.personality && (
-                <div className="mb-3 text-sm text-gray-600">
-                  <span className="font-medium">风格：</span>{template.persona.personality.slice(0, 50)}...
-                </div>
-              )}
-              {/* 文章配置预览 */}
-              <div className="mb-3 flex flex-wrap gap-2">
-                <Badge variant="outline">{template.articleConfig.field}</Badge>
-                <Badge variant="outline">{template.articleConfig.targetAudience}</Badge>
-                <Badge variant="outline">{template.articleConfig.wordCount}字</Badge>
-                {template.articleConfig.noSubheading && <Badge variant="outline">无二级标题</Badge>}
-              </div>
-              {/* 标签 */}
-              {template.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {template.tags.map((tag, i) => (
-                    <Badge key={i} variant="secondary" className="text-xs">{tag}</Badge>
-                  ))}
-                </div>
-              )}
-              <Button 
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-                onClick={() => handleUsePrompt(template)}
-              >
-                <Wand2 className="mr-2 h-4 w-4" />
-                使用此提示词
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {filteredTemplates.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>暂无提示词模板，点击上方按钮创建</p>
         </div>
       )}
 
-      {/* Create/Edit Dialog */}
+      {/* 创建/编辑对话框 */}
       <Dialog open={isCreateDialogOpen || isEditDialogOpen} onOpenChange={(open) => {
         if (!open) {
           setIsCreateDialogOpen(false);
           setIsEditDialogOpen(false);
-          setEditingTemplate(null);
           resetForm();
         }
       }}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingTemplate ? '编辑提示词' : '创建新提示词'}</DialogTitle>
-            <DialogDescription>
-              设置你的人设风格和文章配置，AI将根据这些信息生成专属提示词
-            </DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <FileEdit className="w-5 h-5" />
+              {editingTemplate ? '编辑提示词' : '创建提示词'}
+            </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-6 py-4">
             {/* 基础信息 */}
             <div className="space-y-4">
@@ -462,7 +441,7 @@ export default function PromptLibraryPage() {
                 <FileEdit className="h-4 w-4" />
                 基础信息
               </h3>
-              
+
               <div>
                 <Label htmlFor="name">提示词名称 *</Label>
                 <Input
@@ -474,7 +453,26 @@ export default function PromptLibraryPage() {
               </div>
 
               <div>
-                <Label htmlFor="description">描述</Label>
+                <Label htmlFor="category">分类</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.icon} {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="description">描述（可选）</Label>
                 <Input
                   id="description"
                   value={formData.description}
@@ -482,257 +480,189 @@ export default function PromptLibraryPage() {
                   placeholder="简短描述这个提示词的用途"
                 />
               </div>
-
-              <div>
-                <Label htmlFor="category">分类</Label>
-                <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.filter(c => c !== '全部').map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             {/* 赛道信息 */}
             <div className="space-y-4">
               <h3 className="font-medium flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
+                <Settings className="h-4 w-4" />
                 选择赛道
               </h3>
-              <p className="text-sm text-gray-500">投喂链接或文本，AI将分析文章信息，倒推生成提示词</p>
-              
-              <Tabs value={formData.raceType} onValueChange={(v: 'link' | 'text') => setFormData({ ...formData, raceType: v })}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="link" className="flex items-center gap-2">
-                    <Link className="h-4 w-4" />
-                    投喂链接
-                  </TabsTrigger>
-                  <TabsTrigger value="text" className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    投喂文本
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="link" className="mt-4">
-                  <Textarea
-                    value={formData.raceContent}
-                    onChange={(e) => setFormData({ ...formData, raceContent: e.target.value })}
-                    placeholder="粘贴公众号文章链接，AI将分析文章内容倒推提示词..."
-                    rows={4}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="text" className="mt-4">
-                  <Textarea
-                    value={formData.raceContent}
-                    onChange={(e) => setFormData({ ...formData, raceContent: e.target.value })}
-                    placeholder="粘贴文章内容，AI将分析写作风格和特点..."
-                    rows={6}
-                  />
-                </TabsContent>
-              </Tabs>
 
-              <Button 
-                onClick={handleGeneratePrompt} 
-                disabled={isGenerating || !formData.raceContent.trim()}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500"
+              <div>
+                <Label htmlFor="raceContent">链接或文本内容 *</Label>
+                <Textarea
+                  id="raceContent"
+                  value={formData.raceContent}
+                  onChange={(e) => setFormData({ ...formData, raceContent: e.target.value })}
+                  placeholder="输入爆款文章链接或粘贴文章内容，系统将分析并生成提示词"
+                  rows={4}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  可以是微信公众号文章链接、网页内容或直接粘贴文章文本
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="referenceText">补充文本（可选）</Label>
+                <Textarea
+                  id="referenceText"
+                  value={formData.referenceText}
+                  onChange={(e) => setFormData({ ...formData, referenceText: e.target.value })}
+                  placeholder="补充说明或其他参考内容"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            {/* 人设信息 */}
+            <div className="space-y-4">
+              <h3 className="font-medium flex items-center gap-2">
+                <User className="h-4 w-4" />
+                人设信息
+              </h3>
+
+              <div>
+                <Label htmlFor="authorName">作者姓名</Label>
+                <Input
+                  id="authorName"
+                  value={formData.authorName}
+                  onChange={(e) => setFormData({ ...formData, authorName: e.target.value })}
+                  placeholder="设定文章作者身份"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="personality">人物性格</Label>
+                <Textarea
+                  id="personality"
+                  value={formData.personality}
+                  onChange={(e) => setFormData({ ...formData, personality: e.target.value })}
+                  placeholder="描述作者的性格特点，如：温暖知性、犀利幽默、专业严谨等"
+                  rows={2}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="personaSupplement">人设补充</Label>
+                <Textarea
+                  id="personaSupplement"
+                  value={formData.personaSupplement}
+                  onChange={(e) => setFormData({ ...formData, personaSupplement: e.target.value })}
+                  placeholder="其他补充信息，如写作风格、语言特点等"
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            {/* 文章配置 */}
+            <div className="space-y-4">
+              <h3 className="font-medium flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                文章配置
+              </h3>
+
+              <div>
+                <Label htmlFor="field">文章领域</Label>
+                <Select
+                  value={formData.field}
+                  onValueChange={(value) => setFormData({ ...formData, field: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择文章领域" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fields.map((f) => (
+                      <SelectItem key={f.value} value={f.value}>
+                        {f.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="targetAudience">目标受众</Label>
+                <Input
+                  id="targetAudience"
+                  value={formData.targetAudience}
+                  onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
+                  placeholder="如：25-35岁职场女性、创业者、中学生家长等"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="wordCount">文章字数要求</Label>
+                <Input
+                  id="wordCount"
+                  type="number"
+                  value={formData.wordCount}
+                  onChange={(e) => setFormData({ ...formData, wordCount: parseInt(e.target.value) || 1000 })}
+                  placeholder="1000"
+                />
+              </div>
+            </div>
+
+            {/* 生成的提示词 */}
+            <div className="space-y-4">
+              <h3 className="font-medium flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                生成提示词
+              </h3>
+
+              <Textarea
+                value={formData.prompt}
+                onChange={(e) => setFormData({ 
+                  ...formData, 
+                  prompt: e.target.value,
+                  generatedPrompt: e.target.value 
+                })}
+                rows={6}
+                className="font-mono text-sm"
+                placeholder="填写提示词名称和赛道内容后，点击「开始生成」AI将自动生成提示词..."
+              />
+            </div>
+          </div>
+
+          {/* 底部操作栏 */}
+          <div className="flex justify-between items-center pt-4 border-t">
+            <p className="text-sm text-gray-500">
+              {!formData.generatedPrompt && formData.name && (formData.raceContent || formData.referenceText) && (
+                <span className="text-purple-600">点击「开始生成」AI将分析内容生成提示词</span>
+              )}
+              {formData.generatedPrompt && (
+                <span className="text-green-600">提示词已生成，可手动编辑后保存</span>
+              )}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsCreateDialogOpen(false);
+                  setIsEditDialogOpen(false);
+                  resetForm();
+                }}
               >
-                {isGenerating ? (
+                取消
+              </Button>
+              <Button
+                onClick={handleDialogToggle}
+                disabled={isGenerating || isSaving}
+                className="bg-gradient-to-r from-purple-500 to-pink-500"
+              >
+                {isGenerating || isSaving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    AI分析中...
+                    {isGenerating ? 'AI分析生成中...' : '保存中...'}
                   </>
                 ) : (
                   <>
-                    <Wand2 className="mr-2 h-4 w-4" />
-                    AI分析生成提示词
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    {formData.generatedPrompt ? (editingTemplate ? '保存修改' : '创建提示词') : '开始生成'}
                   </>
                 )}
               </Button>
             </div>
-
-            {/* 高级设置 */}
-            <div className="border-t pt-4">
-              <Button
-                variant="ghost"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="w-full justify-between"
-              >
-                <span className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  高级设置
-                </span>
-                {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </Button>
-
-              {showAdvanced && (
-                <div className="space-y-6 mt-4">
-                  {/* 人设信息 */}
-                  <div className="space-y-4">
-                    <h4 className="font-medium flex items-center gap-2 text-purple-600">
-                      <User className="h-4 w-4" />
-                      人设信息
-                    </h4>
-                    
-                    <div>
-                      <Label htmlFor="authorName">作者姓名</Label>
-                      <Input
-                        id="authorName"
-                        value={formData.persona.authorName}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          persona: { ...formData.persona, authorName: e.target.value }
-                        })}
-                        placeholder="如：李明说职场"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="personality">人物性格 *</Label>
-                      <Textarea
-                        id="personality"
-                        value={formData.persona.personality}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          persona: { ...formData.persona, personality: e.target.value }
-                        })}
-                        placeholder="描述你的写作风格，如：温暖细腻、幽默风趣、干货满满..."
-                        rows={3}
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="personaSupplement">人设补充</Label>
-                      <Textarea
-                        id="personaSupplement"
-                        value={formData.persona.personaSupplement}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          persona: { ...formData.persona, personaSupplement: e.target.value }
-                        })}
-                        placeholder="补充你的人设信息，如：10年职场经验、资深HR背景..."
-                        rows={2}
-                      />
-                    </div>
-                  </div>
-
-                  {/* 文章配置 */}
-                  <div className="space-y-4">
-                    <h4 className="font-medium flex items-center gap-2 text-purple-600">
-                      <FileEdit className="h-4 w-4" />
-                      文章配置
-                    </h4>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="field">文章领域</Label>
-                        <Select 
-                          value={formData.articleConfig.field} 
-                          onValueChange={(v) => setFormData({
-                            ...formData,
-                            articleConfig: { ...formData.articleConfig, field: v }
-                          })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {articleFields.map(field => (
-                              <SelectItem key={field} value={field}>{field}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="audience">目标受众</Label>
-                        <Select 
-                          value={formData.articleConfig.targetAudience} 
-                          onValueChange={(v) => setFormData({
-                            ...formData,
-                            articleConfig: { ...formData.articleConfig, targetAudience: v }
-                          })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {targetAudiences.map(aud => (
-                              <SelectItem key={aud} value={aud}>{aud}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="wordCount">文章字数要求</Label>
-                      <Input
-                        id="wordCount"
-                        type="number"
-                        value={formData.articleConfig.wordCount}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          articleConfig: { ...formData.articleConfig, wordCount: parseInt(e.target.value) || 1000 }
-                        })}
-                        placeholder="1000"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label htmlFor="noSubheading">不使用二级标题</Label>
-                        <p className="text-sm text-gray-500">开启后将生成纯段落式文章</p>
-                      </div>
-                      <Switch
-                        id="noSubheading"
-                        checked={formData.articleConfig.noSubheading}
-                        onCheckedChange={(checked) => setFormData({
-                          ...formData,
-                          articleConfig: { ...formData.articleConfig, noSubheading: checked }
-                        })}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 生成的提示词 */}
-            {formData.generatedPrompt && (
-              <div className="space-y-2">
-                <Label>生成的提示词</Label>
-                <Textarea
-                  value={formData.generatedPrompt}
-                  onChange={(e) => setFormData({ ...formData, generatedPrompt: e.target.value })}
-                  rows={8}
-                  className="font-mono text-sm"
-                />
-                <p className="text-sm text-gray-500">可手动微调提示词内容</p>
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => {
-              setIsCreateDialogOpen(false);
-              setIsEditDialogOpen(false);
-              resetForm();
-            }}>
-              取消
-            </Button>
-            <Button 
-              onClick={editingTemplate ? handleUpdateTemplate : handleCreateTemplate}
-              disabled={!formData.name.trim()}
-              className="bg-gradient-to-r from-purple-500 to-pink-500"
-            >
-              {editingTemplate ? '保存修改' : '创建提示词'}
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
