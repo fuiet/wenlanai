@@ -118,7 +118,7 @@ const categoryOptions = [
 
 export default function PromptLibraryPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"create" | "manage">("create");
+  const [showCreateForm, setShowCreateForm] = useState(false); // 默认显示管理列表，点击按钮才显示创建表单
   const [formData, setFormData] = useState<FormData>({
     name: "",
     category: "",
@@ -147,10 +147,10 @@ export default function PromptLibraryPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (activeTab === "manage") {
+    if (!showCreateForm) {
       fetchTemplates();
     }
-  }, [activeTab]);
+  }, [showCreateForm]);
 
   const fetchTemplates = async () => {
     try {
@@ -330,7 +330,8 @@ export default function PromptLibraryPage() {
           titleFormat: "",
           wordCount: 996,
         });
-        setActiveTab("manage");
+        setShowCreateForm(false); // 返回列表
+        fetchTemplates();
       } else {
         toast.error(data.error || "保存失败");
       }
@@ -374,51 +375,44 @@ export default function PromptLibraryPage() {
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
+                <BookOpen className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">提示词库</h1>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">提示词库</h1>
+                <p className="text-sm text-gray-500">管理和使用您的文章生成提示词</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setActiveTab("create")}
-                className={cn(
-                  "px-4 py-2 rounded-md text-sm font-medium transition-colors",
-                  activeTab === "create"
-                    ? "bg-white text-orange-600 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
-                )}
-              >
-                一键生成
-              </button>
-              <button
-                onClick={() => setActiveTab("manage")}
-                className={cn(
-                  "px-4 py-2 rounded-md text-sm font-medium transition-colors",
-                  activeTab === "manage"
-                    ? "bg-white text-orange-600 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
-                )}
-              >
-                管理我的提示词
-              </button>
-            </div>
+            <Button
+              onClick={() => setShowCreateForm(true)}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              生成提示词
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Tab 内容 */}
+      {/* 主要内容 */}
       <div className="max-w-5xl mx-auto px-6 py-6">
-        {activeTab === "create" ? (
-          /* 一键生成提示词 */
+        {showCreateForm ? (
+          /* 一键生成提示词表单 */
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             {/* 顶部标题 */}
-            <div className="border-b border-gray-100 px-6 py-4">
+            <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center">
                   <Zap className="w-4 h-4 text-white" />
                 </div>
                 <h2 className="text-lg font-bold text-gray-900">一键生成提示词</h2>
               </div>
+              <Button
+                variant="ghost"
+                onClick={() => setShowCreateForm(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-5 h-5" />
+              </Button>
             </div>
 
             {/* 表单内容 */}
@@ -706,26 +700,9 @@ export default function PromptLibraryPage() {
                 <div className="flex gap-3">
                   <Button 
                     variant="outline" 
-                    onClick={() => {
-                      setFormData({
-                        name: "",
-                        category: "",
-                        description: "",
-                        feedType: "link",
-                        referenceLinks: "",
-                        referenceText: "",
-                        authorName: "",
-                        personality: "",
-                        personaSupplement: "",
-                        field: "",
-                        targetAudience: "",
-                        titleFormat: "",
-                        wordCount: 996,
-                      });
-                      setGeneratedPrompt("");
-                    }}
+                    onClick={() => setShowCreateForm(false)}
                   >
-                    重置
+                    取消
                   </Button>
                   {!generatedPrompt ? (
                     <Button
@@ -769,34 +746,20 @@ export default function PromptLibraryPage() {
             </div>
           </div>
         ) : (
-          /* 提示词管理 */
+          /* 提示词列表 */
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">我的提示词</h2>
-                <p className="text-gray-500 mt-1">管理和使用您创建的提示词模板</p>
-              </div>
-              <Button
-                onClick={() => setActiveTab("create")}
-                className="bg-orange-500 hover:bg-orange-600 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                创建新提示词
-              </Button>
-            </div>
-
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
               </div>
             ) : templates.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-xl border border-gray-200">
-                <BookOpen className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
                 <h3 className="text-lg font-medium text-gray-600 mb-2">暂无提示词</h3>
                 <p className="text-gray-400 mb-4">创建您的第一个提示词模板，开始智能创作</p>
-                <Button onClick={() => setActiveTab("create")} className="bg-orange-500 hover:bg-orange-600 text-white">
+                <Button onClick={() => setShowCreateForm(true)} className="bg-orange-500 hover:bg-orange-600 text-white">
                   <Sparkles className="w-4 h-4 mr-2" />
-                  一键生成提示词
+                  生成提示词
                 </Button>
               </div>
             ) : (
