@@ -88,3 +88,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: '服务器错误' }, { status: 500 });
   }
 }
+
+// 删除提示词模板
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: '缺少ID参数' }, { status: 400 });
+    }
+
+    const supabase = getSupabaseAdmin();
+    
+    const { error } = await supabase
+      .from('prompt_templates')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('删除提示词模板失败:', error);
+      return NextResponse.json({ success: false, error: '删除失败: ' + error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: '删除成功'
+    });
+  } catch (error: any) {
+    console.error('删除提示词模板失败:', error);
+    return NextResponse.json({ success: false, error: '服务器错误: ' + error.message }, { status: 500 });
+  }
+}
