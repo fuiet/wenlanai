@@ -40,6 +40,8 @@ import {
 import { cn } from '@/lib/utils';
 
 // 文章类型定义
+type GenerateProgress = 'idle' | 'title' | 'content' | 'images' | 'done' | 'failed';
+
 interface Article {
   id: number;
   title: string;
@@ -50,6 +52,7 @@ interface Article {
   push_status: 'pending' | 'success' | 'failed';
   created_at: string;
   updated_at: string;
+  generate_progress?: GenerateProgress;
 }
 
 // 分组类型定义
@@ -280,21 +283,32 @@ export default function SmartWritingPage() {
     // 创建一个临时的"生成中"文章
     const tempArticle: Article = {
       id: Date.now(),
-      title: articleTitle || '正在生成标题...',
-      content: '',
+      title: '正在生成标题...',
+      content: '...',
       image_urls: [],
       group_id: parseInt(selectedGroupId),
       status: 'generating',
       push_status: 'pending',
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      generate_progress: 'title'
     };
     
     // 立即添加到列表开头，显示"生成中"状态
     setArticles([tempArticle, ...articles]);
 
+    // 更新生成进度
+    const updateProgress = (progress: GenerateProgress, updates: Partial<Article>) => {
+      setArticles(articles => articles.map(a => 
+        a.id === tempArticle.id ? { ...a, ...updates, generate_progress: progress } : a
+      ));
+    };
+
     // 后台异步生成文章
     try {
+      // 更新为正在生成标题
+      updateProgress('title', { title: '正在生成标题...', content: '...' });
+
       const response = await fetch('/api/generate-article', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -314,9 +328,20 @@ export default function SmartWritingPage() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
+          // 更新为正在生成文章
+          updateProgress('content', { title: data.title || '正在生成文章...', content: '...' });
+          
           // 将图片插入到文章内容中
           let finalContent = data.content || '';
-          if (data.images && data.images.length > 0) {
+          const hasImages = data.images && data.images.length > 0;
+          
+          if (hasImages) {
+            // 更新为正在生成图片
+            updateProgress('images', { 
+              title: data.title || '正在生成图片...', 
+              content: finalContent.substring(0, 200) + '...' 
+            });
+            
             const sections = finalContent.split(/\n(?=#|\n#{1,2}\s)/);
             const insertPoints: number[] = [];
             
@@ -341,6 +366,13 @@ export default function SmartWritingPage() {
               return result;
             }).join('');
           }
+          
+          // 更新为已完成
+          updateProgress('done', { 
+            title: data.title || '未命名文章', 
+            content: finalContent,
+            status: 'generated'
+          });
           
           // 保存到数据库
           let savedArticle: Article | null = null;
@@ -376,13 +408,14 @@ export default function SmartWritingPage() {
             status: 'generated',
             push_status: 'pending',
             created_at: tempArticle.created_at,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            generate_progress: 'done'
           };
           
-          setArticles(articles.map(a => a.id === tempArticle.id ? finalArticle : a));
+          setArticles(articles => articles.map(a => a.id === tempArticle.id ? finalArticle : a));
         } else {
           // 生成失败，更新状态
-          setArticles(articles.map(a => a.id === tempArticle.id ? { ...a, status: 'failed' } : a));
+          updateProgress('failed', { status: 'failed' });
           alert('生成失败，请稍后重试');
         }
       } else {
@@ -441,6 +474,31 @@ export default function SmartWritingPage() {
   // 获取状态标签
   const getStatusBadge = (article: Article) => {
     if (article.status === 'generating') {
+      // 根据生成进度显示不同状态
+      if (article.generate_progress === 'title') {
+        return (
+          <div className="flex items-center gap-2">
+            <Badge className="bg-blue-500 text-white"><Loader2 className="h-3 w-3 mr-1 animate-spin" />生成中</Badge>
+            <span className="text-xs text-gray-500">正在生成标题...</span>
+          </div>
+        );
+      }
+      if (article.generate_progress === 'content') {
+        return (
+          <div className="flex items-center gap-2">
+            <Badge className="bg-blue-500 text-white"><Loader2 className="h-3 w-3 mr-1 animate-spin" />生成中</Badge>
+            <span className="text-xs text-gray-500">正在生成文章...</span>
+          </div>
+        );
+      }
+      if (article.generate_progress === 'images') {
+        return (
+          <div className="flex items-center gap-2">
+            <Badge className="bg-blue-500 text-white"><Loader2 className="h-3 w-3 mr-1 animate-spin" />生成中</Badge>
+            <span className="text-xs text-gray-500">正在生成图片...</span>
+          </div>
+        );
+      }
       return <Badge className="bg-blue-500 text-white"><Loader2 className="h-3 w-3 mr-1 animate-spin" />生成中</Badge>;
     }
     if (article.status === 'failed') {
