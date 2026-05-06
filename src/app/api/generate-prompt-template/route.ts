@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LLMClient } from 'coze-coding-dev-sdk';
+import { LLMClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
 
 // 提示词生成请求类型
 interface GeneratePromptRequest {
@@ -64,21 +64,29 @@ export async function POST(request: NextRequest) {
     analysisPrompt += `请直接输出提示词内容，不要其他解释说明。`;
 
     // 调用 LLM 生成提示词
-    const client = new LLMClient({
+    const config = new Config();
+    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
+    const llmClient = new LLMClient(config, customHeaders);
+
+    const messages = [
+      { role: 'user' as const, content: analysisPrompt }
+    ];
+
+    // 使用 stream 方法生成内容
+    const stream = llmClient.stream(messages, {
       model: 'deepseek-v3-2-251201',
-    });
-
-    const result = await client.chat({
-      messages: [
-        {
-          role: 'user',
-          content: analysisPrompt
-        }
-      ],
       temperature: 0.7,
+      streaming: false,
     });
 
-    const generatedPrompt = result.message?.content || '';
+    // 获取完整响应
+    let generatedPrompt = '';
+    for await (const chunk of stream) {
+      if (chunk.content) {
+        generatedPrompt += chunk.content.toString();
+      }
+    }
+    generatedPrompt = generatedPrompt.trim();
 
     return NextResponse.json({
       success: true,
