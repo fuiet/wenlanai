@@ -23,14 +23,14 @@ export async function POST(request: NextRequest) {
     const body: GeneratePromptRequest = await request.json();
     const { raceType, raceContent, persona, articleConfig } = body;
 
-    // 构建分析提示词 - 让AI倒推出完整可用的提示词模板
+    // 构建分析提示词
     let analysisPrompt = `你是一位顶尖的自媒体写作专家，专注于分析爆款文章并提炼出可直接使用的AI写作提示词。
 
 你的任务是根据用户提供的素材，分析并生成一个完整的、可直接用于生成文章的提示词模板。
 
 `;
 
-    // 添加赛道内容分析
+    // 添加赛道内容
     if (raceType === 'link') {
       analysisPrompt += `## 待分析素材（链接内容）
 请分析以下链接对应的文章，理解其写作风格、内容结构、爆款元素：
@@ -72,7 +72,7 @@ ${raceContent}
     analysisPrompt += `- 二级标题：${articleConfig.noSubheading ? '不使用二级标题，纯段落式' : '需要二级标题分隔内容'}\n`;
     analysisPrompt += `- 字数要求：约${articleConfig.wordCount}字\n`;
 
-    // 添加输出要求 - 生成完整可用的提示词
+    // 添加输出要求
     analysisPrompt += `
 ## 输出要求
 请生成一个完整的AI写作提示词模板，要求包含以下7个部分，严格按此格式输出：
@@ -127,7 +127,7 @@ ${raceContent}
 写完后，检查是否符合以上所有要求，确保字数精准、排版规范。
 `;
 
-    // 调用 LLM 生成提示词
+    // 初始化 LLM 客户端
     const config = new Config();
     const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
     const llmClient = new LLMClient(config, customHeaders);
@@ -136,53 +136,27 @@ ${raceContent}
       { role: 'user' as const, content: analysisPrompt }
     ];
 
-    // 使用流式方法生成内容，设置超时
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('生成超时，请重试')), 120000); // 2分钟超时
+    console.log('[generate-prompt-template] 开始调用LLM生成提示词...');
+    
+    // 使用 invoke 方法（非流式调用）
+    const response = await llmClient.invoke(messages, {
+      model: 'deepseek-v3-2-251201',
+      temperature: 0.7,
     });
 
-    let generatedPrompt = '';
-    
-    try {
-      const stream = llmClient.stream(messages, {
-        model: 'deepseek-v3-2-251201',
-        temperature: 0.7,
-        streaming: false,
-      });
-
-      const streamPromise = (async () => {
-        for await (const chunk of stream) {
-          if (chunk.content) {
-            generatedPrompt += chunk.content.toString();
-          }
-        }
-      })();
-
-      await Promise.race([streamPromise, timeoutPromise]);
-    } catch (error) {
-      console.error('生成提示词失败:', error);
-      return NextResponse.json(
-        { success: false, error: error instanceof Error ? error.message : '生成提示词失败' },
-        { status: 500 }
-      );
-    }
-    
-    generatedPrompt = generatedPrompt.trim();
+    const generatedPrompt = response.content;
+    console.log('[generate-prompt-template] 提示词生成成功，长度:', generatedPrompt.length);
 
     return NextResponse.json({
       success: true,
       prompt: generatedPrompt,
-      analyzed: {
-        raceType,
-        persona,
-        articleConfig
-      }
     });
 
   } catch (error) {
-    console.error('生成提示词失败:', error);
+    console.error('[generate-prompt-template] 生成提示词失败:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '生成提示词失败' },
+      { success: false, error: errorMessage || '生成提示词失败' },
       { status: 500 }
     );
   }
