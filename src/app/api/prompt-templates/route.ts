@@ -120,3 +120,49 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: false, error: '服务器错误: ' + error.message }, { status: 500 });
   }
 }
+
+// PUT 更新提示词模板
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { name, prompt, category, tags, field, targetAudience, wordCount } = body;
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: '缺少ID参数' }, { status: 400 });
+    }
+
+    const supabase = getSupabaseAdmin();
+    
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (prompt !== undefined) updateData.prompt = prompt;
+    if (category !== undefined) updateData.category = category;
+    if (tags !== undefined) updateData.tags = tags;
+    if (field !== undefined) updateData.field = field;
+    if (targetAudience !== undefined) updateData.target_audience = targetAudience;
+    if (wordCount !== undefined) updateData.word_count = wordCount;
+
+    const { data, error } = await supabase
+      .from('prompt_templates')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('更新提示词模板失败:', error);
+      return NextResponse.json({ success: false, error: '更新失败: ' + error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: '更新成功',
+      template: data
+    });
+  } catch (error: any) {
+    console.error('更新提示词模板失败:', error);
+    return NextResponse.json({ success: false, error: '服务器错误: ' + error.message }, { status: 500 });
+  }
+}

@@ -161,6 +161,11 @@ export default function PromptLibraryPage() {
 
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    prompt: "",
+  });
 
   useEffect(() => {
     if (!showCreateForm) {
@@ -327,9 +332,40 @@ export default function PromptLibraryPage() {
     }
   };
 
-  const handleUseTemplate = (template: PromptTemplate) => {
-    localStorage.setItem("selectedPromptTemplate", JSON.stringify(template));
-    router.push("/smart-writing");
+  const handleEditTemplate = (template: PromptTemplate) => {
+    setEditingTemplate(template);
+    setEditFormData({
+      name: template.name,
+      prompt: template.prompt,
+    });
+  };
+
+  const handleUpdateTemplate = async () => {
+    if (!editingTemplate) return;
+    try {
+      const response = await fetch(`/api/prompt-templates?id=${editingTemplate.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editFormData.name,
+          prompt: editFormData.prompt,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success("更新成功");
+        setTemplates(templates.map((t) => 
+          t.id === editingTemplate.id 
+            ? { ...t, name: editFormData.name, prompt: editFormData.prompt }
+            : t
+        ));
+        setEditingTemplate(null);
+      } else {
+        toast.error(data.error || "更新失败");
+      }
+    } catch {
+      toast.error("更新失败");
+    }
   };
 
   // 过滤后的提示词列表
@@ -889,11 +925,11 @@ export default function PromptLibraryPage() {
                         {/* 操作按钮 */}
                         <div className="flex gap-2">
                           <Button
-                            onClick={() => handleUseTemplate(template)}
+                            onClick={() => handleEditTemplate(template)}
                             className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                           >
-                            <Sparkles className="w-4 h-4 mr-1" />
-                            使用
+                            <Edit2 className="w-4 h-4 mr-1" />
+                            编辑
                           </Button>
                           <Button
                             variant="outline"
@@ -916,6 +952,61 @@ export default function PromptLibraryPage() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 编辑提示词弹窗 */}
+        {editingTemplate && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+              {/* 头部 */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-bold text-gray-900">编辑提示词</h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setEditingTemplate(null)}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+              
+              {/* 内容 */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">提示词名称</Label>
+                    <Input
+                      value={editFormData.name}
+                      onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                      placeholder="输入提示词名称"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">提示词内容</Label>
+                    <Textarea
+                      value={editFormData.prompt}
+                      onChange={(e) => setEditFormData({ ...editFormData, prompt: e.target.value })}
+                      placeholder="输入提示词内容"
+                      className="min-h-[400px] font-mono text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* 底部操作 */}
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+                <Button variant="outline" onClick={() => setEditingTemplate(null)}>
+                  取消
+                </Button>
+                <Button
+                  onClick={handleUpdateTemplate}
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                >
+                  保存修改
+                </Button>
               </div>
             </div>
           </div>
