@@ -281,12 +281,23 @@ function SmartWritingContent() {
     streamRef.current = true;
 
     try {
-      // 优先使用从URL传递的自定义提示词，否则使用选中的提示词
-      const promptToUse = customPromptText || (
-        selectedPrompt 
-          ? (prompts.find((p) => p.id === parseInt(selectedPrompt))?.prompt || '')
-          : ''
-      );
+      // 优先级：customPromptText > selectedTemplate > selectedPrompt
+      let promptToUse = customPromptText;
+      
+      if (!promptToUse && selectedTemplate) {
+        // 使用选中的提示词模板
+        promptToUse = selectedTemplate.prompt;
+      }
+      
+      if (!promptToUse && selectedPrompt) {
+        promptToUse = prompts.find((p) => p.id === parseInt(selectedPrompt))?.prompt || '';
+      }
+
+      if (!promptToUse) {
+        alert('请先选择提示词或提示词模板');
+        setIsGenerating(false);
+        return;
+      }
 
       const response = await fetch('/api/generate-article', {
         method: 'POST',
