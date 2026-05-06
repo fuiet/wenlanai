@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     // 检查腾讯云配置
     const configStatus = checkConfig();
-    if (!configStatus.configured) {
+    if (!configStatus.valid) {
       console.log("[SMS-API] 腾讯云短信未配置，使用演示模式");
     }
 
@@ -125,7 +125,7 @@ export async function GET() {
   const configStatus = checkConfig();
   return NextResponse.json({
     success: true,
-    configured: configStatus.configured,
+    valid: configStatus.valid,
     missing: configStatus.missing || []
   });
 }
