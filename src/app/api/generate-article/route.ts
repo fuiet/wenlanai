@@ -3,7 +3,18 @@ import { LLMClient, SearchClient, Config, HeaderUtils } from 'coze-coding-dev-sd
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, title, searchEnabled = true, templateId } = await request.json();
+    const { 
+      prompt, 
+      title, 
+      searchEnabled = true, 
+      templateId,
+      imageSource = 'ai',
+      imageCount = 3,
+      enableMaterial = false,
+      materialLinks = '',
+      materialRequirements = '',
+      groupId
+    } = await request.json();
     const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
 
     // 如果传入了模板ID，获取模板详情
@@ -30,12 +41,13 @@ export async function POST(request: NextRequest) {
     const llmClient = new LLMClient(config, customHeaders);
     const searchClient = new SearchClient(config, customHeaders);
 
-    // 如果启用搜索，先获取实时数据
+    // 如果启用搜索或投喂素材，先获取实时数据
     let searchContext = '';
-    if (searchEnabled && title) {
+    if ((searchEnabled || enableMaterial) && (title || materialLinks)) {
       try {
-        console.log(`开始搜索: ${title}`);
-        const searchResponse = await searchClient.advancedSearch(title, {
+        const searchQuery = title || materialLinks.split('\n')[0] || '';
+        console.log(`开始搜索: ${searchQuery}`);
+        const searchResponse = await searchClient.advancedSearch(searchQuery, {
           searchType: 'web',
           count: 10,
           timeRange: '1m', // 只获取最近1个月的数据
@@ -58,7 +70,7 @@ ${item.content ? `内容: ${item.content.substring(0, 500)}...` : ''}
           searchContext = `
 ## 实时搜索参考资料
 
-以下是关于"${title}"的最新搜索结果，请基于这些真实信息创作文章：
+以下是关于"${searchQuery}"的最新搜索结果，请基于这些真实信息创作文章：
 
 ${searchResults}
 
@@ -178,14 +190,25 @@ ${targetAudience ? `\n【目标受众】${targetAudience}` : ''}
     
     // 构建用户消息 - 严格1000字
     const wordCountReq = '950-1050字（绝不超过1100字）';
-    const userContent = searchContext
+    
+    // 添加投喂素材信息
+    const materialContext = enableMaterial && (materialLinks || materialRequirements) ? `
+## 投喂参考素材
+${materialLinks ? `### 参考素材链接
+${materialLinks}` : ''}
+${materialRequirements ? `### 创作要求/大纲/观点素材
+${materialRequirements}` : ''}
+
+---` : '';
+    
+    const userContent = searchContext || materialContext
       ? `# 任务：创作一篇约1000字的公众号文章
 
 ## 标题
-${title}
+${title || '（由AI根据素材自动生成爆款标题）'}
 
-## 参考资料
-${searchContext}
+${searchContext || ''}
+${materialContext}
 
 ## 【严格字数要求】${wordCountReq}
 - 开头：约80-100字（故事或提问）
@@ -214,7 +237,7 @@ ${searchContext}
       : `# 任务：创作一篇约1000字的公众号文章
 
 ## 标题
-${title}
+${title || '（由AI自动生成爆款标题）'}
 
 ## 【严格字数要求】${wordCountReq}
 - 开头：约80-100字（故事或提问）

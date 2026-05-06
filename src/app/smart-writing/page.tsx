@@ -1,46 +1,64 @@
 'use client';
 
-import { useState, useRef, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import Image from 'next/image';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   PenTool,
   Wand2,
-  Save,
   FileText,
-  User,
   Loader2,
-  Copy,
-  Check,
   Sparkles,
   Image as ImageIcon,
-  Globe,
-  Send,
-  RotateCcw,
-  Shield,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
+  Settings,
+  FolderOpen,
+  FolderPlus,
+  Edit,
+  Trash2,
   RefreshCw,
-  Bot,
-  UserCheck,
-  SendHorizontal
+  Plus,
+  Zap,
+  BookOpen,
+  X,
+  FileWarning,
+  SendHorizontal,
+  Check,
+  Eye,
+  Clock,
+  AlertCircle,
+  Download,
+  Lightbulb
 } from 'lucide-react';
-import remarkGfm from 'remark-gfm';
-import rehypeHighlight from 'rehype-highlight';
-import { EnhancedArticle, SimpleArticlePreview } from '@/components/enhanced-article';
-import 'highlight.js/styles/github-dark.css';
+import { cn } from '@/lib/utils';
+
+// 文章类型定义
+interface Article {
+  id: number;
+  title: string;
+  content: string;
+  image_urls: string[];
+  group_id: number | null;
+  status: 'generating' | 'generated' | 'failed' | 'draft' | 'published';
+  push_status: 'pending' | 'success' | 'failed';
+  created_at: string;
+  updated_at: string;
+}
+
+// 分组类型定义
+interface ArticleGroup {
+  id: number;
+  name: string;
+  article_count: number;
+  created_at: string;
+}
 
 // 提示词模板类型
 interface PromptTemplate {
@@ -49,1681 +67,923 @@ interface PromptTemplate {
   category: string;
   description: string;
   prompt: string;
-  tags: string[];
-  isCustom: boolean;
-  // 人设信息
-  persona?: {
-    author_name?: string;
-    personality?: string;
-    persona补充?: string;
-  };
-  // 文章配置
-  article_config?: {
-    field?: string;
-    target_audience?: string;
-    word_count?: number;
-  };
   created_at?: string;
 }
 
-// 兼容旧的 Prompt 类型
-interface Prompt {
-  id: number;
-  name: string;
-  category: string;
-  description: string;
-  prompt: string;
-  tags: string[];
-  isCustom: boolean;
-}
-
-// AI检测结果类型
-interface ParagraphDetect {
-  index: number;
-  content: string;
-  source: string;
-  aiFeatures: string[];
-  confidence: number;
-  reasons: string[];
-  suggestions: string[];
-}
-
-interface DetectResult {
-  aiRate: number;
-  riskLevel: string;
-  paragraphCount: number;
-  totalParagraphs: number;
-  aiParagraphs: number;
-  humanParagraphs: number;
-  summary: string;
-  confidence: number;
-  paragraphs: ParagraphDetect[];
-}
-
-// 模拟默认提示词数据
-const defaultPrompts: Prompt[] = [
-  {
-    id: 1,
-    name: '情感类爆款文案',
-    category: '情感',
-    description: '擅长写触动人心的情感类文章',
-    prompt: '你是一位情感类自媒体写作专家，擅长创作触动人心、引发共鸣的爆款文章。你的写作风格温暖细腻，善于通过生活细节和真实情感打动读者。请根据提供的主题，创作一篇具有强烈感染力的情感类文章，要求：1. 开头吸引人 2. 内容有共鸣 3. 结尾有升华',
-    tags: ['情感', '爆款', '共鸣'],
-    isCustom: false,
-  },
-  {
-    id: 2,
-    name: '职场成长导师',
-    category: '职场',
-    description: '职场经验分享，帮助职场人成长',
-    prompt: '你是一位资深职场导师，拥有10年以上HR和职场管理经验。你擅长分享实用的职场干货和成长建议，帮助职场人解决工作难题。请根据提供的主题，创作一篇有深度、有价值的职场类文章，要求：1. 案例真实 2. 方法实用 3. 建议可操作',
-    tags: ['职场', '干货', '成长'],
-    isCustom: false,
-  },
-  {
-    id: 3,
-    name: '星座运势分析师',
-    category: '星座',
-    description: '专业的星座分析和运势预测',
-    prompt: '你是一位专业的星座分析师，精通十二星座的性格特点和运势规律。你的分析准确、有趣，深受粉丝喜爱。请根据提供的星座和时间，进行详细的星座分析，包括：性格特点、近期运势、注意事项、建议等',
-    tags: ['星座', '运势', '分析'],
-    isCustom: false,
-  },
-  {
-    id: 4,
-    name: '汽车评测专家',
-    category: '汽车',
-    description: '专业的汽车评测和购车建议',
-    prompt: '你是一位资深的汽车评测专家，拥有丰富的汽车行业经验。你擅长从消费者角度出发，提供客观、实用的汽车评测和购车建议。请根据提供的车型或需求，创作一篇专业的汽车类文章，要求：1. 数据准确 2. 分析客观 3. 建议实用',
-    tags: ['汽车', '评测', '购车'],
-    isCustom: false,
-  },
-  {
-    id: 5,
-    name: '我的个人风格',
-    category: '自定义',
-    description: '自定义的写作风格',
-    prompt: '你是一位自媒体写作专家，擅长创作轻松、有趣、实用的内容。你的风格幽默风趣，善于用生动的比喻和案例。请根据主题创作内容。',
-    tags: ['自定义', '幽默', '实用'],
-    isCustom: true,
-  },
-];
-
-function SmartWritingContent() {
-  const searchParams = useSearchParams();
-  const [selectedPrompt, setSelectedPrompt] = useState('');
-  const [customPromptText, setCustomPromptText] = useState(''); // 从URL传递的自定义提示词
-  const [title, setTitle] = useState('');
-  const [generatedContent, setGeneratedContent] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [isPushing, setIsPushing] = useState(false);
-  const [pushSuccess, setPushSuccess] = useState(false);
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
-  const [copied, setCopied] = useState(false);
-  const [searchEnabled, setSearchEnabled] = useState(true); // 默认启用联网搜索
-  const [prompts, setPrompts] = useState<Prompt[]>(defaultPrompts);
+export default function SmartWritingPage() {
+  // 文章列表状态
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
   
-  // 提示词模板相关状态
+  // 分组状态
+  const [groups, setGroups] = useState<ArticleGroup[]>([]);
+  const [showGroupDialog, setShowGroupDialog] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [editingGroup, setEditingGroup] = useState<ArticleGroup | null>(null);
+  
+  // 创作弹窗状态
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [articleTitle, setArticleTitle] = useState('');
+  const [selectedPromptId, setSelectedPromptId] = useState<string>('');
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  const [imageSource, setImageSource] = useState<'ai' | 'original'>('ai');
+  const [imageCount, setImageCount] = useState<number>(3);
+  
+  // 投喂素材状态
+  const [enableMaterial, setEnableMaterial] = useState(false);
+  const [materialLinks, setMaterialLinks] = useState('');
+  const [materialRequirements, setMaterialRequirements] = useState('');
+  
+  // 提示词列表
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(null);
   
-  // AI检测相关状态
-  const [isDetecting, setIsDetecting] = useState(false);
-  const [detectResult, setDetectResult] = useState<DetectResult | null>(null);
-  const [isHumanizing, setIsHumanizing] = useState(false);
-  const [showDetectPanel, setShowDetectPanel] = useState(false);
+  // 加载状态
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   
-  // 人类化改写相关状态
-  const [humanizeResult, setHumanizeResult] = useState<{
-    originalContent: string;
-    rewrittenContent: string;
-    changes: Array<{
-      index: number;
-      original: string;
-      rewritten: string;
-      changes: string[];
-    }>;
-    humanizationScore: number;
-    changedParagraphs: number;
-  } | null>(null);
-  
-  // 公众号账号选择相关状态
-  const [showAccountDialog, setShowAccountDialog] = useState(false);
-  const [accounts, setAccounts] = useState<Array<{
-    id: number;
-    app_id: string;
-    nickname: string;
-    head_img: string;
-    user_name: string;
-    alias: string;
-    principal_type: string;
-    verify_type_info: number;
-    qrcode_url: string;
-    is_authorized: boolean;
-  }>>([]);
-  const [accountsLoading, setAccountsLoading] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
-  
-  const streamRef = useRef(false);
+  // 当前查看的文章
+  const [viewingArticle, setViewingArticle] = useState<Article | null>(null);
 
-  // 从 localStorage 读取提示词数据
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('wenlan-prompts');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setPrompts(parsed);
-          }
-        } catch {
-          // 使用默认数据
+  // 加载文章列表
+  const loadArticles = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/articles');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setArticles(data.articles || []);
         }
       }
+    } catch (error) {
+      console.error('加载文章失败:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  };
 
-  // 获取用户的提示词模板
-  const fetchPromptTemplates = async () => {
+  // 加载分组列表
+  const loadGroups = async () => {
+    try {
+      const response = await fetch('/api/article-groups');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setGroups(data.groups || []);
+        }
+      }
+    } catch (error) {
+      console.error('加载分组失败:', error);
+    }
+  };
+
+  // 加载提示词模板
+  const loadPromptTemplates = async () => {
     try {
       const response = await fetch('/api/prompt-templates');
       if (response.ok) {
         const data = await response.json();
-        if (data.success && data.templates) {
-          setPromptTemplates(data.templates);
+        if (data.success) {
+          setPromptTemplates(data.templates || []);
         }
       }
     } catch (error) {
-      console.error('获取提示词模板失败:', error);
+      console.error('加载提示词失败:', error);
     }
   };
 
-  // 页面加载时获取提示词模板
+  // 初始化加载
   useEffect(() => {
-    fetchPromptTemplates();
+    loadArticles();
+    loadGroups();
+    loadPromptTemplates();
   }, []);
 
-  // 从URL参数中获取标题和提示词
-  useEffect(() => {
-    const titleParam = searchParams.get('title');
-    const promptParam = searchParams.get('prompt');
-    const promptIdParam = searchParams.get('promptId');
+  // 计算统计信息
+  const totalArticles = articles.length;
+  const todayCount = articles.filter(a => {
+    const today = new Date().toDateString();
+    return new Date(a.created_at).toDateString() === today;
+  }).length;
 
-    if (titleParam) {
-      setTitle(decodeURIComponent(titleParam));
+  const groupArticleCount = groups.reduce((sum, g) => sum + g.article_count, 0);
+
+  // 筛选文章
+  const filteredArticles = articles.filter(article => {
+    // 分组筛选
+    if (selectedGroup !== null && article.group_id !== selectedGroup) {
+      return false;
     }
+    
+    // 状态筛选
+    switch (selectedFilter) {
+      case 'generating':
+        return article.status === 'generating';
+      case 'generated':
+        return article.status === 'generated' && article.push_status !== 'success';
+      case 'failed':
+        return article.status === 'failed';
+      case 'draft':
+        return article.status === 'generated' && article.push_status !== 'success';
+      case 'published':
+        return article.push_status === 'success';
+      default:
+        return true;
+    }
+  });
 
-    if (promptParam) {
-      // 从URL参数中获取自定义提示词内容
-      const decodedPrompt = decodeURIComponent(promptParam);
-      setCustomPromptText(decodedPrompt);
+  // 创建分组
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim()) return;
+    
+    try {
+      const response = await fetch('/api/article-groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newGroupName })
+      });
       
-      // 如果URL中有promptId，尝试匹配并选中
-      if (promptIdParam) {
-        const id = parseInt(promptIdParam);
-        const foundPrompt = prompts.find(p => p.id === id);
-        if (foundPrompt) {
-          setSelectedPrompt(id.toString());
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setGroups([...groups, data.group]);
+          setNewGroupName('');
         }
       }
+    } catch (error) {
+      console.error('创建分组失败:', error);
     }
-  }, [searchParams, prompts]);
+  };
 
-  const handleGenerate = async () => {
-    if (!title.trim()) {
-      alert('请输入文章标题');
+  // 更新分组
+  const handleUpdateGroup = async () => {
+    if (!editingGroup || !newGroupName.trim()) return;
+    
+    try {
+      const response = await fetch(`/api/article-groups?id=${editingGroup.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newGroupName })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setGroups(groups.map(g => g.id === editingGroup.id ? { ...g, name: newGroupName } : g));
+          setEditingGroup(null);
+          setNewGroupName('');
+        }
+      }
+    } catch (error) {
+      console.error('更新分组失败:', error);
+    }
+  };
+
+  // 删除分组
+  const handleDeleteGroup = async (groupId: number) => {
+    if (!confirm('确定要删除该分组吗？')) return;
+    
+    try {
+      const response = await fetch(`/api/article-groups?id=${groupId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setGroups(groups.filter(g => g.id !== groupId));
+        }
+      }
+    } catch (error) {
+      console.error('删除分组失败:', error);
+    }
+  };
+
+  // 开始创作
+  const handleStartCreate = async () => {
+    if (!selectedPromptId) {
+      alert('请选择提示词');
+      return;
+    }
+    
+    if (!selectedGroupId) {
+      alert('请选择分组');
       return;
     }
 
     setIsGenerating(true);
-    setGeneratedContent('');
-    streamRef.current = true;
+    setShowCreateDialog(false);
 
     try {
-      // 优先级：customPromptText > selectedTemplate > selectedPrompt
-      let promptToUse = customPromptText;
+      // 获取选中的提示词
+      const prompt = promptTemplates.find(p => p.id.toString() === selectedPromptId);
       
-      if (!promptToUse && selectedTemplate) {
-        // 使用选中的提示词模板
-        promptToUse = selectedTemplate.prompt;
-      }
-      
-      if (!promptToUse && selectedPrompt) {
-        promptToUse = prompts.find((p) => p.id === parseInt(selectedPrompt))?.prompt || '';
-      }
-
-      if (!promptToUse) {
-        alert('请先选择提示词或提示词模板');
-        setIsGenerating(false);
-        return;
-      }
-
       const response = await fetch('/api/generate-article', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title,
-          prompt: promptToUse,
-          searchEnabled, // 传递联网搜索开关
-        }),
+          title: articleTitle || undefined,
+          prompt: prompt?.prompt || '',
+          searchEnabled: true,
+          imageSource,
+          imageCount: imageSource === 'ai' ? imageCount : 0,
+          enableMaterial,
+          materialLinks: enableMaterial ? materialLinks : undefined,
+          materialRequirements: enableMaterial ? materialRequirements : undefined,
+          groupId: parseInt(selectedGroupId)
+        })
       });
 
-      if (!response.ok) {
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // 创建文章记录
+          const newArticle: Article = {
+            id: data.articleId || Date.now(),
+            title: data.title || articleTitle || '未命名文章',
+            content: data.content || '',
+            image_urls: data.imageUrls || [],
+            group_id: parseInt(selectedGroupId),
+            status: 'generated',
+            push_status: 'pending',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          setArticles([newArticle, ...articles]);
+          alert('文章生成成功！');
+        }
+      } else {
         throw new Error('生成失败');
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = '';
-
-      if (reader) {
-        while (streamRef.current) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') {
-                streamRef.current = false;
-                break;
-              }
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.content) {
-                  fullContent += parsed.content;
-                  setGeneratedContent(fullContent);
-                }
-              } catch {
-                // Ignore parse errors
-              }
-            }
-          }
-        }
-
-        // 文章生成完成后，自动生成图片
-        if (fullContent) {
-          setGeneratedContent(fullContent);
-          await handleAutoGenerateImage(fullContent);
-        }
       }
     } catch (error) {
       console.error('生成失败:', error);
-      alert('生成文章失败，请稍后重试');
+      alert('生成失败，请稍后重试');
     } finally {
       setIsGenerating(false);
-      streamRef.current = false;
+      // 重置表单
+      setArticleTitle('');
+      setSelectedPromptId('');
+      setSelectedGroupId('');
+      setEnableMaterial(false);
+      setMaterialLinks('');
+      setMaterialRequirements('');
     }
   };
 
-  const handleCopy = async () => {
+  // 推送到微信草稿箱
+  const handlePushToWechat = async (article: Article) => {
     try {
-      await navigator.clipboard.writeText(generatedContent);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error('复制失败:', error);
-    }
-  };
-
-  const handleSaveDraft = () => {
-    if (!generatedContent.trim()) {
-      alert('没有可保存的内容');
-      return;
-    }
-    // TODO: 实现保存到公众号草稿箱的功能
-    alert('草稿已保存到公众号草稿箱');
-  };
-
-  // 清空内容，重新生成
-  const handleReset = () => {
-    if (!generatedContent.trim()) {
-      return; // 没有内容不需要清空
-    }
-    
-    // 确认是否清空
-    if (!confirm('确定要清空当前文章吗？清空后可以重新生成。')) {
-      return;
-    }
-    
-    setGeneratedContent('');
-    setImageUrls([]);
-    setPushSuccess(false);
-    setCopied(false);
-  };
-
-  // 计算文章字数（纯中文）
-  const countChineseChars = (text: string): number => {
-    return (text.match(/[\u4e00-\u9fa5]|[，。！？；：""''（）【】《》、！@#￥%……&*（）]/g) || []).length;
-  };
-
-  // 一键复制文章（包含标题、内容、图片链接）
-  const handleCopyArticle = async () => {
-    if (!generatedContent.trim()) {
-      alert('没有可复制的内容');
-      return;
-    }
-
-    try {
-      // 提取文章中的图片URL
-      const imageMatches = generatedContent.match(/!\[.*?\]\((.*?)\)/g) || [];
-      const imageUrls = imageMatches.map((match) => {
-        const urlMatch = match.match(/\((.*?)\)/);
-        return urlMatch ? urlMatch[1] : '';
-      }).filter(Boolean);
-
-      // 构建适合公众号后台的复制内容
-      let copyText = `${title || '未命名文章'}\n`;
-      copyText += '='.repeat(30) + '\n\n';
-      
-      // 处理文章内容：保留段落结构，移除 Markdown 格式符号
-      copyText += generatedContent
-        .replace(/^#{1,6}\s+/gm, '') // 移除标题标记
-        .replace(/\*\*(.*?)\*\*/g, '$1') // 移除加粗标记，保留文字
-        .replace(/\*(.*?)\*/g, '$1') // 移除斜体标记，保留文字
-        .replace(/`{1,3}[^`]*`{1,3}/g, (match) => match.replace(/`/g, '')) // 移除代码标记
-        .replace(/!\[.*?\]\(.*?\)/g, '') // 移除图片语法
-        .replace(/\[(.*?)\]\(.*?\)/g, '$1') // 保留链接文字
-        .replace(/^[-*+]\s+/gm, '• ') // 将列表符号转换为圆点
-        .replace(/^\d+\.\s+/gm, (match) => match) // 保留有序列表
-        .replace(/^>+\s*/gm, '') // 移除引用符号
-        .replace(/^---+$/gm, '') // 移除分隔线
-        .replace(/\n{3,}/g, '\n\n') // 合并多余空行
-        .trim();
-      
-      // 添加图片链接（方便上传到公众号）
-      if (imageUrls.length > 0) {
-        copyText += '\n\n' + '-'.repeat(30) + '\n';
-        copyText += '【封面图及配图链接】\n';
-        imageUrls.forEach((url, index) => {
-          copyText += `${index + 1}. ${url}\n`;
-        });
-      }
-
-      // 复制到剪贴板
-      await navigator.clipboard.writeText(copyText);
-      
-      // 显示成功提示
-      setCopied(true);
-      setTimeout(() => setCopied(false), 3000);
-      
-      // 提供打开公众号后台的选项
-      const choice = confirm(
-        `✅ 文章已复制到剪贴板！\n\n` +
-        `包含：标题 + 正文 + ${imageUrls.length}张图片链接\n\n` +
-        `点击"确定"打开公众号后台粘贴\n点击"取消"留在当前页面`
-      );
-      
-      if (choice) {
-        window.open('https://mp.weixin.qq.com', '_blank');
-      }
-    } catch (error) {
-      console.error('复制失败:', error);
-      alert('复制失败，请手动选择内容复制');
-    }
-  };
-
-  // 加载公众号账号列表
-  const loadAccounts = async () => {
-    setAccountsLoading(true);
-    try {
-      const response = await fetch('/api/wechat-auth/url');
-      const result = await response.json();
-      if (result.success) {
-        setAccounts(result.accounts || []);
-      }
-    } catch (error) {
-      console.error('加载账号失败:', error);
-    } finally {
-      setAccountsLoading(false);
-    }
-  };
-
-  // 一键推送到公众号 - 先选择账号
-  const handlePushDraft = async () => {
-    if (!generatedContent.trim()) {
-      alert('没有可推送的内容');
-      return;
-    }
-
-    // 加载账号列表并显示选择弹窗
-    await loadAccounts();
-    setShowAccountDialog(true);
-  };
-
-  // 执行真正的推送
-  const executePushToAccount = async (appId: string) => {
-    if (!generatedContent.trim()) {
-      alert('没有可推送的内容');
-      return;
-    }
-
-    // 提取文章中的图片URL（用于推送到公众号）
-    const imageMatches = generatedContent.match(/!\[.*?\]\((.*?)\)/g) || [];
-    const pushImageUrls = imageMatches.map((match) => {
-      const urlMatch = match.match(/\((.*?)\)/);
-      return urlMatch ? urlMatch[1] : '';
-    }).filter(Boolean);
-
-    // 构建适合公众号的复制内容（作为备用）
-    const buildCopyContent = () => {
-      let copyText = `${title || '未命名文章'}\n`;
-      copyText += '='.repeat(30) + '\n\n';
-      copyText += generatedContent
-        .replace(/^#{1,6}\s+/gm, '')
-        .replace(/\*\*(.*?)\*\*/g, '$1')
-        .replace(/\*(.*?)\*/g, '$1')
-        .replace(/`{1,3}[^`]*`{1,3}/g, (m: string) => m.replace(/`/g, ''))
-        .replace(/!\[.*?\]\(.*?\)/g, '')
-        .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-        .replace(/^[-*+]\s+/gm, '• ')
-        .replace(/^>+\s*/gm, '')
-        .replace(/^---+$/gm, '')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-      
-      if (pushImageUrls.length > 0) {
-        copyText += '\n\n' + '-'.repeat(30) + '\n【封面图及配图链接】\n';
-        pushImageUrls.forEach((url, index) => {
-          copyText += `${index + 1}. ${url}\n`;
-        });
-      }
-      return copyText;
-    };
-
-    const copyContent = buildCopyContent();
-
-    setIsPushing(true);
-    setPushSuccess(false);
-    setShowAccountDialog(false);
-
-    try {
-      // 调用推送API，指定账号
       const response = await fetch('/api/push-to-wechat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: title || '未命名文章',
-          content: generatedContent,
-          imageUrls: pushImageUrls,
-          appId: appId,
-        }),
+          title: article.title,
+          content: article.content,
+          imageUrls: article.image_urls
+        })
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        setPushSuccess(true);
-        alert(`✅ 推送成功！\n\n文章已发送到公众号草稿箱\n${result.message || ''}`);
-      } else {
-        // API推送失败时，先复制内容，再询问是否打开公众号后台
-        try {
-          await navigator.clipboard.writeText(copyContent);
-          const choice = confirm(
-            `⚠️ ${result.message || 'API推送失败'}\n\n` +
-            `✅ 文章内容已自动复制到剪贴板\n` +
-            `📋 包含：标题 + 正文 + ${pushImageUrls.length}张图片链接\n\n` +
-            `点击"确定"打开公众号后台手动粘贴\n` +
-            `点击"取消"留在当前页面`
-          );
-          if (choice) {
-            window.open('https://mp.weixin.qq.com', '_blank');
-          }
-        } catch {
-          alert(`${result.message || '推送失败'}\n\n请手动复制文章内容后，粘贴到公众号后台。`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setArticles(articles.map(a => 
+            a.id === article.id ? { ...a, push_status: 'success' } : a
+          ));
+          alert('推送成功！文章已发送到公众号草稿箱');
+        } else {
+          alert(data.message || '推送失败');
         }
       }
     } catch (error) {
       console.error('推送失败:', error);
-      // 网络错误时，尝试复制内容
-      try {
-        await navigator.clipboard.writeText(copyContent);
-        const choice = confirm(
-          `⚠️ 网络错误\n\n` +
-          `✅ 文章内容已自动复制到剪贴板\n` +
-          `📋 包含：标题 + 正文 + ${pushImageUrls.length}张图片链接\n\n` +
-          `点击"确定"打开公众号后台手动粘贴\n` +
-          `点击"取消"留在当前页面`
-        );
-        if (choice) {
-          window.open('https://mp.weixin.qq.com', '_blank');
-        }
-      } catch {
-        alert('推送失败，请手动复制文章内容');
-      }
-    } finally {
-      setIsPushing(false);
+      alert('推送失败，请稍后重试');
     }
   };
 
-  // 获取账号类型徽章
-  const getAccountTypeBadge = (account: { principal_type: string }) => {
-    const typeMap: Record<string, string> = {
-      0: '订阅号',
-      1: '服务号',
-      2: '企业微信',
-    };
-    const type = typeMap[account.principal_type] || '公众号';
-    
-    return (
-      <Badge variant="outline" className="text-xs">
-        {type}
-      </Badge>
-    );
-  };
-
-  // 将图片随机插入到文章中
-  const insertImagesToContent = (content: string, images: string[]): string => {
-    if (!content || images.length === 0) return content;
-
-    // 将文章按段落分割
-    const paragraphs = content.split('\n\n');
-    const imagePositions: number[] = [];
-
-    // 确定图片插入位置（随机，但确保分布均匀）
-    const totalParagraphs = paragraphs.length;
-    const minSpacing = Math.floor(totalParagraphs / (images.length + 1));
-
-    for (let i = 0; i < images.length; i++) {
-      // 计算每个图片的位置，确保均匀分布
-      const minPos = (i + 1) * minSpacing;
-      const maxPos = Math.min(minPos + minSpacing - 1, totalParagraphs - 1);
-      // 随机选择位置
-      const pos = Math.floor(Math.random() * (maxPos - minPos + 1)) + minPos;
-      imagePositions.push(pos);
+  // 获取状态标签
+  const getStatusBadge = (article: Article) => {
+    if (article.status === 'generating') {
+      return <Badge className="bg-blue-500 text-white"><Loader2 className="h-3 w-3 mr-1 animate-spin" />生成中</Badge>;
     }
-
-    // 按位置排序，确保插入顺序正确
-    imagePositions.sort((a, b) => a - b);
-
-    // 插入图片
-    let result = '';
-    let imageIndex = 0;
-
-    for (let i = 0; i < paragraphs.length; i++) {
-      result += paragraphs[i];
-
-      // 如果当前位置需要插入图片
-      if (imageIndex < imagePositions.length && i === imagePositions[imageIndex]) {
-        const imageUrl = images[imageIndex];
-        // 使用Markdown格式插入图片，不显示图片描述文字
-        result += `\n\n![](${imageUrl})\n\n`;
-        imageIndex++;
-      }
-
-      // 添加段落分隔
-      if (i < paragraphs.length - 1) {
-        result += '\n\n';
-      }
+    if (article.status === 'failed') {
+      return <Badge className="bg-red-500 text-white"><AlertCircle className="h-3 w-3 mr-1" />失败</Badge>;
     }
-
-    return result;
-  };
-
-  // 自动生成插图（根据文章内容）
-  const handleAutoGenerateImage = async (content?: string) => {
-    const articleContent = content || generatedContent;
-    if (!articleContent) {
-      return;
+    if (article.push_status === 'success') {
+      return <Badge className="bg-green-500 text-white"><Check className="h-3 w-3 mr-1" />已存稿</Badge>;
     }
-
-    setIsGeneratingImage(true);
-
-    try {
-      const response = await fetch('/api/generate-article-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title,
-          content: articleContent,
-          count: 3,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('生成图片失败');
-      }
-
-      const data = await response.json();
-
-      if (data.success && data.imageUrls && data.imageUrls.length > 0) {
-        setImageUrls(data.imageUrls);
-
-        // 将图片随机插入到文章内容中
-        const contentWithImages = insertImagesToContent(articleContent, data.imageUrls);
-        setGeneratedContent(contentWithImages);
-      }
-    } catch (error) {
-      console.error('自动生成图片失败:', error);
-    } finally {
-      setIsGeneratingImage(false);
-    }
-  };
-
-  const handleGenerateImage = async () => {
-    if (!title.trim() && !generatedContent.trim()) {
-      alert('请先生成文章内容');
-      return;
-    }
-
-    setIsGeneratingImage(true);
-    setImageUrls([]);
-
-    try {
-      const response = await fetch('/api/generate-article-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title,
-          content: generatedContent,
-          count: 3, // 生成3张图片
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('生成图片失败');
-      }
-
-      const data = await response.json();
-
-      if (data.success && data.imageUrls && data.imageUrls.length > 0) {
-        setImageUrls(data.imageUrls);
-
-        // 将图片随机插入到文章内容中
-        const contentWithImages = insertImagesToContent(generatedContent, data.imageUrls);
-        setGeneratedContent(contentWithImages);
-      } else {
-        throw new Error(data.error || '生成图片失败');
-      }
-    } catch (error) {
-      console.error('生成图片失败:', error);
-      alert('生成图片失败，请稍后重试');
-    } finally {
-      setIsGeneratingImage(false);
-    }
-  };
-
-  // AI检测
-  const handleDetectAI = async () => {
-    if (!generatedContent.trim()) {
-      alert('请先生成文章内容');
-      return;
-    }
-
-    setIsDetecting(true);
-    setDetectResult(null);
-    setShowDetectPanel(true);
-
-    try {
-      const response = await fetch('/api/detect-ai-content', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: generatedContent,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setDetectResult(data);
-      } else {
-        alert(data.error || '检测失败，请重试');
-        setShowDetectPanel(false);
-      }
-    } catch (error) {
-      console.error('AI检测失败:', error);
-      alert('检测失败，请稍后重试');
-      setShowDetectPanel(false);
-    } finally {
-      setIsDetecting(false);
-    }
-  };
-
-  // 降低AI率
-  const handleHumanize = async () => {
-    if (!generatedContent.trim()) {
-      alert('请先生成文章内容');
-      return;
-    }
-
-    setIsHumanizing(true);
-
-    try {
-      const response = await fetch('/api/humanize-content', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: generatedContent,
-        }),
-      });
-
-      const data = await response.json();
-      console.log('Humanize response:', data);
-
-      if (data.success && data.rewrittenContent) {
-        // 保存改写结果
-        setHumanizeResult({
-          originalContent: data.originalContent || generatedContent,
-          rewrittenContent: data.rewrittenContent,
-          changes: data.changes || [],
-          humanizationScore: data.humanizationScore || 0,
-          changedParagraphs: data.changedParagraphs || 0,
-        });
-        
-        // 自动切换到改写对比视图
-        setShowHumanizeCompare(true);
-        
-        // 自动切换到detect tab
-        setShowDetectPanel(true);
-        
-        alert(`改写完成！\n人类化程度：${data.humanizationScore}%\n改写了${data.changedParagraphs}个段落\n\n请查看下方改写对比，确认后点击"应用改写"按钮`);
-      } else {
-        alert(data.error || data.hint || '改写失败，请重试');
-      }
-    } catch (error) {
-      console.error('降低AI率失败:', error);
-      alert('改写失败，请稍后重试');
-    } finally {
-      setIsHumanizing(false);
-    }
-  };
-  
-  // 应用改写结果
-  const handleApplyHumanize = () => {
-    if (humanizeResult) {
-      setGeneratedContent(humanizeResult.rewrittenContent);
-      setHumanizeResult(null);
-      setShowHumanizeCompare(false);
-      alert('改写已应用！');
-      
-      // 重新检测
-      setTimeout(() => handleDetectAI(), 500);
-    }
-  };
-  
-  // 取消改写
-  const handleCancelHumanize = () => {
-    setHumanizeResult(null);
-    setShowHumanizeCompare(false);
-  };
-  
-  // 显示改写对比面板
-  const [showHumanizeCompare, setShowHumanizeCompare] = useState(false);
-
-  // 复制检测报告
-  const handleCopyReport = () => {
-    if (!detectResult) return;
-    
-    const report = `
-AI内容检测报告
-================
-综合AI率：${detectResult.aiRate}%
-风险等级：${detectResult.riskLevel}
-总段落数：${detectResult.totalParagraphs}
-AI段落：${detectResult.aiParagraphs}
-人工段落：${detectResult.humanParagraphs}
-
-总体评估：${detectResult.summary}
-
-段落详情：
-${detectResult.paragraphs?.map((p: DetectResult['paragraphs'][0]) => `
-【段落${p.index + 1}】
-来源：${p.source}
-置信度：${p.confidence}%
-原因：${p.reasons?.join('、') || '无'}
-${p.suggestions ? '建议：' + p.suggestions : ''}
-`).join('\n')}
-    `.trim();
-    
-    navigator.clipboard.writeText(report);
-    alert('报告已复制到剪贴板');
+    return <Badge className="bg-gray-500 text-white"><Clock className="h-3 w-3 mr-1" />未存稿</Badge>;
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold text-gray-900 flex items-center">
-          <PenTool className="mr-3 h-8 w-8 text-purple-500" />
-          智能生文
-        </h1>
-        <p className="text-gray-600">选择提示词人设，输入标题，AI 自动生成爆款文章</p>
+    <div className="min-h-screen bg-gray-50">
+      {/* 页面头部 */}
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                <Wand2 className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">智能创作</h1>
+                <p className="text-sm text-gray-500">AI 驱动的内容创作</p>
+              </div>
+            </div>
+            <Button 
+              onClick={() => setShowCreateDialog(true)}
+              className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              开始创作
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left Panel - Input */}
-        <div className="space-y-6">
-          {/* Prompt Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5 text-orange-500" />
-                选择提示词
-              </CardTitle>
-              <CardDescription>选择适合的写作提示词，AI将根据提示词生成文章</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Select value={selectedPrompt} onValueChange={setSelectedPrompt}>
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex gap-6">
+          {/* 左侧侧边栏 - 文章分组 */}
+          <div className="w-64 flex-shrink-0">
+            <Card className="p-4">
+              <div className="mb-4">
+                <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <FolderOpen className="h-4 w-4 text-orange-500" />
+                  文章分组
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  {groups.length}个分组·{totalArticles}篇文章
+                </p>
+              </div>
+
+              {/* 全部文章按钮 */}
+              <Button
+                variant={selectedGroup === null ? 'default' : 'outline'}
+                className={cn(
+                  'w-full justify-start mb-2',
+                  selectedGroup === null && 'bg-orange-500 hover:bg-orange-600 text-white'
+                )}
+                onClick={() => setSelectedGroup(null)}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                全部文章
+              </Button>
+
+              {/* 分组列表 */}
+              {groups.map(group => (
+                <Button
+                  key={group.id}
+                  variant={selectedGroup === group.id ? 'default' : 'outline'}
+                  className={cn(
+                    'w-full justify-start mb-2',
+                    selectedGroup === group.id && 'bg-orange-500 hover:bg-orange-600 text-white'
+                  )}
+                  onClick={() => setSelectedGroup(group.id)}
+                >
+                  <FolderOpen className="h-4 w-4 mr-2" />
+                  {group.name}
+                  <Badge variant="secondary" className="ml-auto">{group.article_count}</Badge>
+                </Button>
+              ))}
+
+              {/* 管理分组按钮 */}
+              <Button
+                variant="outline"
+                className="w-full justify-start mt-4"
+                onClick={() => setShowGroupDialog(true)}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                管理分组
+              </Button>
+            </Card>
+          </div>
+
+          {/* 右侧主内容区 */}
+          <div className="flex-1">
+            {/* 顶部信息栏 */}
+            <Card className="p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-600">
+                    今日已生成 <span className="font-semibold text-orange-500">{todayCount}</span> / <span className="font-semibold">10</span> 篇
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">筛选:</span>
+                  <div className="flex gap-1">
+                    {[
+                      { key: 'all', label: '全部' },
+                      { key: 'generating', label: '生成中' },
+                      { key: 'generated', label: '已生成' },
+                      { key: 'failed', label: '生成失败' },
+                      { key: 'draft', label: '未存稿' },
+                      { key: 'published', label: '已存稿' }
+                    ].map(filter => (
+                      <Button
+                        key={filter.key}
+                        size="sm"
+                        variant={selectedFilter === filter.key ? 'default' : 'outline'}
+                        className={cn(
+                          selectedFilter === filter.key && 'bg-orange-500 hover:bg-orange-600'
+                        )}
+                        onClick={() => setSelectedFilter(filter.key)}
+                      >
+                        {filter.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={loadArticles}>
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  刷新
+                </Button>
+              </div>
+            </Card>
+
+            {/* 文章列表或空状态 */}
+            {isLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+              </div>
+            ) : filteredArticles.length === 0 ? (
+              <Card className="p-12 text-center">
+                <FileWarning className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">暂无文章</h3>
+                <p className="text-sm text-gray-500 mb-6">您还没有创作任何文章</p>
+                <Button 
+                  onClick={() => setShowCreateDialog(true)}
+                  className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  开始创作
+                </Button>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {filteredArticles.map(article => (
+                  <Card key={article.id} className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="font-semibold text-gray-900">{article.title}</h3>
+                          {getStatusBadge(article)}
+                        </div>
+                        <p className="text-sm text-gray-500 line-clamp-2">
+                          {article.content?.substring(0, 200)}...
+                        </p>
+                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
+                          <span>{new Date(article.created_at).toLocaleDateString()}</span>
+                          {article.image_urls.length > 0 && (
+                            <span className="flex items-center gap-1">
+                              <ImageIcon className="h-3 w-3" />
+                              {article.image_urls.length}张图片
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 ml-4">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => setViewingArticle(article)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {article.status === 'generated' && article.push_status !== 'success' && (
+                          <Button 
+                            size="sm"
+                            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                            onClick={() => handlePushToWechat(article)}
+                          >
+                            <SendHorizontal className="h-4 w-4 mr-1" />
+                            推送
+                          </Button>
+                        )}
+                        {article.push_status === 'success' && (
+                          <Button size="sm" variant="outline" disabled>
+                            <Check className="h-4 w-4 mr-1" />
+                            已推送
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 分组管理弹窗 */}
+      <Dialog open={showGroupDialog} onOpenChange={setShowGroupDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-blue-500" />
+              赛道分类管理
+              <span className="text-sm font-normal text-gray-500 ml-2">管理您的分组·{groups.length}个</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-80">
+            <div className="space-y-3">
+              {groups.map(group => (
+                <div key={group.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <FolderOpen className="h-4 w-4 text-orange-500" />
+                    <span className="font-medium">{group.name}</span>
+                    <Badge variant="secondary">{group.article_count}</Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => {
+                        setEditingGroup(group);
+                        setNewGroupName(group.name);
+                      }}
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                      onClick={() => handleDeleteGroup(group.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              
+              {groups.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  暂无分组
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+
+          {/* 编辑/新建分组 */}
+          <div className="mt-4 pt-4 border-t">
+            <div className="flex gap-2">
+              <Input
+                placeholder="输入分组名称"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+              />
+              <Button 
+                onClick={editingGroup ? handleUpdateGroup : handleCreateGroup}
+                disabled={!newGroupName.trim()}
+              >
+                {editingGroup ? '保存' : '创建'}
+              </Button>
+            </div>
+            {editingGroup && (
+              <Button 
+                variant="ghost" 
+                className="mt-2 w-full"
+                onClick={() => {
+                  setEditingGroup(null);
+                  setNewGroupName('');
+                }}
+              >
+                取消编辑
+              </Button>
+            )}
+          </div>
+
+          <Button className="w-full mt-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
+            <Plus className="h-4 w-4 mr-2" />
+            创建新分组
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* 文章创作设置弹窗 */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded bg-orange-500 flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-white" />
+                </div>
+                文章创作设置
+              </DialogTitle>
+              <Button variant="ghost" size="sm" onClick={() => setShowCreateDialog(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </DialogHeader>
+
+          {/* AI提示 */}
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 flex items-start gap-2">
+            <Lightbulb className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-purple-700">
+              AI辅助创作：AI仅为辅助工具，请在创作中融入您的想法、思考和个人经历，让内容更具独特性和真实性
+            </p>
+          </div>
+
+          {/* 功能切换 */}
+          <div className="flex gap-2">
+            <Button className="flex-1 bg-gradient-to-r from-purple-500 to-blue-500">
+              <Zap className="h-4 w-4 mr-2" />
+              一键创作
+            </Button>
+            <Button variant="outline" className="flex-1">
+              <BookOpen className="h-4 w-4 mr-2" />
+              爆文信息差
+            </Button>
+          </div>
+
+          {/* 表单 */}
+          <div className="space-y-4">
+            {/* 文章标题 */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Label className="text-sm font-medium flex items-center gap-1">
+                  <FileText className="h-4 w-4 text-yellow-500" />
+                  文章标题
+                </Label>
+                <span className="text-xs text-gray-500">（选填，不填AI自动生成爆款标题）</span>
+              </div>
+              <Input
+                placeholder="输入你想创作的文章标题"
+                value={articleTitle}
+                onChange={(e) => setArticleTitle(e.target.value)}
+              />
+            </div>
+
+            {/* 选择提示词 */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Label className="text-sm font-medium flex items-center gap-1">
+                  <FileText className="h-4 w-4 text-yellow-500" />
+                  选择提示词 <span className="text-red-500">*</span>
+                </Label>
+              </div>
+              <p className="text-xs text-gray-500 mb-2">提示词决定文章的写作风格和框架</p>
+              <Select value={selectedPromptId} onValueChange={setSelectedPromptId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择提示词" />
+                  <SelectValue placeholder="请选择提示词" />
                 </SelectTrigger>
                 <SelectContent>
-                  {prompts.map((prompt) => (
+                  {promptTemplates.map(prompt => (
                     <SelectItem key={prompt.id} value={prompt.id.toString()}>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {prompt.category}
-                        </Badge>
-                        <span>{prompt.name}</span>
+                        <Badge variant="outline" className="text-xs">{prompt.category}</Badge>
+                        {prompt.name}
                       </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {customPromptText && (
-                <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <p className="text-xs text-purple-600 font-medium mb-1">已加载自定义提示词</p>
-                  <p className="text-xs text-gray-600 line-clamp-2">{customPromptText}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Title Input */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-purple-500" />
-                文章标题
-              </CardTitle>
-              <CardDescription>输入文章标题，AI 将根据标题生成内容</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Input
-                placeholder="例如：为什么你总是遇不到对的人？这3个真相扎心了"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !isGenerating) {
-                    handleGenerate();
-                  }
-                }}
-                disabled={isGenerating}
-              />
-              
-              {/* 联网搜索开关 */}
-              <div className="flex items-center justify-between rounded-lg border p-4 bg-gradient-to-r from-green-50 to-emerald-50">
-                <div className="flex items-center gap-3">
-                  <Globe className="h-5 w-5 text-green-600" />
-                  <div className="space-y-0.5">
-                    <Label htmlFor="search-mode" className="text-sm font-medium cursor-pointer">
-                      实时联网搜索
-                    </Label>
-                    <p className="text-xs text-gray-500">
-                      {searchEnabled ? '已启用：AI将搜索最新数据生成准确文章' : '已禁用：使用通用知识生成文章'}
-                    </p>
-                  </div>
+            {/* 选择分组 */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Label className="text-sm font-medium flex items-center gap-1">
+                  <FolderOpen className="h-4 w-4 text-yellow-500" />
+                  选择分组 <span className="text-red-500">*</span>
+                </Label>
+              </div>
+              <p className="text-xs text-gray-500 mb-2">为生成的文章归类，方便在智能创作页面分组查看</p>
+              <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="请选择分组" />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map(group => (
+                    <SelectItem key={group.id} value={group.id.toString()}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* 图片来源 */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Label className="text-sm font-medium flex items-center gap-1">
+                  <ImageIcon className="h-4 w-4 text-yellow-500" />
+                  图片来源
+                </Label>
+              </div>
+              <p className="text-xs text-gray-500 mb-2">选择文章配图的来源方式</p>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="imageSource"
+                    checked={imageSource === 'ai'}
+                    onChange={() => setImageSource('ai')}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm">精准采集（AI生成）</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="imageSource"
+                    checked={imageSource === 'original'}
+                    onChange={() => setImageSource('original')}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm">原文采集（原文章图片）</span>
+                </label>
+              </div>
+            </div>
+
+            {/* 图片数量 */}
+            {imageSource === 'ai' && (
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Label className="text-sm font-medium flex items-center gap-1">
+                    <span className="text-yellow-500">📷</span>
+                    图片数量(0-15)
+                  </Label>
                 </div>
-                <Switch
-                  id="search-mode"
-                  checked={searchEnabled}
-                  onCheckedChange={setSearchEnabled}
-                  className="data-[state=checked]:bg-green-500"
+                <p className="text-xs text-gray-500 mb-2">设置文章配图数量，0表示不配图</p>
+                <Input
+                  type="number"
+                  min="0"
+                  max="15"
+                  value={imageCount}
+                  onChange={(e) => setImageCount(Math.min(15, Math.max(0, parseInt(e.target.value) || 0)))}
+                  className="w-32"
                 />
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Generate Button */}
-          <Button
-            onClick={handleGenerate}
-            disabled={isGenerating || !title.trim()}
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-            size="lg"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                {searchEnabled ? '正在联网搜索并生成...' : '正在生成...'}
-              </>
-            ) : (
-              <>
-                <Wand2 className="mr-2 h-5 w-5" />
-                {searchEnabled ? '联网搜索并生成文章' : '生成文章'}
-              </>
             )}
-          </Button>
 
-          {/* Action Buttons */}
-          {generatedContent && (
-            <div className="flex gap-2">
-              <Button
-                onClick={handleReset}
-                variant="outline"
-                className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-              >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                清空重写
-              </Button>
-              <Button
-                onClick={handleCopyArticle}
-                variant="outline"
-                className="flex-1 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
-              >
-                <Copy className="mr-2 h-4 w-4" />
-                {copied ? '已复制' : '一键复制'}
-              </Button>
-              <Button
-                onClick={handleGenerateImage}
-                variant="outline"
-                className="flex-1"
-                disabled={isGeneratingImage}
-              >
-                {isGeneratingImage ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    生成中...
-                  </>
-                ) : (
-                  <>
-                    <ImageIcon className="mr-2 h-4 w-4" />
-                    生成插图
-                  </>
-                )}
-              </Button>
-              <Button
-                onClick={handlePushDraft}
-                disabled={isPushing}
-                className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-              >
-                {isPushing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    处理中...
-                  </>
-                ) : pushSuccess ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    已推送
-                  </>
-                ) : (
-                  <span 
-                    className="flex items-center cursor-pointer"
-                    onClick={() => window.location.href = '/official-account?tab=auth'}
-                  >
-                    <SendHorizontal className="mr-2 h-4 w-4" />
-                    复制并推送
-                  </span>
-                )}
-              </Button>
-            </div>
-          )}
-
-          {/* 推送说明 */}
-          {generatedContent && (
-            <div className="text-xs text-gray-500 text-center mt-2 space-y-1">
-              <p>💡 提示：点击按钮后，文章内容将自动复制到剪贴板</p>
-              <p>📋 包含：标题 + 正文 + 图片链接，可直接粘贴到公众号后台</p>
-            </div>
-          )}
-
-          {/* AI检测区域 */}
-          {generatedContent && (
-            <Card className="border-2 border-gradient-to-r from-cyan-500 to-blue-500 bg-gradient-to-r from-cyan-50 to-blue-50">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Shield className="h-5 w-5 text-cyan-600" />
-                  AI检测
-                  {detectResult && (
-                    <Badge className={`ml-2 ${
-                      detectResult.riskLevel === '高风险' ? 'bg-red-500' :
-                      detectResult.riskLevel === '中风险' ? 'bg-yellow-500' : 'bg-green-500'
-                    } text-white`}>
-                      {detectResult.aiRate}% AI率
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-xs text-gray-500">
-                  检测文章AI特征，标记可疑段落，降低AI率让文章更自然
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleDetectAI}
-                    disabled={isDetecting || isHumanizing}
-                    variant="outline"
-                    className="flex-1 border-cyan-300 text-cyan-700 hover:bg-cyan-100"
-                  >
-                    {isDetecting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        检测中...
-                      </>
-                    ) : (
-                      <>
-                        <Bot className="mr-2 h-4 w-4" />
-                        AI检测
-                      </>
-                    )}
-                  </Button>
-                  {detectResult && detectResult.aiRate > 30 && (
-                    <Button
-                      onClick={handleHumanize}
-                      disabled={isDetecting || isHumanizing}
-                      className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
-                    >
-                      {isHumanizing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          改写中...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          降低AI率
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-                
-                {/* 快速检测结果 */}
-                {showDetectPanel && (
-                  <div className="mt-3 rounded-lg bg-white/80 p-3">
-                    {isDetecting ? (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader2 className="h-6 w-6 animate-spin text-cyan-500" />
-                        <span className="ml-2 text-sm text-gray-500">正在分析文章...</span>
-                      </div>
-                    ) : detectResult ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">综合AI率</span>
-                          <span className={`font-bold ${
-                            detectResult.aiRate > 60 ? 'text-red-500' :
-                            detectResult.aiRate > 30 ? 'text-yellow-500' : 'text-green-500'
-                          }`}>
-                            {detectResult.aiRate}%
-                          </span>
-                        </div>
-                        <Progress 
-                          value={detectResult.aiRate} 
-                          className={`h-2 ${
-                            detectResult.aiRate > 60 ? '[&>div]:bg-red-500' :
-                            detectResult.aiRate > 30 ? '[&>div]:bg-yellow-500' : '[&>div]:bg-green-500'
-                          }`}
-                        />
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <span>AI段落: {detectResult.aiParagraphs}</span>
-                          <span>|</span>
-                          <span>人工段落: {detectResult.humanParagraphs}</span>
-                          <span>|</span>
-                          <span className={`font-medium ${
-                            detectResult.riskLevel === '高风险' ? 'text-red-500' :
-                            detectResult.riskLevel === '中风险' ? 'text-yellow-500' : 'text-green-500'
-                          }`}>
-                            {detectResult.riskLevel}
-                          </span>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Tips */}
-          <Card className="bg-gradient-to-br from-blue-50 to-purple-50 border-2">
-            <CardContent className="py-6">
-              <h3 className="mb-3 font-semibold text-gray-900 flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-purple-500" />
-                使用技巧
-              </h3>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li>• <strong>开启联网搜索</strong>：AI会搜索最新数据，生成内容更准确、更时效</li>
-                <li>• 选择合适的提示词，让文章更符合目标读者</li>
-                <li>• 标题要吸引人，包含关键词或引发好奇</li>
-                <li>• 文章会自动生成，字数控制在1000字左右</li>
-                <li>• 点击&ldquo;生成插图&rdquo;可生成2-3张插图并自动插入文章</li>
-                <li>• 插图会随机分布在文章段落之间</li>
-                <li>• 完成后可保存到公众号草稿箱</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Panel - Output */}
-        <Card className="h-full">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-green-500" />
-                文章预览
+            {/* 投喂参考素材 */}
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-3 mb-3">
+                <Checkbox
+                  id="enableMaterial"
+                  checked={enableMaterial}
+                  onCheckedChange={(checked) => setEnableMaterial(checked as boolean)}
+                />
+                <Label htmlFor="enableMaterial" className="font-medium cursor-pointer flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-green-500" />
+                  投喂参考素材
+                </Label>
               </div>
-              {generatedContent && (
-                <Badge className="bg-green-100 text-green-700">
-                  Markdown 格式
-                </Badge>
-              )}
-            </CardTitle>
-            <CardDescription>
-              {generatedContent ? '生成的文章内容' : '文章将在这里显示...'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {generatedContent ? (
-              <>
-                {/* Tabs for article and detection report */}
-                <Tabs value={showDetectPanel && detectResult ? 'detect' : 'article'} onValueChange={(v) => {
-                  if (v === 'detect') {
-                    if (!detectResult) {
-                      handleDetectAI();
-                    } else {
-                      setShowDetectPanel(true);
-                    }
-                  } else {
-                    setShowDetectPanel(false);
-                  }
-                }} className="mb-4">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="article">文章内容</TabsTrigger>
-                    <TabsTrigger value="detect">
-                      AI检测报告
-                      {detectResult && (
-                        <Badge className={`ml-1 ${
-                          detectResult.aiRate > 60 ? 'bg-red-500' :
-                          detectResult.aiRate > 30 ? 'bg-yellow-500' : 'bg-green-500'
-                        } text-white text-xs`}>
-                          {detectResult.aiRate}%
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="article" className="mt-3">
-                    {/* 工具栏 */}
-                    <div className="mb-4 flex items-center justify-between">
-                      {/* 左侧按钮 */}
-                      <div className="flex flex-wrap gap-2">
-                        {/* 降低AI率按钮 */}
-                        {generatedContent && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleHumanize}
-                            disabled={isHumanizing}
-                            className="text-cyan-500 hover:text-cyan-600"
-                          >
-                            {isHumanizing ? (
-                              <>
-                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                改写中...
-                              </>
-                            ) : (
-                              <>
-                                <RefreshCw className="mr-1 h-3 w-3" />
-                                降低AI率
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
-                      
 
+              {enableMaterial && (
+                <div className="space-y-4 pl-7">
+                  {/* 什么时候需要投喂素材 */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Lightbulb className="h-4 w-4 text-yellow-500" />
+                      <span className="font-medium text-blue-700">什么时候需要投喂素材?</span>
                     </div>
-
-                    {/* 改写结果预览 - 当有改写结果时显示 */}
-                    {showHumanizeCompare && humanizeResult && (
-                      <div className="mb-4 space-y-3 rounded-lg border-2 border-green-200 bg-green-50 p-4">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-green-800">改写对比</h3>
-                          <Badge className="bg-green-500 text-white">
-                            已改写{humanizeResult.changedParagraphs}个段落
-                          </Badge>
-                        </div>
-                        
-                        <p className="text-sm text-green-700">
-                          人类化程度: <span className="font-semibold">{humanizeResult.humanizationScore}%</span>
-                        </p>
-                        
-                        {/* 操作按钮 */}
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={handleApplyHumanize}
-                            size="sm"
-                            className="flex-1 bg-green-500 hover:bg-green-600"
-                          >
-                            <Check className="mr-1 h-4 w-4" />
-                            应用改写
-                          </Button>
-                          <Button
-                            onClick={handleCancelHumanize}
-                            size="sm"
-                            variant="outline"
-                            className="flex-1"
-                          >
-                            <XCircle className="mr-1 h-4 w-4" />
-                            取消
-                          </Button>
-                        </div>
-                        
-                        {/* 逐段对比 */}
-                        <ScrollArea className="max-h-48 rounded-lg border bg-white p-3">
-                          <div className="space-y-3">
-                            {humanizeResult.changes.map((change, idx) => (
-                              <div key={idx} className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                                <div className="mb-1 flex items-center justify-between text-xs">
-                                  <Badge variant="outline" className="text-xs">段落 {change.index + 1}</Badge>
-                                  <span className="text-gray-400">{change.changes.length}处改动</span>
-                                </div>
-                                
-                                <div className="mb-1">
-                                  <p className="text-xs text-red-600">原文:</p>
-                                  <p className="text-xs text-gray-700 line-clamp-2">{change.original}</p>
-                                </div>
-                                
-                                <div className="mb-1">
-                                  <p className="text-xs text-green-600">改写后:</p>
-                                  <p className="text-xs text-gray-700 line-clamp-2">{change.rewritten}</p>
-                                </div>
-                                
-                                {change.changes.length > 0 && (
-                                  <p className="text-xs text-gray-500">改动: {change.changes.slice(0, 3).join('、')}{change.changes.length > 3 ? '...' : ''}</p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                        
-                        {/* 完整预览 */}
+                    <div className="space-y-2 text-blue-600">
+                      <div className="flex items-start gap-2">
+                        <span className="text-green-500">✅</span>
                         <div>
-                          <p className="mb-2 text-xs font-medium text-gray-700">完整改写预览:</p>
-                          <ScrollArea className="max-h-32 rounded-lg border bg-white p-2">
-                            <SimpleArticlePreview content={humanizeResult.rewrittenContent} />
-                          </ScrollArea>
+                          <span className="font-medium">必须投喂:</span>
+                          <span className="text-xs ml-1">实时信息类内容（汽车资讯、娱乐新闻、民生政策、社会热点等现实事件）</span>
                         </div>
                       </div>
-                    )}
-
-                    {/* Markdown内容 - 增强版排版 */}
-                    <div className="rounded-lg border bg-white/50 p-4 dark:bg-gray-900/50">
-                      <EnhancedArticle content={generatedContent} />
+                      <div className="flex items-start gap-2">
+                        <span className="text-gray-400">○</span>
+                        <div>
+                          <span className="font-medium">可不投喂:</span>
+                          <span className="text-xs ml-1">文学创作类内容（情感故事、星座解读、心灵鸡汤、生活日记等），AI语料库已足够丰富</span>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-red-500">⚠️</span>
+                        <div>
+                          <span className="font-medium">投喂好处:</span>
+                          <span className="text-xs ml-1">基于投喂素材创作，内容观点不跑偏，关键词精准，更符合预期效果</span>
+                        </div>
+                      </div>
                     </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="detect" className="mt-3">
-                    {isDetecting ? (
-                      <div className="flex flex-col items-center justify-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
-                        <p className="mt-3 text-sm text-gray-500">正在分析文章AI特征...</p>
-                      </div>
-                    ) : detectResult ? (
-                      <ScrollArea className="h-[500px] pr-4">
-                        {/* 检测概览 */}
-                        <div className="mb-4 rounded-lg bg-gradient-to-r from-gray-50 to-gray-100 p-4">
-                          <div className="mb-3 flex items-center justify-between">
-                            <h3 className="font-semibold">综合AI检测报告</h3>
-                            <Button size="sm" variant="ghost" onClick={handleCopyReport}>
-                              <Copy className="mr-1 h-3 w-3" />
-                              复制报告
-                            </Button>
-                          </div>
-                          
-                          <div className="mb-4 text-center">
-                            <div className={`text-4xl font-bold ${
-                              detectResult.aiRate > 60 ? 'text-red-500' :
-                              detectResult.aiRate > 30 ? 'text-yellow-500' : 'text-green-500'
-                            }`}>
-                              {detectResult.aiRate}%
-                            </div>
-                            <p className="text-sm text-gray-500">综合AI率</p>
-                          </div>
-                          
-                          <Progress 
-                            value={detectResult.aiRate} 
-                            className={`mb-4 h-3 ${
-                              detectResult.aiRate > 60 ? '[&>div]:bg-red-500' :
-                              detectResult.aiRate > 30 ? '[&>div]:bg-yellow-500' : '[&>div]:bg-green-500'
-                            }`}
-                          />
-                          
-                          <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                            <div className="rounded bg-white p-2">
-                              <div className="text-lg font-bold text-red-500">{detectResult.aiParagraphs}</div>
-                              <div className="text-xs text-gray-500">AI段落</div>
-                            </div>
-                            <div className="rounded bg-white p-2">
-                              <div className="text-lg font-bold text-green-500">{detectResult.humanParagraphs}</div>
-                              <div className="text-xs text-gray-500">人工段落</div>
-                            </div>
-                            <div className={`rounded bg-white p-2 ${
-                              detectResult.riskLevel === '高风险' ? 'ring-2 ring-red-500' :
-                              detectResult.riskLevel === '中风险' ? 'ring-2 ring-yellow-500' : 'ring-2 ring-green-500'
-                            }`}>
-                              <div className={`text-lg font-bold ${
-                                detectResult.riskLevel === '高风险' ? 'text-red-500' :
-                                detectResult.riskLevel === '中风险' ? 'text-yellow-500' : 'text-green-500'
-                              }`}>{detectResult.riskLevel}</div>
-                              <div className="text-xs text-gray-500">风险等级</div>
-                            </div>
-                          </div>
-                          
-                          <p className="mt-3 text-sm text-gray-600">{detectResult.summary}</p>
-                        </div>
-                        
-                        {/* 段落详情 */}
-                        <div className="space-y-3">
-                          <h4 className="font-medium text-gray-700">段落详情</h4>
-                          {detectResult.paragraphs?.map((p: DetectResult['paragraphs'][0]) => (
-                            <div 
-                              key={p.index} 
-                              className={`rounded-lg border p-3 ${
-                                p.source === 'AI生成' ? 'border-red-200 bg-red-50' :
-                                p.source === '人工写作' ? 'border-green-200 bg-green-50' :
-                                'border-yellow-200 bg-yellow-50'
-                              }`}
-                            >
-                              <div className="mb-2 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Badge 
-                                    className={`text-xs ${
-                                      p.source === 'AI生成' ? 'bg-red-500' :
-                                      p.source === '人工写作' ? 'bg-green-500' : 'bg-yellow-500'
-                                    } text-white`}
-                                  >
-                                    {p.source === 'AI生成' && <Bot className="mr-1 h-3 w-3" />}
-                                    {p.source === '人工写作' && <UserCheck className="mr-1 h-3 w-3" />}
-                                    {p.source}
-                                  </Badge>
-                                  <span className="text-xs text-gray-500">
-                                    置信度: {p.confidence}%
-                                  </span>
-                                </div>
-                                <span className="text-xs text-gray-400">
-                                  段落 {p.index + 1}
-                                </span>
-                              </div>
-                              
-                              <p className="mb-2 text-sm text-gray-700 line-clamp-3">
-                                {p.content?.substring(0, 150)}
-                                {p.content?.length > 150 && '...'}
-                              </p>
-                              
-                              {p.reasons && p.reasons.length > 0 && (
-                                <div className="mb-2">
-                                  <span className="text-xs font-medium text-gray-500">AI特征: </span>
-                                  <span className="text-xs text-red-600">
-                                    {p.reasons.join('、')}
-                                  </span>
-                                </div>
-                              )}
-                              
-                              {p.suggestions && (
-                                <div className="rounded bg-white/50 p-2">
-                                  <span className="text-xs font-medium text-gray-500">修改建议: </span>
-                                  <span className="text-xs text-gray-600">{p.suggestions}</span>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        
-                        {/* 改写对比面板 - 当有改写结果时显示 */}
-                        {showHumanizeCompare && humanizeResult && (
-                          <div className="mt-4 space-y-4 rounded-lg border-2 border-green-200 bg-green-50 p-4">
-                            <div className="flex items-center justify-between">
-                              <h3 className="font-semibold text-green-800">改写对比</h3>
-                              <Badge className="bg-green-500 text-white">
-                                已改写{humanizeResult.changedParagraphs}个段落
-                              </Badge>
-                            </div>
-                            
-                            <p className="text-sm text-green-700">
-                              人类化程度: <span className="font-semibold">{humanizeResult.humanizationScore}%</span>
-                            </p>
-                            
-                            {/* 操作按钮 */}
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={handleApplyHumanize}
-                                className="flex-1 bg-green-500 hover:bg-green-600"
-                              >
-                                <Check className="mr-2 h-4 w-4" />
-                                应用改写
-                              </Button>
-                              <Button
-                                onClick={handleCancelHumanize}
-                                variant="outline"
-                                className="flex-1"
-                              >
-                                <XCircle className="mr-2 h-4 w-4" />
-                                取消
-                              </Button>
-                            </div>
-                            
-                            {/* 改写详情 */}
-                            <ScrollArea className="max-h-64 rounded-lg border bg-white p-3">
-                              <div className="space-y-4">
-                                {humanizeResult.changes.map((change, idx) => (
-                                  <div key={idx} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                                    <div className="mb-2 flex items-center justify-between">
-                                      <Badge variant="outline">段落 {change.index + 1}</Badge>
-                                      <span className="text-xs text-gray-400">
-                                        {change.changes.length}处改动
-                                      </span>
-                                    </div>
-                                    
-                                    <div className="mb-2">
-                                      <p className="mb-1 text-xs font-medium text-red-600">原文:</p>
-                                      <p className="rounded bg-red-50 p-2 text-sm text-gray-700">
-                                        {change.original}
-                                      </p>
-                                    </div>
-                                    
-                                    <div className="mb-2">
-                                      <p className="mb-1 text-xs font-medium text-green-600">改写后:</p>
-                                      <p className="rounded bg-green-50 p-2 text-sm text-gray-700">
-                                        {change.rewritten}
-                                      </p>
-                                    </div>
-                                    
-                                    {change.changes.length > 0 && (
-                                      <div className="text-xs text-gray-500">
-                                        <span className="font-medium">改动:</span> {change.changes.join('、')}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </ScrollArea>
-                            
-                            {/* 完整改写预览 */}
-                            <div>
-                              <p className="mb-2 text-sm font-medium text-gray-700">完整改写预览:</p>
-                              <ScrollArea className="max-h-40 rounded-lg border bg-white p-3">
-                                <SimpleArticlePreview content={humanizeResult.rewrittenContent} />
-                              </ScrollArea>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* 降低AI率按钮 */}
-                        {detectResult.aiRate > 30 && !showHumanizeCompare && (
-                          <Button
-                            onClick={handleHumanize}
-                            disabled={isHumanizing}
-                            className="mt-4 w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
-                            size="lg"
-                          >
-                            {isHumanizing ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                正在改写文章...
-                              </>
-                            ) : (
-                              <>
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                一键降低AI率
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </ScrollArea>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-12 text-center">
-                        <Shield className="h-12 w-12 text-gray-300" />
-                        <p className="mt-3 text-sm text-gray-500">
-                          点击左侧「AI检测」按钮<br/>开始检测文章AI特征
-                        </p>
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
-              </>
-            ) : (
-              <div className="flex h-96 items-center justify-center text-center text-gray-400">
-                <div>
-                  <PenTool className="mx-auto mb-4 h-16 w-16 opacity-20" />
-                  <p>在左侧输入标题，点击生成按钮</p>
-                  <p className="mt-2 text-sm">AI 将为您创作一篇爆款文章</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 公众号账号选择弹窗 */}
-      <Dialog open={showAccountDialog} onOpenChange={setShowAccountDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <SendHorizontal className="h-5 w-5 text-orange-500" />
-              选择推送公众号
-            </DialogTitle>
-            <DialogDescription>
-              选择要推送到的公众号账号
-            </DialogDescription>
-          </DialogHeader>
-          
-          {accountsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : accounts.length === 0 ? (
-            <div className="text-center py-8">
-              <UserCheck className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p className="text-gray-500 mb-4">暂无已绑定的公众号</p>
-              <p className="text-sm text-gray-400 mb-4">请先在账号管理中添加公众号</p>
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  setShowAccountDialog(false);
-                  window.location.href = '/official-account?tab=auth';
-                }}
-              >
-                去账号管理
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-80 overflow-y-auto">
-              {accounts.map((account) => (
-                <div 
-                  key={account.id}
-                  className="flex items-center gap-4 p-4 border rounded-lg bg-white hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => executePushToAccount(account.app_id)}
-                >
-                  {/* 头像 */}
-                  <div className="flex-shrink-0">
-                    {account.head_img ? (
-                      <img 
-                        src={account.head_img} 
-                        alt={account.nickname}
-                        className="w-12 h-12 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
-                        <User className="h-6 w-6 text-gray-400" />
-                      </div>
-                    )}
                   </div>
 
-                  {/* 信息 */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-900 truncate">
-                        {account.nickname || '未命名公众号'}
-                      </h3>
-                      {getAccountTypeBadge(account)}
-                    </div>
-                    <p className="text-sm text-gray-500 truncate">
-                      @{account.alias || account.user_name || account.app_id}
-                    </p>
+                  {/* 参考素材链接 */}
+                  <div>
+                    <Label className="text-sm font-medium flex items-center gap-2 mb-1">
+                      <span className="text-gray-500">🔗</span>
+                      参考素材链接
+                    </Label>
+                    <p className="text-xs text-gray-500 mb-2">支持公众号文章和今日头条文章链接，每行一个链接，建议1-3个参考素材最佳</p>
+                    <Textarea
+                      placeholder={`https://mp.weixin.qq.com/s/...\nhttps://www.toutiao.com/article/...\nhttps://...`}
+                      value={materialLinks}
+                      onChange={(e) => setMaterialLinks(e.target.value)}
+                      rows={3}
+                      className="resize-none"
+                    />
                   </div>
 
-                  {/* 推送图标 */}
-                  <div className="flex-shrink-0">
-                    <Button 
-                      size="sm"
-                      className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-                      disabled={isPushing}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        executePushToAccount(account.app_id);
-                      }}
-                    >
-                      {isPushing ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <SendHorizontal className="h-4 w-4 mr-1" />
-                          推送
-                        </>
-                      )}
-                    </Button>
+                  {/* 创作要求 */}
+                  <div>
+                    <Label className="text-sm font-medium flex items-center gap-2 mb-1">
+                      <span className="text-purple-500">✨</span>
+                      创作要求 / 大纲 / 观点素材
+                    </Label>
+                    <p className="text-xs text-gray-500 mb-2">可针对需要创作的标题，输入您的创作要求、内容素材、个人观点或补充说明</p>
+                    <Textarea
+                      placeholder={`• 文章的核心观点是什么?\n• 需要强调哪些关键信息?\n• 希望达到什么效果? (如: 引发共鸣、提供价值、激发讨论)\n• 有哪些必须包含的内容要点?\n• 文章的结构安排建议`}
+                      value={materialRequirements}
+                      onChange={(e) => setMaterialRequirements(e.target.value)}
+                      rows={4}
+                      className="resize-none"
+                    />
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-          )}
-          
-          <div className="flex justify-end mt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowAccountDialog(false)}
-            >
+          </div>
+
+          {/* 操作按钮 */}
+          <div className="flex gap-3 pt-4 border-t">
+            <Button variant="outline" className="flex-1" onClick={() => setShowCreateDialog(false)}>
               取消
+            </Button>
+            <Button 
+              className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+              onClick={handleStartCreate}
+              disabled={isGenerating || !selectedPromptId || !selectedGroupId}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  创作中...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  开始创作
+                </>
+              )}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
 
-export default function SmartWritingPage() {
-  return (
-    <Suspense fallback={<div className="container mx-auto px-4 py-8">加载中...</div>}>
-      <SmartWritingContent />
-    </Suspense>
+      {/* 文章查看弹窗 */}
+      <Dialog open={!!viewingArticle} onOpenChange={() => setViewingArticle(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>{viewingArticle?.title}</span>
+              {viewingArticle && getStatusBadge(viewingArticle)}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {viewingArticle && (
+            <div className="space-y-4">
+              {/* 图片展示 */}
+              {viewingArticle.image_urls.length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {viewingArticle.image_urls.map((url, idx) => (
+                    <div key={idx} className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                      <img src={url} alt={`配图${idx + 1}`} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* 文章内容 */}
+              <div className="prose prose-sm max-w-none">
+                <div className="whitespace-pre-wrap text-gray-700">
+                  {viewingArticle.content}
+                </div>
+              </div>
+              
+              {/* 操作按钮 */}
+              <div className="flex gap-3 pt-4 border-t">
+                {viewingArticle.status === 'generated' && viewingArticle.push_status !== 'success' && (
+                  <Button 
+                    className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                    onClick={() => {
+                      handlePushToWechat(viewingArticle);
+                      setViewingArticle(null);
+                    }}
+                  >
+                    <SendHorizontal className="h-4 w-4 mr-2" />
+                    推送到公众号草稿箱
+                  </Button>
+                )}
+                {viewingArticle.push_status === 'success' && (
+                  <Button className="flex-1" disabled>
+                    <Check className="h-4 w-4 mr-2" />
+                    已推送到公众号
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
