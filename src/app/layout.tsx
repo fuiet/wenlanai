@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inspector } from 'react-dev-inspector';
 import './globals.css';
 import Navbar from '@/components/navbar';
+import { ToastProvider } from '@/hooks/use-toast';
 
 export const metadata: Metadata = {
   title: {
@@ -47,11 +48,13 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className={`antialiased bg-gray-50`}>
-        {isDev && <Inspector />}
-        <Navbar />
-        <main className="min-h-screen">
-          {children}
-        </main>
+        <ToastProvider>
+          {isDev && <Inspector />}
+          <Navbar />
+          <main className="min-h-screen">
+            {children}
+          </main>
+        </ToastProvider>
       </body>
     </html>
   );
