@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
 interface GenerateRequest {
   title?: string;
   templateId: string;
@@ -31,10 +28,21 @@ export async function POST(request: NextRequest) {
       materialRequirements = ''
     } = body;
 
+    // 检查 Supabase 配置
+    const configuredSupabaseUrl = process.env.COZE_SUPABASE_URL;
+    const configuredSupabaseKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!configuredSupabaseUrl || !configuredSupabaseKey) {
+      return NextResponse.json(
+        { error: '数据库配置缺失，请联系管理员' },
+        { status: 500 }
+      );
+    }
+
     console.log('开始生成文章...');
 
     // 初始化 Supabase 客户端
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(configuredSupabaseUrl, configuredSupabaseKey);
 
     // 获取提示词模板
     let templatePrompt = '';
