@@ -35,7 +35,8 @@ import {
   Clock,
   AlertCircle,
   Download,
-  Lightbulb
+  Lightbulb,
+  Send
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -580,9 +581,9 @@ export default function SmartWritingPage() {
       return <Badge className="bg-red-500 text-white"><AlertCircle className="h-3 w-3 mr-1" />失败</Badge>;
     }
     if (article.push_status === 'success') {
-      return <Badge className="bg-green-500 text-white"><Check className="h-3 w-3 mr-1" />已存稿</Badge>;
+      return <Badge className="bg-green-500 text-white"><Check className="h-3 w-3 mr-1" />已推送</Badge>;
     }
-    return <Badge className="bg-gray-500 text-white"><Clock className="h-3 w-3 mr-1" />未存稿</Badge>;
+    return <Badge className="bg-gray-500 text-white"><Clock className="h-3 w-3 mr-1" />未推送</Badge>;
   };
 
   // 处理文章内容：过滤Markdown图片格式，返回纯文本和图片URL数组
@@ -737,8 +738,8 @@ export default function SmartWritingPage() {
                       { key: 'generating', label: '生成中' },
                       { key: 'generated', label: '已生成' },
                       { key: 'failed', label: '生成失败' },
-                      { key: 'draft', label: '未存稿' },
-                      { key: 'published', label: '已存稿' }
+                      { key: 'draft', label: '未推送' },
+                      { key: 'published', label: '已推送' }
                     ].map(filter => (
                       <Button
                         key={filter.key}
@@ -790,7 +791,7 @@ export default function SmartWritingPage() {
                   <div className="col-span-1">生成状态</div>
                   <div className="col-span-1">推送状态</div>
                   <div className="col-span-2">更新时间</div>
-                  <div className="col-span-3">操作</div>
+                  <div className="col-span-3 flex justify-center">操作</div>
                 </div>
                 {/* 表格内容 */}
                 {filteredArticles.map(article => (
@@ -864,13 +865,13 @@ export default function SmartWritingPage() {
                         <span className="text-xs text-gray-700">编辑</span>
                       </button>
                       
-                      {/* 存稿 */}
+                      {/* 推送 */}
                       <button 
-                        onClick={() => handleSaveArticle(article)}
+                        onClick={() => handlePushToWechat(article)}
                         className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                       >
-                        <Save className="h-4 w-4 text-gray-700" />
-                        <span className="text-xs text-gray-700">存稿</span>
+                        <Send className="h-4 w-4 text-gray-700" />
+                        <span className="text-xs text-gray-700">推送</span>
                       </button>
                       
                       {/* 删除 */}
