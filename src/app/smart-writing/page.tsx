@@ -541,56 +541,218 @@ export default function SmartWritingPage() {
 
   // 多样化排版主题定义
   const layoutThemes = [
-    { 
+    // 主题1：现代简约
+    {
       name: '现代简约',
-      title: { bg: 'bg-blue-600', text: 'text-gray-900' },
+      title: { align: 'left', style: 'border-bottom', color: 'border-blue-300' },
       icon: { bg: 'bg-blue-500', shape: 'rounded-full' },
-      accent: 'border-blue-200',
-      highlight: 'text-red-600'
+      accent: 'text-blue-600',
+      bg: 'bg-white',
+      quote: 'border-l-4 border-blue-500 pl-4 italic'
     },
-    { 
+    // 主题2：活力橙
+    {
       name: '活力橙',
-      title: { bg: 'bg-orange-600', text: 'text-orange-900' },
+      title: { align: 'left', style: 'background', color: 'bg-orange-50' },
       icon: { bg: 'bg-orange-500', shape: 'rounded-lg' },
-      accent: 'border-orange-200',
-      highlight: 'text-orange-600'
+      accent: 'text-orange-600',
+      bg: 'bg-white',
+      quote: 'border-l-4 border-orange-500 pl-4 italic'
     },
-    { 
+    // 主题3：清新绿
+    {
       name: '清新绿',
-      title: { bg: 'bg-emerald-600', text: 'text-emerald-900' },
+      title: { align: 'center', style: 'text', color: 'text-emerald-600' },
       icon: { bg: 'bg-emerald-500', shape: 'rounded-full' },
-      accent: 'border-emerald-200',
-      highlight: 'text-emerald-600'
+      accent: 'text-emerald-600',
+      bg: 'bg-emerald-50/30',
+      quote: 'border-l-4 border-emerald-500 pl-4 italic'
     },
-    { 
+    // 主题4：优雅紫
+    {
       name: '优雅紫',
-      title: { bg: 'bg-purple-600', text: 'text-purple-900' },
+      title: { align: 'left', style: 'line', color: 'border-purple-300' },
       icon: { bg: 'bg-purple-500', shape: 'rounded-xl' },
-      accent: 'border-purple-200',
-      highlight: 'text-purple-600'
+      accent: 'text-purple-600',
+      bg: 'bg-white',
+      quote: 'border-l-4 border-purple-500 pl-4 italic'
     },
-    { 
+    // 主题5：商务蓝
+    {
       name: '商务蓝',
-      title: { bg: 'bg-slate-700', text: 'text-slate-900' },
+      title: { align: 'left', style: 'solid', color: 'border-slate-700' },
       icon: { bg: 'bg-slate-600', shape: 'rounded-full' },
-      accent: 'border-slate-200',
-      highlight: 'text-slate-600'
+      accent: 'text-slate-700',
+      bg: 'bg-slate-50/50',
+      quote: 'border-l-4 border-slate-600 pl-4 italic'
     },
-    { 
+    // 主题6：热情红
+    {
       name: '热情红',
-      title: { bg: 'bg-rose-600', text: 'text-rose-900' },
+      title: { align: 'left', style: 'glow', color: 'text-rose-600' },
       icon: { bg: 'bg-rose-500', shape: 'rounded-lg' },
-      accent: 'border-rose-200',
-      highlight: 'text-rose-600'
+      accent: 'text-rose-600',
+      bg: 'bg-white',
+      quote: 'border-l-4 border-rose-500 pl-4 italic'
+    },
+    // 主题7：金色奢华
+    {
+      name: '金色奢华',
+      title: { align: 'center', style: 'underline', color: 'text-amber-700' },
+      icon: { bg: 'bg-amber-500', shape: 'rounded-full' },
+      accent: 'text-amber-600',
+      bg: 'bg-amber-50/30',
+      quote: 'border-l-4 border-amber-500 pl-4 italic'
+    },
+    // 主题8：科技蓝
+    {
+      name: '科技蓝',
+      title: { align: 'left', style: 'gradient', color: 'bg-gradient-to-r from-cyan-500 to-blue-500' },
+      icon: { bg: 'bg-cyan-500', shape: 'rounded-full' },
+      accent: 'text-cyan-600',
+      bg: 'bg-cyan-50/30',
+      quote: 'border-l-4 border-cyan-500 pl-4 italic'
+    },
+    // 主题9：少女粉
+    {
+      name: '少女粉',
+      title: { align: 'left', style: 'dotted', color: 'border-pink-300' },
+      icon: { bg: 'bg-pink-500', shape: 'rounded-full' },
+      accent: 'text-pink-600',
+      bg: 'bg-pink-50/30',
+      quote: 'border-l-4 border-pink-500 pl-4 italic'
+    },
+    // 主题10：森林绿
+    {
+      name: '森林绿',
+      title: { align: 'center', style: 'leaf', color: 'text-green-700' },
+      icon: { bg: 'bg-green-600', shape: 'rounded-lg' },
+      accent: 'text-green-600',
+      bg: 'bg-green-50/30',
+      quote: 'border-l-4 border-green-600 pl-4 italic'
     },
   ];
 
-  // 随机选择排版主题（基于文章ID确保同一文章一致性）
-  const getTheme = (articleId: string | number) => {
-    const hash = String(articleId).split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0);
-    const index = Math.abs(hash) % layoutThemes.length;
-    return layoutThemes[index];
-  };
+  // 多种标题组件样式
+  const titleStyles = [
+    // 样式1：左侧带装饰线
+    ({ content, idx, theme, iconStyle }: any) => (
+      <div className="flex items-center gap-3 mt-6 mb-4">
+        <div className={`${iconStyle.bg} ${iconStyle.shape} w-8 h-8 flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+          {idx + 1}
+        </div>
+        <h3 className={`text-lg font-bold ${theme.accent}`}>{content}</h3>
+        <div className={`flex-1 h-px ${theme.title.color}`}></div>
+      </div>
+    ),
+    // 样式2：居中带背景
+    ({ content, idx, theme, iconStyle }: any) => (
+      <div className="mt-6 mb-4 text-center">
+        <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-full ${theme.title.color} bg-opacity-10`}>
+          <span className={`${iconStyle.bg} ${iconStyle.shape} w-8 h-8 flex items-center justify-center text-white font-bold text-sm`}>
+            {idx + 1}
+          </span>
+          <h3 className={`text-lg font-bold ${theme.accent}`}>{content}</h3>
+        </div>
+      </div>
+    ),
+    // 样式3：左侧竖线
+    ({ content, idx, theme, iconStyle }: any) => (
+      <div className="flex items-start gap-3 mt-6 mb-4">
+        <div className={`w-1.5 h-8 ${iconStyle.bg} rounded-full flex-shrink-0 mt-0.5`}></div>
+        <div>
+          <span className={`text-xs font-medium ${theme.accent} opacity-60`}>PART {idx + 1}</span>
+          <h3 className={`text-lg font-bold ${theme.accent}`}>{content}</h3>
+        </div>
+      </div>
+    ),
+    // 样式4：卡片式
+    ({ content, idx, theme, iconStyle }: any) => (
+      <div className={`mt-6 mb-4 p-4 rounded-xl border-l-4 ${theme.title.color} ${theme.bg}`}>
+        <div className="flex items-center gap-3">
+          <div className={`${iconStyle.bg} ${iconStyle.shape} w-8 h-8 flex items-center justify-center text-white font-bold text-sm`}>
+            {idx + 1}
+          </div>
+          <h3 className={`text-lg font-bold ${theme.accent}`}>{content}</h3>
+        </div>
+      </div>
+    ),
+    // 样式5：下划线式
+    ({ content, idx, theme, iconStyle }: any) => (
+      <div className="mt-6 mb-4">
+        <div className="flex items-center gap-3 mb-2">
+          <span className={`${iconStyle.bg} ${iconStyle.shape} w-8 h-8 flex items-center justify-center text-white font-bold text-sm`}>
+            {idx + 1}
+          </span>
+          <h3 className={`text-lg font-bold ${theme.accent}`}>{content}</h3>
+        </div>
+        <div className={`h-0.5 w-full ${theme.title.color}`}></div>
+      </div>
+    ),
+    // 样式6：数字突出
+    ({ content, idx, theme, iconStyle }: any) => (
+      <div className="mt-6 mb-4 flex items-baseline gap-2">
+        <span className={`text-4xl font-bold ${theme.accent} opacity-30`}>{String(idx + 1).padStart(2, '0')}</span>
+        <h3 className={`text-lg font-bold ${theme.accent}`}>{content}</h3>
+      </div>
+    ),
+  ];
+
+  // 多种图片展示样式
+  const imageStyles = [
+    'rounded-lg shadow-md hover:shadow-lg transition-shadow',
+    'rounded-xl shadow-lg',
+    'rounded-2xl shadow-sm border-2 border-white',
+    'rounded-lg shadow-blue-200 shadow-lg',
+    'rounded-xl shadow-orange-200 shadow-lg',
+    'rounded-full w-3/4 mx-auto shadow-lg',
+    'rounded-none shadow-md',
+    'rounded-lg shadow-lg border-l-4 border-r-4 border-blue-500',
+  ];
+
+  // 多种分隔线样式
+  const separatorStyles = [
+    ({ theme }: any) => <hr className="my-6 border-gray-200" />,
+    ({ theme }: any) => (
+      <div className="flex items-center justify-center my-6 gap-2">
+        <span className={`w-8 h-px ${theme.title.color}`}></span>
+        <span className={`w-2 h-2 ${theme.icon.bg} rounded-full`}></span>
+        <span className={`w-8 h-px ${theme.title.color}`}></span>
+      </div>
+    ),
+    ({ theme }: any) => (
+      <div className="my-6 text-center">
+        <span className={`${theme.accent} text-xs tracking-widest`}>◆ ◆ ◆</span>
+      </div>
+    ),
+    ({ theme }: any) => (
+      <div className="my-6 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+    ),
+    ({ theme }: any) => (
+      <div className="my-6 flex items-center gap-3">
+        <div className={`h-px flex-1 ${theme.title.color}`}></div>
+        <span className={`${theme.accent}`}>•</span>
+        <div className={`h-px flex-1 ${theme.title.color}`}></div>
+      </div>
+    ),
+  ];
+
+  // 多种结尾样式
+  const endStyles = [
+    () => <div className="mt-8 pt-4 border-t border-gray-200 text-center"><span className="text-xs text-gray-400">— END —</span></div>,
+    () => <div className="mt-8 pt-4 text-center"><span className="text-xs text-gray-400 tracking-widest">· 完 ·</span></div>,
+    () => <div className="mt-8 py-4 text-center"><span className="text-xs text-gray-400">感谢阅读</span></div>,
+    () => <div className="mt-8 pt-4 border-t border-gray-200 text-center"><span className="text-xs text-gray-400">~ ~ ~</span></div>,
+    () => <div className="mt-8 p-4 bg-gray-50 rounded-lg text-center"><span className="text-xs text-gray-500">— 完结 —</span></div>,
+  ];
+
+  // 多种段落样式
+  const paragraphStyles = [
+    'text-gray-700 leading-relaxed text-base',
+    'text-gray-600 leading-loose text-base',
+    'text-gray-700 leading-7 text-base',
+    'text-gray-700 leading-relaxed text-[15px]',
+  ];
 
   // 渲染文章内容组件（精美排版）
   const ArticleContentWithImages = ({ article }: { article: Article }) => {
@@ -716,98 +878,91 @@ export default function SmartWritingPage() {
       return styles[hash % styles.length];
     };
     
-    return (
-      <div className="article-content space-y-5">
-        {sections.map((section, idx) => {
-          const element: React.ReactNode[] = [];
+  // 渲染组件
+  return (
+    <div className="article-content">
+      {sections.map((section, idx) => {
+        const element: React.ReactNode[] = [];
+        
+        // 在段落前插入图片
+        while (imageIdx < imageIndices.length && imageIndices[imageIdx] === idx && imageIdx < images.length) {
+          element.push(
+            <div key={`img-wrap-${imageIdx}`} className="my-6">
+              <img 
+                src={images[imageIdx]} 
+                alt={`配图${imageIdx + 1}`} 
+                className={`w-full ${imageStyles[(Math.abs(String(article.id).charCodeAt(imageIdx % 10) || 0) + imageIdx) % imageStyles.length]}`} 
+              />
+            </div>
+          );
+          imageIdx++;
+        }
+        
+        if (section.type === 'separator') {
+          const SepComponent = separatorStyles[(idx + Math.abs(String(article.id).charCodeAt(0) || 0)) % separatorStyles.length];
+          element.push(<SepComponent key={`sep-${idx}`} theme={theme} />);
+        } else if (section.type === 'title') {
+          const level = section.level || 1;
+          const isMainTitle = level === 1;
           
-          // 在段落前插入图片
-          while (imageIdx < imageIndices.length && imageIndices[imageIdx] === idx && imageIdx < images.length) {
+          if (isMainTitle) {
+            // 一级标题：使用多种标题样式
+            const TitleComponent = titleStyles[(idx + Math.abs(String(article.id).charCodeAt(0) || 0)) % titleStyles.length];
             element.push(
-              <div key={`img-wrap-${imageIdx}`} className="my-6">
-                <img 
-                  src={images[imageIdx]} 
-                  alt={`配图${imageIdx + 1}`} 
-                  className={`w-full ${getImageStyle(imageIdx)}`} 
-                />
+              <TitleComponent 
+                key={`title-${idx}`} 
+                content={section.content} 
+                idx={idx} 
+                theme={theme} 
+                iconStyle={theme.icon}
+              />
+            );
+          } else {
+            // 二级标题：简洁样式
+            element.push(
+              <div key={`title-${idx}`} className="flex items-center gap-2 mt-6 mb-3">
+                <span className={`w-1.5 h-6 ${theme.icon.bg} rounded-full`}></span>
+                <h3 className={`text-lg font-semibold ${theme.accent}`}>
+                  {section.content}
+                </h3>
               </div>
             );
-            imageIdx++;
           }
+        } else if (section.type === 'paragraph') {
+          // 处理段落中的强调文字
+          const processedContent = section.content
+            .replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.accent} font-semibold">$1</strong>`)
+            .replace(/__(.*?)__/g, `<strong class="${theme.accent} font-semibold">$1</strong>`);
           
-          if (section.type === 'separator') {
-            element.push(
-              <div key={`sep-${idx}`} className="flex items-center justify-center my-6">
-                <span className={`w-2 h-2 ${theme.icon.bg} ${theme.icon.shape} mx-1`}></span>
-                <span className={`w-2 h-2 ${theme.icon.bg} ${theme.icon.shape} mx-1`}></span>
-                <span className={`w-2 h-2 ${theme.icon.bg} ${theme.icon.shape} mx-1`}></span>
-              </div>
-            );
-          } else if (section.type === 'title') {
-            const level = section.level || 1;
-            const isMainTitle = level === 1;
-            const iconStyle = getIconStyle(idx);
-            
-            if (isMainTitle) {
-              // 一级标题样式
-              element.push(
-                <div key={`title-${idx}`} className={`
-                  flex items-center gap-3 mt-8 mb-5 pb-3 border-b-2 ${theme.accent}
-                `}>
-                  <div className={`${iconStyle.bg} ${iconStyle.shape} ${iconStyle.size} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
-                    {idx + 1}
-                  </div>
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {section.content}
-                  </h2>
-                </div>
-              );
-            } else {
-              // 二级标题样式
-              element.push(
-                <div key={`title-${idx}`} className={`
-                  flex items-center gap-2 mt-6 mb-3
-                `}>
-                  <span className={`w-1.5 h-6 ${theme.icon.bg} rounded-full`}></span>
-                  <h3 className={`text-lg font-semibold ${theme.highlight}`}>
-                    {section.content}
-                  </h3>
-                </div>
-              );
-            }
-          } else if (section.type === 'paragraph') {
-            // 处理段落中的强调文字
-            const processedContent = section.content
-              .replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.highlight} font-semibold">$1</strong>`)
-              .replace(/__(.*?)__/g, `<strong class="${theme.highlight} font-semibold">$1</strong>`);
-            
-            element.push(
-              <p key={`para-${idx}`} className="text-gray-700 leading-relaxed text-base">
-                <span dangerouslySetInnerHTML={{ __html: processedContent }} />
-              </p>
-            );
-          }
-          
-          return <div key={`section-${idx}`}>{element}</div>;
-        })}
+          const paraStyle = paragraphStyles[(idx + Math.abs(String(article.id).charCodeAt(0) || 0)) % paragraphStyles.length];
+          element.push(
+            <p key={`para-${idx}`} className={paraStyle}>
+              <span dangerouslySetInnerHTML={{ __html: processedContent }} />
+            </p>
+          );
+        }
         
-        {/* 在结尾插入剩余图片 */}
-        {images.slice(imageIdx).map((img, i) => (
-          <div key={`img-end-${i}`} className="my-6">
-            <img 
-              src={img} 
-              alt={`配图${imageIdx + i + 1}`} 
-              className={`w-full ${getImageStyle(imageIdx + i)}`} 
-            />
-          </div>
-        ))}
-        
-        {/* 底部装饰 */}
-        <div className="mt-8 pt-4 border-t border-gray-200 text-center">
-          <span className="text-xs text-gray-400">- END -</span>
+        return <div key={`section-${idx}`}>{element}</div>;
+      })}
+      
+      {/* 在结尾插入剩余图片 */}
+      {images.slice(imageIdx).map((img, i) => (
+        <div key={`img-end-${i}`} className="my-6">
+          <img 
+            src={img} 
+            alt={`配图${imageIdx + i + 1}`} 
+            className={`w-full ${imageStyles[(imageIdx + i) % imageStyles.length]}`} 
+          />
         </div>
-      </div>
-    );
+      ))}
+      
+      {/* 底部装饰 - 使用多种结尾样式 */}
+      {(() => {
+        const EndComponent = endStyles[Math.abs(String(article.id).charCodeAt(String(article.id).length - 1) || 0) % endStyles.length];
+        return <EndComponent />;
+      })()}
+    </div>
+  );
   };
 
   // 简单的文本渲染（无图片时）
