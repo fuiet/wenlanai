@@ -340,15 +340,7 @@ export default function SmartWritingPage() {
       generate_progress: 'title'
     };
     
-    // 立即添加到列表开头，显示"生成中"状态
-    setArticles([tempArticle, ...articles]);
-
-    // 更新生成进度
-    const updateProgress = (progress: GenerateProgress, updates: Partial<Article>) => {
-      setArticles(articles => articles.map(a => 
-        a.id === tempArticle.id ? { ...a, ...updates, generate_progress: progress } : a
-      ));
-    };
+    setArticles(prev => [...prev, tempArticle]);
 
     // 后台异步生成文章
     try {
@@ -393,13 +385,6 @@ export default function SmartWritingPage() {
           // 图片单独存储在 images 字段，不插入到 content 中
           const savedArticle = data.data;
           
-          // 更新为已完成
-          updateProgress('done', { 
-            title: savedArticle?.title || '未命名文章', 
-            content: savedArticle?.content || '',
-            status: 'generated'
-          });
-          
           // 构建最终的文章对象（从API返回的数据）
           const finalArticle: Article = {
             id: savedArticle?.id || tempArticle.id,
@@ -416,16 +401,41 @@ export default function SmartWritingPage() {
             generate_progress: 'done'
           };
           
-          // 替换临时文章为真实文章
-          setArticles(articles => articles.map(a => a.id === tempArticle.id ? finalArticle : a));
+          // 找到临时文章的位置并替换
+          setArticles(prevArticles => {
+            const index = prevArticles.findIndex(a => a.id === tempArticle.id);
+            if (index !== -1) {
+              const newArticles = [...prevArticles];
+              newArticles[index] = finalArticle;
+              return newArticles;
+            }
+            // 如果没找到临时文章（不应该发生），直接在开头添加
+            return [finalArticle, ...prevArticles];
+          });
         } else {
           // 生成失败，更新状态
-          updateProgress('failed', { status: 'failed' });
+          setArticles(prevArticles => {
+            const index = prevArticles.findIndex(a => a.id === tempArticle.id);
+            if (index !== -1) {
+              const newArticles = [...prevArticles];
+              newArticles[index] = { ...newArticles[index], status: 'failed' };
+              return newArticles;
+            }
+            return prevArticles;
+          });
           alert('生成失败，请稍后重试');
         }
       } else {
         // 请求失败，更新状态
-        setArticles(articles.map(a => a.id === tempArticle.id ? { ...a, status: 'failed' } : a));
+        setArticles(prevArticles => {
+          const index = prevArticles.findIndex(a => a.id === tempArticle.id);
+          if (index !== -1) {
+            const newArticles = [...prevArticles];
+            newArticles[index] = { ...newArticles[index], status: 'failed' };
+            return newArticles;
+          }
+          return prevArticles;
+        });
         const errorText = await response.text();
         console.error('生成失败:', errorText);
         alert('生成失败，请稍后重试');
@@ -433,7 +443,15 @@ export default function SmartWritingPage() {
     } catch (error) {
       console.error('生成失败:', error);
       // 请求失败，更新状态
-      setArticles(articles.map(a => a.id === tempArticle.id ? { ...a, status: 'failed' } : a));
+      setArticles(prevArticles => {
+        const index = prevArticles.findIndex(a => a.id === tempArticle.id);
+        if (index !== -1) {
+          const newArticles = [...prevArticles];
+          newArticles[index] = { ...newArticles[index], status: 'failed' };
+          return newArticles;
+        }
+        return prevArticles;
+      });
       alert('生成失败，请稍后重试');
     }
     
