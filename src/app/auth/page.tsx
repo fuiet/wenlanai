@@ -104,10 +104,7 @@ export default function AuthPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-
-            {/* 用户注册 */}
-            <div className="space-y-4">
-                <div className="text-center mb-6">
+            <div className="text-center mb-6">
                   <h2 className="text-lg font-semibold">用户注册</h2>
                   <p className="text-sm text-gray-500 mt-1">设置用户名、邮箱和密码即可注册</p>
                 </div>
@@ -170,10 +167,8 @@ export default function AuthPage() {
                     {registerLoading ? (
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
                     ) : null}
-                    注册
+                  注册
                   </Button>
-                </div>
-              </div>
             </div>
           </div>
         </CardContent>
