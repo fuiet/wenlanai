@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     response.cookies.set('session_token', sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // 本地开发设为 false
       sameSite: 'lax',
       expires: expiresAt,
       path: '/'
