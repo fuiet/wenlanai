@@ -21,6 +21,25 @@ export default function MemberCenterPage() {
   }, []);
 
   const loadUser = async () => {
+    // 先尝试从 localStorage 读取（同步优先）
+    const cached = localStorage.getItem('member_user');
+    if (cached) {
+      try {
+        const userData = JSON.parse(cached);
+        if (userData && userData.id) {
+          console.log('[Member] 从 localStorage 获取用户:', userData);
+          setUser(userData);
+          setLoading(false);
+          // 后台刷新用户信息
+          refreshUserInfo();
+          return;
+        }
+      } catch (e) {
+        console.error('[Member] 解析 localStorage 失败:', e);
+      }
+    }
+    
+    // 没有缓存，调用 API
     try {
       console.log('[Member] 发送请求到 /api/member/profile');
       const res = await fetch('/api/member/profile', {
@@ -31,8 +50,10 @@ export default function MemberCenterPage() {
       console.log('[Member] 响应数据:', JSON.stringify(data));
       
       if (data.success && data.data) {
-        console.log('[Member] 登录成功，设置用户');
-        setUser(data.data);
+        console.log('[Member] API获取成功，设置用户');
+        const userData = data.data;
+        setUser(userData);
+        localStorage.setItem('member_user', JSON.stringify(userData));
       } else {
         console.log('[Member] 未登录，跳转到登录页');
         toast({ title: '请先登录' });
@@ -43,6 +64,21 @@ export default function MemberCenterPage() {
       toast({ title: '加载失败', variant: 'destructive' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshUserInfo = async () => {
+    try {
+      const res = await fetch('/api/member/profile', {
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setUser(data.data);
+        localStorage.setItem('member_user', JSON.stringify(data.data));
+      }
+    } catch (e) {
+      console.log('[Member] 后台刷新失败:', e);
     }
   };
 
