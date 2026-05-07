@@ -327,7 +327,7 @@ export default function SmartWritingPage() {
     // 创建一个临时的"生成中"文章
     const tempArticle: Article = {
       id: Date.now(),
-      title: articleTopic || '正在生成标题...',
+      title: articleTopic || '',
       content: '...',
       images: [],
       group_id: null, // 分组信息通过 group_name 显示
@@ -351,8 +351,22 @@ export default function SmartWritingPage() {
 
     // 后台异步生成文章
     try {
-      // 更新为正在生成标题
-      updateProgress('title', { title: '正在生成标题...', content: '...' });
+      // 开始生成文章
+      const tempId = `temp-${Date.now()}`;
+      const tempArticle: Article = {
+        id: tempId,
+        title: articleTitle || '文章创作中',
+        content: '',
+        images: [],
+        group_id: selectedGroupId,
+        group_name: groups.find(g => g.id === selectedGroupId)?.name || '',
+        status: 'generating',
+        push_status: 'pending',
+        generate_progress: 'title',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      setArticles(prev => [...prev, tempArticle]);
 
       const response = await fetch('/api/generate-article', {
         method: 'POST',
@@ -374,20 +388,11 @@ export default function SmartWritingPage() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          // 更新为正在生成文章
-          updateProgress('content', { title: data.title || '正在生成文章...', content: '...' });
-          
           // 将图片插入到文章内容中
           let finalContent = data.content || '';
           const hasImages = data.images && data.images.length > 0;
           
           if (hasImages) {
-            // 更新为正在生成图片
-            updateProgress('images', { 
-              title: data.title || '正在生成图片...', 
-              content: finalContent.substring(0, 200) + '...' 
-            });
-            
             const sections = finalContent.split(/\n(?=#|\n#{1,2}\s)/);
             const insertPoints: number[] = [];
             
@@ -525,10 +530,11 @@ export default function SmartWritingPage() {
     }
   };
 
-  // 编辑文章
+  // 编辑文章 - 跳转到一键排版页面
   const handleEditArticle = (article: Article) => {
-    setEditingArticle(article);
-    setShowCreateDialog(true);
+    // 将文章数据编码到 URL 参数中
+    const articleData = encodeURIComponent(JSON.stringify(article));
+    window.location.href = `/format-article?article=${articleData}`;
   };
 
   // 保存文章到本地
@@ -566,32 +572,8 @@ export default function SmartWritingPage() {
 
   // 获取状态标签
   const getStatusBadge = (article: Article) => {
+    // 生成中只显示徽章，不显示额外文字
     if (article.status === 'generating') {
-      // 根据生成进度显示不同状态
-      if (article.generate_progress === 'title') {
-        return (
-          <div className="flex items-center gap-2">
-            <Badge className="bg-blue-500 text-white"><Loader2 className="h-3 w-3 mr-1 animate-spin" />生成中</Badge>
-            <span className="text-xs text-gray-500">正在生成标题...</span>
-          </div>
-        );
-      }
-      if (article.generate_progress === 'content') {
-        return (
-          <div className="flex items-center gap-2">
-            <Badge className="bg-blue-500 text-white"><Loader2 className="h-3 w-3 mr-1 animate-spin" />生成中</Badge>
-            <span className="text-xs text-gray-500">正在生成文章...</span>
-          </div>
-        );
-      }
-      if (article.generate_progress === 'images') {
-        return (
-          <div className="flex items-center gap-2">
-            <Badge className="bg-blue-500 text-white"><Loader2 className="h-3 w-3 mr-1 animate-spin" />生成中</Badge>
-            <span className="text-xs text-gray-500">正在生成图片...</span>
-          </div>
-        );
-      }
       return <Badge className="bg-blue-500 text-white"><Loader2 className="h-3 w-3 mr-1 animate-spin" />生成中</Badge>;
     }
     if (article.status === 'failed') {
@@ -849,16 +831,12 @@ export default function SmartWritingPage() {
                       {getStatusBadge(article)}
                     </div>
                     {/* 推送状态 */}
-                    <div className="col-span-1">
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        article.push_status === 'success' ? 'bg-green-100 text-green-700' :
-                        article.push_status === 'failed' ? 'bg-red-100 text-red-700' :
-                        'bg-gray-100 text-gray-600'
-                      }`}>
-                        {article.push_status === 'success' ? '已推送' :
-                         article.push_status === 'failed' ? '推送失败' :
-                         article.push_status === 'pending' ? '推送中' : '未推送'}
-                      </span>
+                    <div className="col-span-1 flex justify-center items-center">
+                      <span className={`w-2.5 h-2.5 rounded-full ${
+                        article.push_status === 'success' ? 'bg-green-500' :
+                        article.push_status === 'failed' ? 'bg-red-500' :
+                        'bg-gray-300'
+                      }`} />
                     </div>
                     {/* 更新时间 */}
                     <div className="col-span-2">

@@ -127,7 +127,7 @@ ${aiSummary ? 'AI摘要: ' + aiSummary + '\n\n' : ''}
 ${titleContext}
 
 【爆款标题公式】（必须全部满足）：
-1. 引发好奇：用"99%的人都不知道"、"竟然"、"原来"等引发好奇
+1. 引发好奇：用"绝大多数人不知道"、"竟然"、"原来"等引发好奇
 2. 数字吸引：用具体数字如"3招"、"5个方法"、"1件事"等
 3. 情感共鸣：触及中老年读者的情感需求（健康、家庭、子女、养老）
 4. 实用价值：让读者觉得"看了有用"
@@ -148,13 +148,28 @@ ${titleContext}
 
         if (titleResponse && titleResponse.content) {
           const content = titleResponse.content as string;
-          const lines = content.split('\n').filter((t: string) => t.trim() && t.length > 10);
+          console.log('标题生成结果:', content);
+          const lines = content.split('\n').filter((t: string) => t.trim());
+          console.log('解析到的行数:', lines.length);
+          
           if (lines.length > 0) {
-            // 随机选择一个标题
-            generatedTitle = lines[Math.floor(Math.random() * lines.length)].replace(/^[【】\[\]「」""''1234567890.、\s]+/g, '').trim();
-            if (generatedTitle.length > 35) {
-              generatedTitle = generatedTitle.substring(0, 35);
+            // 找到第一个可能是标题的行
+            for (const line of lines) {
+              const cleanLine = line.replace(/^[【】\[\]「」""''1234567890.、\s%#@!！?？]+/g, '').trim();
+              // 过滤掉纯数字、符号开头或包含大量链接的内容
+              if (cleanLine.length >= 10 && cleanLine.length <= 50 && !cleanLine.includes('http') && !cleanLine.includes('storage')) {
+                generatedTitle = cleanLine;
+                if (generatedTitle.length > 35) {
+                  generatedTitle = generatedTitle.substring(0, 35);
+                }
+                break;
+              }
             }
+          }
+          
+          // 如果没有生成标题，使用主题作为默认标题
+          if (!generatedTitle) {
+            generatedTitle = `关于${topic}的深度解读`;
           }
         }
       } catch (titleError) {
@@ -254,7 +269,19 @@ ${titleContext}
       ]);
 
       if (articleResponse && articleResponse.content) {
-        generatedContent = articleResponse.content as string;
+        let rawContent = articleResponse.content as string;
+        
+        // 清理内容：移除可能混入的图片URL
+        rawContent = rawContent.replace(/https?:\/\/[^\s\)\"'\\]+/g, '');
+        // 清理多余的空白行
+        rawContent = rawContent.replace(/\n{3,}/g, '\n\n');
+        // 确保标题在开头（如果有标题）
+        const titleMatch = rawContent.match(/^#?\s*(.+)[\n\r]/);
+        if (titleMatch && !rawContent.startsWith(generatedTitle)) {
+          // 标题已存在但不是用户指定的
+        }
+        
+        generatedContent = rawContent.trim();
       } else {
         throw new Error('生成内容为空');
       }

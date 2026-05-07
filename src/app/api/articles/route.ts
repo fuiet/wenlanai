@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       .insert({
         title,
         content: content || '',
-        image_urls: image_urls || [],
+        images: image_urls || [],
         group_id: group_id || null,
         status: status || 'generated',
         push_status: push_status || 'pending'
