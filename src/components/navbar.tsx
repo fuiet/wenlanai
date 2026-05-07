@@ -56,10 +56,18 @@ export default function Navbar() {
 
   const checkLoginStatus = async () => {
     try {
-      const res = await fetch('/api/member/profile');
+      const res = await fetch('/api/member/profile', { credentials: 'include' });
       const data = await res.json();
-      if (data.success && data.profile) {
-        setUser(data.profile);
+      if (data.success && data.data) {
+        // API 返回的是 data 直接就是用户信息
+        setUser({
+          id: data.data.id,
+          email: data.data.email,
+          username: data.data.username || data.data.nickname,
+          nickname: data.data.nickname,
+          avatar: data.data.avatar,
+          vip_level: data.data.vipLevel
+        });
       } else {
         setUser(null);
       }
@@ -72,8 +80,12 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/member/logout', { method: 'POST' });
+      await fetch('/api/member/logout', { 
+        method: 'POST',
+        credentials: 'include'
+      });
       setUser(null);
+      localStorage.removeItem('member_user');
       router.push('/auth');
     } catch (error) {
       console.error('Logout error:', error);

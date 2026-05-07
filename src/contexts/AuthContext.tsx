@@ -50,8 +50,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData);
         return true;
       }
-      // 如果没有缓存，调用API
-      const res = await fetch('/api/member/profile');
+      // 如果没有缓存，调用API（添加 credentials 确保发送 cookie）
+      const res = await fetch('/api/member/profile', {
+        credentials: 'include'
+      });
       const data = await res.json();
       if (data.success && data.data) {
         setUser(data.data.user);

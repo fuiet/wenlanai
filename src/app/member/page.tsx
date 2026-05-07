@@ -73,25 +73,56 @@ export default function MemberCenterPage() {
 
   const fetchUserInfo = async () => {
     try {
-      const res = await fetch('/api/member/profile');
+      const res = await fetch('/api/member/profile', {
+        credentials: 'include'
+      });
       const data = await res.json();
       
       if (data.success && data.data) {
-        setUser(data.data.user);
-        setProfile(data.data.profile);
+        // API 返回的是 data 直接就是用户信息
+        const userData = data.data;
+        setUser({
+          id: userData.id,
+          email: userData.email || '',
+          nickname: userData.nickname || '',
+          role: userData.role || 'member',
+          phone: userData.phone,
+          avatar_url: userData.avatar,
+          wechat_nickname: userData.wechat,
+          created_at: userData.createdAt,
+          last_login_at: userData.lastLoginAt
+        });
+        setProfile({
+          id: userData.id,
+          user_id: userData.id,
+          username: userData.username,
+          phone: userData.phone,
+          avatar: userData.avatar,
+          gender: userData.gender,
+          birthday: userData.birthday,
+          bio: userData.bio,
+          company: userData.company,
+          position: userData.position,
+          website: userData.website,
+          wechat: userData.wechat,
+          qq: userData.qq,
+          vip_level: userData.vipLevel,
+          vip_expire_at: userData.vipExpireAt,
+          points: userData.points
+        });
         // 填充表单
         setFormData({
-          nickname: data.data.user?.nickname || '',
-          phone: data.data.user?.phone || '',
-          username: data.data.profile?.username || '',
-          gender: data.data.profile?.gender || '未知',
-          birthday: data.data.profile?.birthday || '',
-          bio: data.data.profile?.bio || '',
-          company: data.data.profile?.company || '',
-          position: data.data.profile?.position || '',
-          website: data.data.profile?.website || '',
-          wechat: data.data.profile?.wechat || '',
-          qq: data.data.profile?.qq || ''
+          nickname: userData.nickname || '',
+          phone: userData.phone || '',
+          username: userData.username || '',
+          gender: userData.gender || '未知',
+          birthday: userData.birthday || '',
+          bio: userData.bio || '',
+          company: userData.company || '',
+          position: userData.position || '',
+          website: userData.website || '',
+          wechat: userData.wechat || '',
+          qq: userData.qq || ''
         });
       } else {
         // 未登录，跳转到登录页
