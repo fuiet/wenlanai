@@ -344,23 +344,6 @@ export default function SmartWritingPage() {
 
     // 后台异步生成文章
     try {
-      // 开始生成文章
-      const tempId = `temp-${Date.now()}`;
-      const tempArticle: Article = {
-        id: tempId,
-        title: articleTitle || '文章创作中',
-        content: '',
-        images: [],
-        group_id: selectedGroupId,
-        group_name: groups.find(g => g.id === selectedGroupId)?.name || '',
-        status: 'generating',
-        push_status: 'pending',
-        generate_progress: 'title',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      setArticles(prev => [...prev, tempArticle]);
-
       const response = await fetch('/api/generate-article', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
