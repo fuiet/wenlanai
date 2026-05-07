@@ -757,7 +757,9 @@ export default function SmartWritingPage() {
   // 渲染文章内容组件（精美排版）
   const ArticleContentWithImages = ({ article }: { article: Article }) => {
     const { textContent, images } = processArticleContent(article.content || '', article.images || []);
-    const theme = getTheme(article.id);
+    // 根据文章ID获取主题
+    const themeIndex = Math.abs(String(article.id).charCodeAt(0) || 0) % themes.length;
+    const theme = themes[themeIndex];
     
     // 解析文章内容，提取标题和段落
     const parseContent = (content: string) => {
