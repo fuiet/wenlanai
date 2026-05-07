@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
 
     response.cookies.set('session_token', sessionToken, {
       httpOnly: true,
-      secure: false, // 本地开发设为 false
-      sameSite: 'lax',
+      secure: false,
+      sameSite: 'none', // 允许跨域
       expires: expiresAt,
       path: '/'
     });
