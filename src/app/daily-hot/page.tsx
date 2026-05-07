@@ -260,7 +260,7 @@ export default function DailyHotPage() {
       {/* Page Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-gray-900 flex items-center">
+          <h1 className="mb-2 text-xl font-bold text-gray-900 flex items-center">
             <TrendingUp className="mr-3 h-8 w-8 text-orange-500" />
             每日爆款
           </h1>
