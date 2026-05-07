@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,17 +9,15 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, User, Lock, Mail } from 'lucide-react';
+import { Loader2, Mail, Lock, User } from 'lucide-react';
 
 export default function AuthPage() {
   const router = useRouter();
-  const { login, checkAuth } = useAuth();
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState('login');
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
+  const [loginEmail, setLoginEmail] = useState('1065098865@qq.com');
+  const [loginPassword, setLoginPassword] = useState('123456');
   const [loginLoading, setLoginLoading] = useState(false);
 
   const [registerEmail, setRegisterEmail] = useState('');
@@ -28,58 +26,44 @@ export default function AuthPage() {
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
   const [registerLoading, setRegisterLoading] = useState(false);
 
-  useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const res = await fetch('/api/member/login');
-        const data = await res.json();
-        if (data.loggedIn) {
-          router.push('/');
-        }
-      } catch {
-        // 继续显示登录页
-      }
-    };
-    checkStatus();
-  }, [router]);
-
   const handleLogin = async () => {
     if (!loginEmail || !loginPassword) {
-      toast({ title: '请填写邮箱和密码', variant: 'destructive' });
+      toast({ title: '请填写邮箱和密码' });
       return;
     }
 
     setLoginLoading(true);
     try {
+      console.log('[Login] 开始登录:', loginEmail);
       const res = await fetch('/api/member/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ email: loginEmail, password: loginPassword })
       });
+      console.log('[Login] 响应状态:', res.status);
       const data = await res.json();
+      console.log('[Login] 响应数据:', JSON.stringify(data));
 
-      if (data.success && data.data?.user) {
+      if (data.success) {
+        console.log('[Login] 登录成功!');
         toast({ title: '登录成功！' });
-        // 使用API返回的用户数据
-        const userData = data.data.user;
+        
+        // 保存到 localStorage
+        const userData = data.data?.user || {};
         localStorage.setItem('member_user', JSON.stringify(userData));
-        // 更新全局状态
-        login({
-          id: userData.id,
-          email: userData.email,
-          username: userData.username,
-          nickname: userData.nickname,
-          avatar: userData.avatar,
-          vipLevel: userData.vipLevel,
-          vipExpireAt: userData.vipExpireAt
-        });
-        setTimeout(() => router.push('/'), 500);
+        console.log('[Login] 已保存用户数据到 localStorage');
+        
+        // 跳转到会员中心
+        console.log('[Login] 准备跳转到 /member');
+        router.push('/member');
       } else {
-        toast({ title: data.message || '登录失败', variant: 'destructive' });
+        console.log('[Login] 登录失败:', data.error);
+        toast({ title: data.error || '登录失败' });
       }
-    } catch {
-      toast({ title: '网络错误', variant: 'destructive' });
+    } catch (error) {
+      console.error('[Login] 网络错误:', error);
+      toast({ title: '网络错误' });
     } finally {
       setLoginLoading(false);
     }
@@ -87,17 +71,17 @@ export default function AuthPage() {
 
   const handleRegister = async () => {
     if (!registerEmail || !registerUsername || !registerPassword || !registerConfirmPassword) {
-      toast({ title: '请填写完整信息', variant: 'destructive' });
+      toast({ title: '请填写完整信息' });
       return;
     }
 
     if (registerPassword !== registerConfirmPassword) {
-      toast({ title: '两次密码不一致', variant: 'destructive' });
+      toast({ title: '两次密码不一致' });
       return;
     }
 
     if (registerPassword.length < 6) {
-      toast({ title: '密码至少6位', variant: 'destructive' });
+      toast({ title: '密码至少6位' });
       return;
     }
 
@@ -117,17 +101,13 @@ export default function AuthPage() {
 
       if (data.success) {
         toast({ title: '注册成功！' });
-        // 注册成功后调用 checkAuth 并更新全局状态
-        await checkAuth();
-        setTimeout(() => router.push('/'), 500);
+        // 注册成功后跳转到会员中心
+        router.push('/member');
       } else {
-        toast({ 
-          title: data.error || data.message || '注册失败', 
-          variant: 'destructive' 
-        });
+        toast({ title: data.error || '注册失败' });
       }
     } catch {
-      toast({ title: '网络错误', variant: 'destructive' });
+      toast({ title: '网络错误' });
     } finally {
       setRegisterLoading(false);
     }
@@ -160,7 +140,6 @@ export default function AuthPage() {
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     className="pl-10"
-                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                   />
                 </div>
               </div>
@@ -175,13 +154,22 @@ export default function AuthPage() {
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     className="pl-10"
-                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                   />
                 </div>
               </div>
-              <Button className="w-full" onClick={handleLogin} disabled={loginLoading}>
-                {loginLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                登录
+              <Button 
+                className="w-full" 
+                onClick={handleLogin}
+                disabled={loginLoading}
+              >
+                {loginLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    登录中...
+                  </>
+                ) : (
+                  '登录'
+                )}
               </Button>
             </TabsContent>
 
@@ -221,7 +209,7 @@ export default function AuthPage() {
                   <Input
                     id="register-password"
                     type="password"
-                    placeholder="请输入密码（至少6位）"
+                    placeholder="请输入密码"
                     value={registerPassword}
                     onChange={(e) => setRegisterPassword(e.target.value)}
                     className="pl-10"
@@ -239,13 +227,22 @@ export default function AuthPage() {
                     value={registerConfirmPassword}
                     onChange={(e) => setRegisterConfirmPassword(e.target.value)}
                     className="pl-10"
-                    onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
                   />
                 </div>
               </div>
-              <Button className="w-full" onClick={handleRegister} disabled={registerLoading}>
-                {registerLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                注册
+              <Button 
+                className="w-full" 
+                onClick={handleRegister}
+                disabled={registerLoading}
+              >
+                {registerLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    注册中...
+                  </>
+                ) : (
+                  '注册'
+                )}
               </Button>
             </TabsContent>
           </Tabs>
