@@ -756,18 +756,18 @@ export default function SmartWritingPage() {
 
   // 渲染文章内容组件（精美排版）
   const ArticleContentWithImages = ({ article }: { article: Article }) => {
-    // 10种精美排版主题
+    // 10种精美排版主题（结构兼容 layoutThemes）
     const themes = [
-      { bg: 'from-blue-50 to-blue-100', accent: '#3b82f6', secondary: '#60a5fa', text: '#1e40af', light: '#dbeafe', icon: 'bg-blue-500' }, // 现代简约蓝
-      { bg: 'from-orange-50 to-orange-100', accent: '#f97316', secondary: '#fb923c', text: '#c2410c', light: '#ffedd5', icon: 'bg-orange-500' }, // 活力橙
-      { bg: 'from-green-50 to-green-100', accent: '#22c55e', secondary: '#4ade80', text: '#166534', light: '#dcfce7', icon: 'bg-green-500' }, // 清新绿
-      { bg: 'from-purple-50 to-purple-100', accent: '#a855f7', secondary: '#c084fc', text: '#7e22ce', light: '#f3e8ff', icon: 'bg-purple-500' }, // 优雅紫
-      { bg: 'from-slate-50 to-slate-100', accent: '#475569', secondary: '#64748b', text: '#1e293b', light: '#f1f5f9', icon: 'bg-slate-500' }, // 商务灰蓝
-      { bg: 'from-rose-50 to-rose-100', accent: '#e11d48', secondary: '#fb7185', text: '#be123c', light: '#ffe4e6', icon: 'bg-rose-500' }, // 热情红
-      { bg: 'from-amber-50 to-amber-100', accent: '#f59e0b', secondary: '#fbbf24', text: '#b45309', light: '#fef3c7', icon: 'bg-amber-500' }, // 金色奢华
-      { bg: 'from-cyan-50 to-cyan-100', accent: '#06b6d4', secondary: '#22d3ee', text: '#0e7490', light: '#cffafe', icon: 'bg-cyan-500' }, // 科技蓝
-      { bg: 'from-pink-50 to-pink-100', accent: '#ec4899', secondary: '#f472b6', text: '#be185d', light: '#fce7f3', icon: 'bg-pink-500' }, // 少女粉
-      { bg: 'from-emerald-50 to-emerald-100', accent: '#10b981', secondary: '#34d399', text: '#065f46', light: '#d1fae5', icon: 'bg-emerald-500' }, // 森林绿
+      { bg: 'from-blue-50 to-blue-100', accent: 'text-blue-600', secondary: '#60a5fa', text: '#1e40af', light: '#dbeafe', icon: { bg: 'bg-blue-500', shape: 'rounded-full' }, title: { color: 'border-blue-300' }, name: '现代简约蓝' },
+      { bg: 'from-orange-50 to-orange-100', accent: 'text-orange-600', secondary: '#fb923c', text: '#c2410c', light: '#ffedd5', icon: { bg: 'bg-orange-500', shape: 'rounded-lg' }, title: { color: 'border-orange-300' }, name: '活力橙' },
+      { bg: 'from-green-50 to-green-100', accent: 'text-emerald-600', secondary: '#4ade80', text: '#166534', light: '#dcfce7', icon: { bg: 'bg-emerald-500', shape: 'rounded-full' }, title: { color: 'border-emerald-300' }, name: '清新绿' },
+      { bg: 'from-purple-50 to-purple-100', accent: 'text-purple-600', secondary: '#c084fc', text: '#7e22ce', light: '#f3e8ff', icon: { bg: 'bg-purple-500', shape: 'rounded-xl' }, title: { color: 'border-purple-300' }, name: '优雅紫' },
+      { bg: 'from-slate-50 to-slate-100', accent: 'text-slate-700', secondary: '#64748b', text: '#1e293b', light: '#f1f5f9', icon: { bg: 'bg-slate-600', shape: 'rounded-full' }, title: { color: 'border-slate-700' }, name: '商务灰蓝' },
+      { bg: 'from-rose-50 to-rose-100', accent: 'text-rose-600', secondary: '#fb7185', text: '#be123c', light: '#ffe4e6', icon: { bg: 'bg-rose-500', shape: 'rounded-lg' }, title: { color: 'border-rose-300' }, name: '热情红' },
+      { bg: 'from-amber-50 to-amber-100', accent: 'text-amber-600', secondary: '#fbbf24', text: '#b45309', light: '#fef3c7', icon: { bg: 'bg-amber-500', shape: 'rounded-full' }, title: { color: 'border-amber-300' }, name: '金色奢华' },
+      { bg: 'from-cyan-50 to-cyan-100', accent: 'text-cyan-600', secondary: '#22d3ee', text: '#0e7490', light: '#cffafe', icon: { bg: 'bg-cyan-500', shape: 'rounded-full' }, title: { color: 'border-cyan-300' }, name: '科技蓝' },
+      { bg: 'from-pink-50 to-pink-100', accent: 'text-pink-600', secondary: '#f472b6', text: '#be185d', light: '#fce7f3', icon: { bg: 'bg-pink-500', shape: 'rounded-full' }, title: { color: 'border-pink-300' }, name: '少女粉' },
+      { bg: 'from-emerald-50 to-emerald-100', accent: 'text-green-600', secondary: '#34d399', text: '#065f46', light: '#d1fae5', icon: { bg: 'bg-green-600', shape: 'rounded-lg' }, title: { color: 'border-green-300' }, name: '森林绿' },
     ];
     
     const { textContent, images } = processArticleContent(article.content || '', article.images || []);
