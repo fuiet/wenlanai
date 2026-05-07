@@ -83,11 +83,11 @@ export default function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-500">
-              <PenTool className="h-6 w-6 text-white" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-500">
+              <PenTool className="h-7 w-7 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold text-gray-900">文澜智作</span>
+              <span className="text-xl font-bold text-gray-900">文澜智作</span>
               <span className="text-xs text-gray-500">自媒体爆款智能创作系统</span>
             </div>
           </Link>
@@ -103,12 +103,13 @@ export default function Navbar() {
                 <Link key={item.href} href={item.href}>
                   <Button
                     variant={isActive && isPrimaryPage ? 'default' : 'ghost'}
+                    size="sm"
                     className={`
                       ${isActive && isPrimaryPage ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'text-gray-700 hover:text-orange-500 hover:bg-orange-50'}
-                      transition-all duration-200
+                      transition-all duration-200 text-sm
                     `}
                   >
-                    <Icon className="mr-2 h-4 w-4" />
+                    <Icon className="mr-1.5 h-3.5 w-3.5" />
                     {item.label}
                   </Button>
                 </Link>
