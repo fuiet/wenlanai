@@ -321,7 +321,7 @@ export default function SmartWritingPage() {
           enableMaterial,
           materialLinks: enableMaterial ? materialLinks : undefined,
           materialRequirements: enableMaterial ? materialRequirements : undefined,
-          groupId: parseInt(selectedGroupId)
+          groupName: selectedGroupId
         })
       });
 
@@ -359,9 +359,14 @@ export default function SmartWritingPage() {
             finalContent = sections.map((section: string, idx: number) => {
               let result = section;
               if (insertPoints.includes(idx) && imgIndex < data.images.length) {
-                const img = data.images[imgIndex];
-                result = `\n![${img.prompt || '配图'}](${img.url})\n` + result;
-                imgIndex++;
+                // data.images 可能是字符串数组或对象数组
+                const imgUrl = typeof data.images[imgIndex] === 'string' 
+                  ? data.images[imgIndex] 
+                  : data.images[imgIndex]?.url;
+                if (imgUrl) {
+                  result = `\n![配图](${imgUrl})\n` + result;
+                  imgIndex++;
+                }
               }
               return result;
             }).join('');
@@ -383,7 +388,9 @@ export default function SmartWritingPage() {
               body: JSON.stringify({
                 title: data.title || articleTitle || '未命名文章',
                 content: finalContent,
-                image_urls: data.images?.map((img: { url: string }) => img.url) || [],
+                image_urls: data.images?.map((img: string | { url: string }) => 
+                  typeof img === 'string' ? img : img.url
+                ) || [],
                 group_id: parseInt(selectedGroupId)
               })
             });
