@@ -87,7 +87,7 @@ export default function Navbar() {
               <PenTool className="h-7 w-7 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-bold text-gray-900">文澜智作</span>
+              <span className="text-2xl font-bold text-gray-900">文澜智作</span>
               <span className="text-xs text-gray-500">自媒体爆款智能创作系统</span>
             </div>
           </Link>
