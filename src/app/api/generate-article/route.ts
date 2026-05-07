@@ -318,40 +318,58 @@ ${titleContext ? `\\n内容参考：${titleContext.substring(0, 500)}` : ''}
 
     console.log('生成文章内容完成，字数:', generatedContent.length);
 
-    // 第四步：生成图片
+    // 第四步：生成图片（差异化：每张图片与文章不同部分关联）
     let imageUrls: string[] = [];
     
     if (imageSource === 'ai' && imageCount > 0) {
-      console.log(`正在生成${imageCount}张图片...`);
+      console.log(`正在生成${imageCount}张差异化图片...`);
       
       try {
-        const { ImageGenerationClient } = await import('coze-coding-dev-sdk');
+        const { ImageGenerationClient, LLMClient } = await import('coze-coding-dev-sdk');
         const imageClient = new ImageGenerationClient();
+        const llmClient = new LLMClient();
 
-        // 为每张图片生成描述并创建
+        // 先让 LLM 分析文章结构，提取三张图片的主题描述
+        const imageThemePrompt = `请分析以下文章，生成3个不同的图片描述，分别对应文章的开头、中间和结尾部分：
+
+文章内容：
+${generatedContent.substring(0, 800)}
+
+请按以下格式返回3个图片描述（每个描述25字以内，用|分隔）：
+[开头图片描述]|[中间图片描述]|[结尾图片描述]
+
+要求：
+- 开头图片：体现文章主题/场景氛围
+- 中间图片：体现核心观点/关键内容
+- 结尾图片：体现总结/情感升华
+- 每个描述要具体、有画面感，适合AI生成配图`;
+
+        const themeResponse = await llmClient.invoke([
+          { role: 'user', content: imageThemePrompt }
+        ]);
+
+        let imagePrompts: string[] = [];
+        if (themeResponse && themeResponse.content) {
+          const themes = (themeResponse.content as string).split('|').map((t: string) => t.trim()).filter((t: string) => t);
+          if (themes.length >= 3) {
+            imagePrompts = themes;
+          }
+        }
+
+        // 如果提取失败，使用默认策略
+        if (imagePrompts.length < 3) {
+          imagePrompts = [
+            `文章主题 "${generatedTitle}" 的场景图，温馨生活氛围`,
+            `文章核心观点的示意图，温暖人心的画面`,
+            `总结感悟相关的意境图，情感升华`
+          ];
+        }
+
+        // 生成每张不同的图片
         for (let i = 0; i < Math.min(imageCount, 5); i++) {
           try {
-            let imagePrompt = `文章配图，温馨生活场景，适合中老年读者`;
+            const imagePrompt = imagePrompts[i] || imagePrompts[0];
             
-            // 根据文章内容生成更精准的图片描述
-            const { LLMClient } = await import('coze-coding-dev-sdk');
-            const llmClient = new LLMClient();
-            
-            const imageDescResponse = await llmClient.invoke([
-              { role: 'user', content: `请为以下文章生成一个简短的图片描述（20字以内），用于AI生成配图：
-
-${generatedContent.substring(0, 500)}
-
-要求：描述要具体、温馨，适合文章内容。` }
-            ]);
-
-            if (imageDescResponse && imageDescResponse.content) {
-              imagePrompt = (imageDescResponse.content as string).trim();
-              if (imagePrompt.length > 50) {
-                imagePrompt = imagePrompt.substring(0, 50);
-              }
-            }
-
             const imageResponse = await imageClient.generate({
               prompt: imagePrompt,
               size: '1:1'
