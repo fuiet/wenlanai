@@ -106,7 +106,7 @@ export default function Navbar() {
                     size="sm"
                     className={`
                       ${isActive && isPrimaryPage ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'text-gray-700 hover:text-orange-500 hover:bg-orange-50'}
-                      transition-all duration-200 text-sm
+                      transition-all duration-200
                     `}
                   >
                     <Icon className="mr-1.5 h-4 w-4" />
