@@ -641,7 +641,7 @@ export default function SmartWritingPage() {
         <div className={`${iconStyle.bg} ${iconStyle.shape} w-8 h-8 flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
           {idx + 1}
         </div>
-        <h3 className={`text-lg font-bold ${theme.accent}`}>{content}</h3>
+        <h3 className={`text-base font-semibold ${theme.accent}`}>{content}</h3>
         <div className={`flex-1 h-px ${theme.title.color}`}></div>
       </div>
     ),
@@ -652,7 +652,7 @@ export default function SmartWritingPage() {
           <span className={`${iconStyle.bg} ${iconStyle.shape} w-8 h-8 flex items-center justify-center text-white font-bold text-sm`}>
             {idx + 1}
           </span>
-          <h3 className={`text-lg font-bold ${theme.accent}`}>{content}</h3>
+          <h3 className={`text-base font-semibold ${theme.accent}`}>{content}</h3>
         </div>
       </div>
     ),
@@ -662,7 +662,7 @@ export default function SmartWritingPage() {
         <div className={`w-1.5 h-8 ${iconStyle.bg} rounded-full flex-shrink-0 mt-0.5`}></div>
         <div>
           <span className={`text-xs font-medium ${theme.accent} opacity-60`}>PART {idx + 1}</span>
-          <h3 className={`text-lg font-bold ${theme.accent}`}>{content}</h3>
+          <h3 className={`text-base font-semibold ${theme.accent}`}>{content}</h3>
         </div>
       </div>
     ),
@@ -673,7 +673,7 @@ export default function SmartWritingPage() {
           <div className={`${iconStyle.bg} ${iconStyle.shape} w-8 h-8 flex items-center justify-center text-white font-bold text-sm`}>
             {idx + 1}
           </div>
-          <h3 className={`text-lg font-bold ${theme.accent}`}>{content}</h3>
+          <h3 className={`text-base font-semibold ${theme.accent}`}>{content}</h3>
         </div>
       </div>
     ),
@@ -684,7 +684,7 @@ export default function SmartWritingPage() {
           <span className={`${iconStyle.bg} ${iconStyle.shape} w-8 h-8 flex items-center justify-center text-white font-bold text-sm`}>
             {idx + 1}
           </span>
-          <h3 className={`text-lg font-bold ${theme.accent}`}>{content}</h3>
+          <h3 className={`text-base font-semibold ${theme.accent}`}>{content}</h3>
         </div>
         <div className={`h-0.5 w-full ${theme.title.color}`}></div>
       </div>
@@ -693,7 +693,7 @@ export default function SmartWritingPage() {
     ({ content, idx, theme, iconStyle }: any) => (
       <div className="mt-6 mb-4 flex items-baseline gap-2">
         <span className={`text-4xl font-bold ${theme.accent} opacity-30`}>{String(idx + 1).padStart(2, '0')}</span>
-        <h3 className={`text-lg font-bold ${theme.accent}`}>{content}</h3>
+        <h3 className={`text-base font-semibold ${theme.accent}`}>{content}</h3>
       </div>
     ),
   ];
@@ -1008,7 +1008,7 @@ export default function SmartWritingPage() {
                 <Wand2 className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">智能创作</h1>
+                <h1 className="text-3xl font-bold text-gray-900">智能创作</h1>
                 <p className="text-sm text-gray-500">AI 驱动的内容创作</p>
               </div>
             </div>
@@ -1612,7 +1612,7 @@ export default function SmartWritingPage() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
-              <span className="text-lg font-bold">{viewingArticle?.title}</span>
+              <span className="text-base font-semibold">{viewingArticle?.title}</span>
               {viewingArticle && getStatusBadge(viewingArticle)}
             </DialogTitle>
             {viewingArticle?.group_name && (
