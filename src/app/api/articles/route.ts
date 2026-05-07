@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 // GET /api/articles - 获取文章列表
@@ -23,7 +23,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, message: '获取文章失败' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, articles: articles || [] });
+    // 转换数据格式：将 images 转换为 image_urls
+    const formattedArticles = (articles || []).map(article => ({
+      ...article,
+      image_urls: article.images || []
+    }));
+
+    return NextResponse.json({ success: true, articles: formattedArticles });
   } catch (error) {
     console.error('获取文章失败:', error);
     return NextResponse.json({ success: false, message: '服务器错误' }, { status: 500 });
@@ -74,6 +80,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: '创建文章失败' }, { status: 500 });
     }
 
+    // 转换返回数据格式：将 images 转换为 image_urls
+    const formattedArticle = article ? {
+      ...article,
+      image_urls: article.images || []
+    } : null;
+
     // 更新分组的文章数量
     if (group_id) {
       const { data: group } = await supabase
@@ -90,7 +102,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, article });
+    return NextResponse.json({ success: true, article: formattedArticle });
   } catch (error) {
     console.error('创建文章失败:', error);
     return NextResponse.json({ success: false, message: '服务器错误' }, { status: 500 });

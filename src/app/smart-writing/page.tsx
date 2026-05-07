@@ -46,7 +46,8 @@ interface Article {
   id: number | string;
   title: string;
   content: string;
-  image_urls: string[];
+  image_urls?: string[];
+  images?: string[]; // 数据库 images 字段
   group_id: string | null;
   group_name?: string;
   status: 'generating' | 'generated' | 'failed' | 'draft' | 'published';
@@ -78,7 +79,7 @@ export default function SmartWritingPage() {
   // 文章列表状态
   const [articles, setArticles] = useState<Article[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
-  const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   
   // 分组状态
   const [groups, setGroups] = useState<ArticleGroup[]>([]);
@@ -245,7 +246,7 @@ export default function SmartWritingPage() {
   };
 
   // 删除分组
-  const handleDeleteGroup = async (groupId: number) => {
+  const handleDeleteGroup = async (groupId: string) => {
     if (!confirm('确定要删除该分组吗？')) return;
     
     try {
@@ -678,10 +679,10 @@ export default function SmartWritingPage() {
                         </p>
                         <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
                           <span>{new Date(article.created_at).toLocaleDateString()}</span>
-                          {article.image_urls.length > 0 && (
+                          {Array.isArray(article.images) && article.images.length > 0 && (
                             <span className="flex items-center gap-1">
                               <ImageIcon className="h-3 w-3" />
-                              {article.image_urls.length}张图片
+                              {article.images.length}张图片
                             </span>
                           )}
                         </div>
@@ -1087,9 +1088,9 @@ export default function SmartWritingPage() {
           {viewingArticle && (
             <div className="space-y-4">
               {/* 图片展示 */}
-              {viewingArticle.image_urls.length > 0 && (
+              {Array.isArray(viewingArticle.images) && viewingArticle.images.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
-                  {viewingArticle.image_urls.map((url, idx) => (
+                  {viewingArticle.images.map((url: string, idx: number) => (
                     <div key={idx} className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
                       <img src={url} alt={`配图${idx + 1}`} className="w-full h-full object-cover" />
                     </div>
