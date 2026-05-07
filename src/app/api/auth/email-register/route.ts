@@ -9,14 +9,19 @@ function isValidEmail(email: string): boolean {
   return regex.test(email);
 }
 
-// 邮箱注册
+// 用户注册（用户名+密码，无需验证码）
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, confirmPassword, code, request: req } = await request.json();
+    const { username, email, password, confirmPassword } = await request.json();
 
     // 参数验证
-    if (!email || !password || !confirmPassword || !code) {
+    if (!username || !email || !password || !confirmPassword) {
       return NextResponse.json({ success: false, message: '请填写完整信息' }, { status: 400 });
+    }
+
+    // 验证用户名
+    if (username.length < 2 || username.length > 20) {
+      return NextResponse.json({ success: false, message: '用户名长度2-20位' }, { status: 400 });
     }
 
     // 验证邮箱格式
@@ -36,37 +41,25 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    // 验证验证码
-    const { data: codeRecord, error: codeError } = await supabase
-      .from('email_codes')
-      .select('*')
-      .eq('email', email)
-      .eq('type', 'register')
-      .eq('used', false)
-      .gte('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1)
+    // 检查用户名是否已存在
+    const { data: existingUsername } = await supabase
+      .from('users')
+      .select('id')
+      .eq('nickname', username)
       .single();
 
-    if (codeError || !codeRecord) {
-      return NextResponse.json({ success: false, message: '验证码无效或已过期' }, { status: 400 });
+    if (existingUsername) {
+      return NextResponse.json({ success: false, message: '该用户名已被使用' }, { status: 400 });
     }
-
-    if (codeRecord.code !== code) {
-      return NextResponse.json({ success: false, message: '验证码错误' }, { status: 400 });
-    }
-
-    // 标记验证码已使用
-    await supabase.from('email_codes').update({ used: true }).eq('id', codeRecord.id);
 
     // 检查邮箱是否已注册
-    const { data: existingUser } = await supabase
+    const { data: existingEmail } = await supabase
       .from('users')
       .select('id, email')
       .eq('email', email)
       .single();
 
-    if (existingUser) {
+    if (existingEmail) {
       return NextResponse.json({ success: false, message: '该邮箱已注册' }, { status: 400 });
     }
 
@@ -79,7 +72,7 @@ export async function POST(request: NextRequest) {
       .insert({
         email,
         password_hash: passwordHash,
-        nickname: email.split('@')[0], // 使用邮箱前缀作为昵称
+        nickname: username,
         is_active: true,
         email_confirmed_at: new Date().toISOString()
       })
@@ -117,7 +110,7 @@ export async function POST(request: NextRequest) {
     return response;
 
   } catch (error) {
-    console.error('邮箱注册失败:', error);
+    console.error('注册失败:', error);
     return NextResponse.json({ success: false, message: '服务器错误' }, { status: 500 });
   }
 }
