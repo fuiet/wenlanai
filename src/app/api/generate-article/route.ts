@@ -11,6 +11,7 @@ interface GenerateRequest {
   enableMaterial?: boolean;
   materialLinks?: string;
   materialRequirements?: string;
+  searchEnabled?: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -25,7 +26,8 @@ export async function POST(request: NextRequest) {
       imageCount = 3,
       enableMaterial = false,
       materialLinks = '',
-      materialRequirements = ''
+      materialRequirements = '',
+      searchEnabled = true
     } = body;
 
     // 检查 Supabase 配置
@@ -40,12 +42,15 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('开始生成文章...');
+    console.log('用户输入主题:', providedTitle);
+    console.log('搜索是否启用:', searchEnabled);
 
     // 初始化 Supabase 客户端
     const supabase = createClient(configuredSupabaseUrl, configuredSupabaseKey);
 
     // 获取提示词模板
     let templatePrompt = '';
+    let templateName = '';
     if (templateId) {
       const { data: template } = await supabase
         .from('prompt_templates')
@@ -55,21 +60,64 @@ export async function POST(request: NextRequest) {
       
       if (template) {
         templatePrompt = template.prompt;
+        templateName = template.name || '';
       }
     }
 
+    // 第一步：搜索最新信息（如果启用了搜索且有用户提供的主题）
+    let searchResults = '';
     let generatedTitle = providedTitle || '';
+    
+    if (searchEnabled && providedTitle) {
+      console.log('正在搜索最新信息，关键词:', providedTitle);
+      try {
+        const { SearchClient, Config } = await import('coze-coding-dev-sdk');
+        const config = new Config();
+        const searchClient = new SearchClient(config);
+        
+        // 搜索最新信息
+        const searchResponse = await searchClient.webSearch(
+          providedTitle,
+          10,
+          true
+        );
+        
+        if (searchResponse && searchResponse.web_items) {
+          // 构建搜索结果摘要
+          const resultSummaries = searchResponse.web_items.map((item: any) => {
+            return `【来源: ${item.site_name || '未知'}】${item.title}\n${item.snippet || ''}`;
+          }).join('\n\n');
+          
+          // 获取AI生成的摘要
+          const aiSummary = searchResponse.summary || '';
+          
+          searchResults = `
+【最新网络信息摘要】
+${aiSummary ? 'AI摘要: ' + aiSummary + '\n\n' : ''}
+【搜索结果】\n${resultSummaries}
+          `.trim();
+          
+          console.log('搜索完成，获取到', searchResponse.web_items.length, '条结果');
+        }
+      } catch (searchError) {
+        console.error('搜索失败:', searchError);
+        // 搜索失败不影响后续流程
+      }
+    }
 
-    // 如果没有提供标题，生成标题
-    if (!generatedTitle) {
+    // 如果没有提供标题，从搜索结果或提示词生成标题
+    if (!generatedTitle && templatePrompt) {
       console.log('正在生成标题...');
       try {
         const { LLMClient } = await import('coze-coding-dev-sdk');
         const llmClient = new LLMClient();
         
+        // 如果有搜索结果，优先从搜索结果生成标题
+        let titleContext = searchResults || templatePrompt.substring(0, 500);
+        
         const titlePrompt = `请为以下主题生成3个吸引人的文章标题，每个标题不超过30字：
 
-主题：${materialRequirements || templatePrompt.substring(0, 200)}
+主题：${titleContext}
 
 要求：
 1. 标题要吸引人，能引发读者好奇
@@ -99,9 +147,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('生成标题完成:', generatedTitle);
+    console.log('标题确定:', generatedTitle);
 
-    // 获取参考素材内容
+    // 第二步：获取参考素材内容
     let referenceContent = '';
     if (enableMaterial && materialLinks && materialLinks.length > 0) {
       try {
@@ -126,7 +174,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 生成文章内容
+    // 第三步：生成文章内容（结合搜索结果 + 提示词）
     console.log('正在生成文章内容...');
     let generatedContent = '';
 
@@ -134,29 +182,45 @@ export async function POST(request: NextRequest) {
       const { LLMClient } = await import('coze-coding-dev-sdk');
       const llmClient = new LLMClient();
 
-      let articlePrompt = templatePrompt;
-      
-      // 如果有标题，添加到提示词中
+      // 构建文章生成的完整提示词
+      let articlePrompt = '';
+
+      // 添加标题
       if (generatedTitle) {
-        articlePrompt = `请根据以下要求创作一篇1000字左右的文章：
+        articlePrompt += `【文章标题】${generatedTitle}\n\n`;
+      }
 
-文章标题：${generatedTitle}
+      // 添加搜索结果（如果存在）
+      if (searchResults) {
+        articlePrompt += `【最新网络信息】（请务必结合以下最新信息进行创作）\n${searchResults}\n\n`;
+      }
 
-${templatePrompt}`;
+      // 添加提示词模板
+      if (templatePrompt) {
+        articlePrompt += `【写作风格要求】\n${templatePrompt}\n\n`;
       }
 
       // 添加参考素材
       if (referenceContent) {
-        articlePrompt += `\n\n参考素材：\n${referenceContent}`;
+        articlePrompt += `【用户提供的参考素材】\n${referenceContent}\n\n`;
       }
 
       // 添加创作要求
       if (materialRequirements) {
-        articlePrompt += `\n\n创作要求：\n${materialRequirements}`;
+        articlePrompt += `【用户创作要求】\n${materialRequirements}\n\n`;
       }
 
-      articlePrompt += `\n\n请创作一篇结构完整、内容丰富的文章。`;
+      // 添加字数要求
+      articlePrompt += `【字数要求】请创作一篇1000字左右的文章（允许±100字误差）。
 
+【重要提醒】
+1. 如果提供了【最新网络信息】，必须结合这些信息进行创作，确保文章内容与时俱进
+2. 严格按照【写作风格要求】的文风进行创作
+3. 文章结构完整，有开头、中间、结尾
+4. 不要使用emoji和特殊符号`;
+
+      console.log('文章提示词构建完成，开始调用LLM...');
+      
       const articleResponse = await llmClient.invoke([
         { role: 'user', content: articlePrompt }
       ]);
@@ -173,7 +237,7 @@ ${templatePrompt}`;
 
     console.log('生成文章内容完成，字数:', generatedContent.length);
 
-    // 生成图片
+    // 第四步：生成图片
     let imageUrls: string[] = [];
     
     if (imageSource === 'ai' && imageCount > 0) {
