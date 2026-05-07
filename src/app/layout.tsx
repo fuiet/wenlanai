@@ -3,6 +3,8 @@ import { Inspector } from 'react-dev-inspector';
 import './globals.css';
 import Navbar from '@/components/navbar';
 import { ToastProvider } from '@/hooks/use-toast';
+import { AuthProvider } from '@/contexts/AuthContext';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 export const metadata: Metadata = {
   title: {
@@ -49,11 +51,15 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body className={`antialiased bg-gray-50`}>
         <ToastProvider>
-          {isDev && <Inspector />}
-          <Navbar />
-          <main className="min-h-screen">
-            {children}
-          </main>
+          <AuthProvider>
+            <ProtectedRoute>
+              {isDev && <Inspector />}
+              <Navbar />
+              <main className="min-h-screen">
+                {children}
+              </main>
+            </ProtectedRoute>
+          </AuthProvider>
         </ToastProvider>
       </body>
     </html>

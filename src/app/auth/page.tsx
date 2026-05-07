@@ -9,10 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { MessageCircle, QrCode, CheckCircle, XCircle, Mail, Smartphone, Loader2 } from 'lucide-react';
 
 export default function AuthPage() {
   const router = useRouter();
+  const { checkAuth } = useAuth();
   const { toast } = useToast();
   
   // 微信扫码登录状态
@@ -74,6 +76,8 @@ export default function AuthPage() {
           setStatus('confirmed');
           setStatusMessage('登录成功！正在跳转...');
           toast({ title: '登录成功' });
+          // 刷新 AuthContext
+          await checkAuth();
           setTimeout(() => {
             router.push('/');
           }, 1000);
@@ -207,6 +211,7 @@ export default function AuthPage() {
 
       if (data.success) {
         toast({ title: '注册成功！' });
+        await checkAuth();
         setTimeout(() => {
           router.push('/');
         }, 1000);
