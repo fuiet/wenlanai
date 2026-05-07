@@ -77,31 +77,31 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// 用户登录
+// 用户登录（支持邮箱登录）
 export async function POST(request: NextRequest) {
   try {
-    const { phone, password } = await request.json();
+    const { email, password } = await request.json();
 
-    if (!phone || !password) {
+    if (!email || !password) {
       return NextResponse.json({ 
         success: false, 
-        message: '请填写手机号和密码' 
+        message: '请填写邮箱和密码' 
       }, { status: 400 });
     }
 
     const supabase = getSupabaseAdmin();
 
-    // 查找用户
+    // 查找用户（使用邮箱）
     const { data: user } = await supabase
       .from('users')
       .select('*')
-      .eq('phone', phone)
+      .eq('email', email)
       .single();
 
     if (!user) {
       return NextResponse.json({ 
         success: false, 
-        message: '用户不存在' 
+        message: '该邮箱未注册' 
       }, { status: 401 });
     }
 
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       message: '登录成功',
       user: {
         id: user.id,
-        phone: user.phone,
+        email: user.email,
         nickname: user.nickname,
         avatar_url: user.avatar_url
       }
