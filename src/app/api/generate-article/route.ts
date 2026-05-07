@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 interface GenerateRequest {
   title?: string;
+  topic?: string; // 文章主题（必填，作为搜索关键词）
   templateId: string;
   groupId?: string;
   groupName?: string;
@@ -19,6 +20,7 @@ export async function POST(request: NextRequest) {
     const body: GenerateRequest = await request.json();
     const {
       title: providedTitle,
+      topic,
       templateId,
       groupId,
       groupName,
@@ -42,7 +44,8 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('开始生成文章...');
-    console.log('用户输入主题:', providedTitle);
+    console.log('文章主题（搜索关键词）:', topic);
+    console.log('文章标题:', providedTitle);
     console.log('搜索是否启用:', searchEnabled);
 
     // 初始化 Supabase 客户端
@@ -66,10 +69,12 @@ export async function POST(request: NextRequest) {
 
     // 第一步：搜索最新信息（如果启用了搜索且有用户提供的主题）
     let searchResults = '';
+    // 使用 topic 作为搜索关键词，如果没有 topic 则使用 providedTitle
+    const searchKeyword = topic || providedTitle || '';
     let generatedTitle = providedTitle || '';
     
-    if (searchEnabled && providedTitle) {
-      console.log('正在搜索最新信息，关键词:', providedTitle);
+    if (searchEnabled && searchKeyword) {
+      console.log('正在搜索最新信息，关键词:', searchKeyword);
       try {
         const { SearchClient, Config } = await import('coze-coding-dev-sdk');
         const config = new Config();
@@ -77,7 +82,7 @@ export async function POST(request: NextRequest) {
         
         // 搜索最新信息
         const searchResponse = await searchClient.webSearch(
-          providedTitle,
+          searchKeyword,
           10,
           true
         );

@@ -90,6 +90,7 @@ export default function SmartWritingPage() {
   // 创作弹窗状态
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
+  const [articleTopic, setArticleTopic] = useState('');
   const [articleTitle, setArticleTitle] = useState('');
   const [selectedPromptId, setSelectedPromptId] = useState<string>('');
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
@@ -303,6 +304,11 @@ export default function SmartWritingPage() {
 
   // 开始创作
   const handleStartCreate = async () => {
+    if (!articleTopic) {
+      alert('请输入文章主题');
+      return;
+    }
+
     if (!selectedPromptId) {
       alert('请选择提示词');
       return;
@@ -321,9 +327,9 @@ export default function SmartWritingPage() {
     // 创建一个临时的"生成中"文章
     const tempArticle: Article = {
       id: Date.now(),
-      title: '正在生成标题...',
+      title: articleTopic || '正在生成标题...',
       content: '...',
-      image_urls: [],
+      images: [],
       group_id: null, // 分组信息通过 group_name 显示
       group_name: groups.find(g => g.id === selectedGroupId)?.name || '默认分组',
       status: 'generating',
@@ -354,6 +360,7 @@ export default function SmartWritingPage() {
         body: JSON.stringify({
           templateId: selectedPromptId,
           title: articleTitle || undefined,
+          topic: articleTopic, // 文章主题作为搜索关键词
           searchEnabled: true,
           imageSource,
           imageCount: imageSource === 'ai' ? imageCount : 0,
@@ -1014,6 +1021,22 @@ export default function SmartWritingPage() {
 
           {/* 表单 */}
           <div className="space-y-4">
+            {/* 文章主题 */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Label className="text-sm font-medium flex items-center gap-1">
+                  <Sparkles className="h-4 w-4 text-orange-500" />
+                  文章主题 <span className="text-red-500">*</span>
+                </Label>
+              </div>
+              <p className="text-xs text-gray-500 mb-2">输入你想创作的文章主题，如"老年人养生"、"明星新闻"、"美伊战争"</p>
+              <Input
+                placeholder="输入你想创作的文章主题"
+                value={articleTopic}
+                onChange={(e) => setArticleTopic(e.target.value)}
+              />
+            </div>
+
             {/* 文章标题 */}
             <div>
               <div className="flex items-center gap-2 mb-1">
