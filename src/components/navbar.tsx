@@ -32,13 +32,16 @@ const navItems = [
   { href: '/smart-writing', label: '智能生文', icon: PenTool },
   { href: '/format-article', label: '一键排版', icon: LayoutTemplate },
   { href: '/official-account', label: '公众号', icon: UserCheck },
+  { href: '/member', label: '会员中心', icon: Crown },
 ];
 
 interface UserInfo {
   id: string;
-  phone: string;
+  email: string;
+  username: string;
   nickname: string;
-  avatar_url?: string;
+  avatar?: string;
+  vip_level?: number;
 }
 
 export default function Navbar() {
@@ -53,10 +56,10 @@ export default function Navbar() {
 
   const checkLoginStatus = async () => {
     try {
-      const res = await fetch('/api/auth/login');
+      const res = await fetch('/api/member/profile');
       const data = await res.json();
-      if (data.success) {
-        setUser(data.user);
+      if (data.success && data.profile) {
+        setUser(data.profile);
       } else {
         setUser(null);
       }
@@ -69,7 +72,7 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/member/logout', { method: 'POST' });
       setUser(null);
       router.push('/auth');
     } catch (error) {
@@ -126,23 +129,17 @@ export default function Navbar() {
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="flex items-center space-x-2 hover:bg-orange-50">
                         <Avatar className="h-9 w-9 border-2 border-orange-200">
-                          <AvatarImage src={user.avatar_url} />
+                          <AvatarImage src={user.avatar} />
                           <AvatarFallback className="bg-purple-500 text-white">
-                            {user.nickname?.[0] || user.email?.[0]?.toUpperCase() || user.phone?.[0] || 'U'}
+                            {user.username?.[0]?.toUpperCase() || user.nickname?.[0] || user.email?.[0]?.toUpperCase() || 'U'}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="font-medium text-gray-700">{user.nickname || user.email?.split('@')[0] || '用户'}</span>
+                        <span className="font-medium text-gray-700">{user.nickname || user.username || '用户'}</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem asChild>
-                        <Link href="/profile" className="flex items-center">
-                          <User className="mr-2 h-4 w-4" />
-                          个人中心
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/membership" className="flex items-center">
+                        <Link href="/member" className="flex items-center">
                           <Crown className="mr-2 h-4 w-4" />
                           会员中心
                         </Link>

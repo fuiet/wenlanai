@@ -10,45 +10,40 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, User, Lock, Mail } from 'lucide-react';
 
 export default function AuthPage() {
   const router = useRouter();
   const { checkAuth } = useAuth();
   const { toast } = useToast();
-  
-  // 登录状态
+
+  const [activeTab, setActiveTab] = useState('login');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // 邮箱注册状态
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerUsername, setRegisterUsername] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
   const [registerLoading, setRegisterLoading] = useState(false);
 
-  // 检查登录状态
   useEffect(() => {
-    checkLoginStatus();
-  }, []);
-
-  // 检查是否已登录
-  const checkLoginStatus = async () => {
-    try {
-      const res = await fetch('/api/auth/login');
-      const data = await res.json();
-      if (data.loggedIn) {
-        router.push('/');
+    const checkStatus = async () => {
+      try {
+        const res = await fetch('/api/member/login');
+        const data = await res.json();
+        if (data.loggedIn) {
+          router.push('/');
+        }
+      } catch {
+        // 继续显示登录页
       }
-    } catch {
-      // 未登录，继续
-    }
-  };
+    };
+    checkStatus();
+  }, [router]);
 
-  // 邮箱登录
-  const handleEmailLogin = async () => {
+  const handleLogin = async () => {
     if (!loginEmail || !loginPassword) {
       toast({ title: '请填写邮箱和密码', variant: 'destructive' });
       return;
@@ -56,22 +51,17 @@ export default function AuthPage() {
 
     setLoginLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch('/api/member/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: loginEmail,
-          password: loginPassword
-        })
+        body: JSON.stringify({ email: loginEmail, password: loginPassword })
       });
       const data = await res.json();
 
       if (data.success) {
         toast({ title: '登录成功！' });
         await checkAuth();
-        setTimeout(() => {
-          router.push('/');
-        }, 1000);
+        setTimeout(() => router.push('/'), 500);
       } else {
         toast({ title: data.message || '登录失败', variant: 'destructive' });
       }
@@ -82,21 +72,9 @@ export default function AuthPage() {
     }
   };
 
-  // 邮箱注册
-  const handleEmailAuth = async () => {
+  const handleRegister = async () => {
     if (!registerEmail || !registerUsername || !registerPassword || !registerConfirmPassword) {
-      toast({ title: '请填写完整信息', description: '用户名、邮箱、密码都不能为空', variant: 'destructive' });
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(registerEmail)) {
-      toast({ title: '邮箱格式不正确', variant: 'destructive' });
-      return;
-    }
-
-    if (!/^[a-zA-Z0-9_\u4e00-\u9fa5]{2,20}$/.test(registerUsername)) {
-      toast({ title: '用户名格式不正确', description: '用户名需2-20位，可包含中文、字母、数字和下划线', variant: 'destructive' });
+      toast({ title: '请填写完整信息', variant: 'destructive' });
       return;
     }
 
@@ -105,16 +83,20 @@ export default function AuthPage() {
       return;
     }
 
+    if (registerPassword.length < 6) {
+      toast({ title: '密码至少6位', variant: 'destructive' });
+      return;
+    }
+
     setRegisterLoading(true);
     try {
-      const res = await fetch('/api/auth/email-register', {
+      const res = await fetch('/api/member/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: registerEmail,
           username: registerUsername,
-          password: registerPassword,
-          confirmPassword: registerConfirmPassword
+          password: registerPassword
         })
       });
       const data = await res.json();
@@ -122,9 +104,7 @@ export default function AuthPage() {
       if (data.success) {
         toast({ title: '注册成功！' });
         await checkAuth();
-        setTimeout(() => {
-          router.push('/');
-        }, 1000);
+        setTimeout(() => router.push('/'), 500);
       } else {
         toast({ title: data.message || '注册失败', variant: 'destructive' });
       }
@@ -139,109 +119,116 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <Toaster />
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-primary">文澜智作</CardTitle>
-          <CardDescription>AI自媒体爆款创作系统</CardDescription>
+        <CardHeader className="text-center space-y-2">
+          <CardTitle className="text-2xl font-bold">会员登录</CardTitle>
+          <CardDescription>加入文澜智作，开始智能创作</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="login">登录</TabsTrigger>
               <TabsTrigger value="register">注册</TabsTrigger>
             </TabsList>
-            
-            {/* 登录表单 */}
-            <TabsContent value="login">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="loginEmail">邮箱地址</Label>
+
+            <TabsContent value="login" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-email">邮箱</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="loginEmail"
+                    id="login-email"
                     type="email"
-                    placeholder="请输入注册邮箱"
+                    placeholder="请输入邮箱"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleEmailLogin()}
+                    className="pl-10"
+                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="loginPassword">密码</Label>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="login-password">密码</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="loginPassword"
+                    id="login-password"
                     type="password"
                     placeholder="请输入密码"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleEmailLogin()}
+                    className="pl-10"
+                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                   />
                 </div>
-                <Button
-                  className="w-full bg-orange-500 hover:bg-orange-600"
-                  onClick={handleEmailLogin}
-                  disabled={loginLoading}
-                >
-                  {loginLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : null}
-                  登录
-                </Button>
               </div>
+              <Button className="w-full" onClick={handleLogin} disabled={loginLoading}>
+                {loginLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                登录
+              </Button>
             </TabsContent>
-            
-            {/* 注册表单 */}
-            <TabsContent value="register">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username">用户名</Label>
+
+            <TabsContent value="register" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="register-email">邮箱</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="username"
-                    type="text"
-                    placeholder="请输入用户名（2-20位）"
-                    value={registerUsername}
-                    onChange={(e) => setRegisterUsername(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">邮箱地址</Label>
-                  <Input
-                    id="email"
+                    id="register-email"
                     type="email"
                     placeholder="请输入邮箱"
                     value={registerEmail}
                     onChange={(e) => setRegisterEmail(e.target.value)}
+                    className="pl-10"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">密码</Label>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="register-username">用户名</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="password"
+                    id="register-username"
+                    type="text"
+                    placeholder="请输入用户名"
+                    value={registerUsername}
+                    onChange={(e) => setRegisterUsername(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="register-password">密码</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="register-password"
                     type="password"
-                    placeholder="6-20位密码"
+                    placeholder="请输入密码（至少6位）"
                     value={registerPassword}
                     onChange={(e) => setRegisterPassword(e.target.value)}
+                    className="pl-10"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">确认密码</Label>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="register-confirm">确认密码</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="confirmPassword"
+                    id="register-confirm"
                     type="password"
-                    placeholder="再次输入密码"
+                    placeholder="请再次输入密码"
                     value={registerConfirmPassword}
                     onChange={(e) => setRegisterConfirmPassword(e.target.value)}
+                    className="pl-10"
+                    onKeyDown={(e) => e.key === 'Enter' && handleRegister()}
                   />
                 </div>
-                <Button
-                  className="w-full bg-orange-500 hover:bg-orange-600"
-                  onClick={handleEmailAuth}
-                  disabled={registerLoading}
-                >
-                  {registerLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : null}
-                  注册
-                </Button>
               </div>
+              <Button className="w-full" onClick={handleRegister} disabled={registerLoading}>
+                {registerLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                注册
+              </Button>
             </TabsContent>
           </Tabs>
         </CardContent>

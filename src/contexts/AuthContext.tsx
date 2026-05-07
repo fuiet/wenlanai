@@ -5,10 +5,22 @@ import { useRouter } from 'next/navigation';
 
 interface User {
   id: string;
-  phone: string;
+  username: string;
+  email: string;
   nickname: string;
-  avatar_url?: string;
-  email?: string;
+  avatar?: string;
+  phone?: string;
+  vip_level?: number;
+  vip_expire_at?: string;
+  points?: number;
+  gender?: string;
+  birthday?: string;
+  bio?: string;
+  company?: string;
+  position?: string;
+  website?: string;
+  wechat?: string;
+  qq?: string;
 }
 
 interface AuthContextType {
@@ -18,6 +30,7 @@ interface AuthContextType {
   login: (user: User) => void;
   logout: () => void;
   checkAuth: () => Promise<boolean>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,16 +43,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 检查登录状态
   const checkAuth = async (): Promise<boolean> => {
     try {
-      const res = await fetch('/api/auth/login');
+      const res = await fetch('/api/member/profile');
       const data = await res.json();
-      if (data.loggedIn && data.user) {
-        setUser({
-          id: data.user.id,
-          phone: data.user.phone,
-          nickname: data.user.nickname,
-          avatar_url: data.user.avatar_url,
-          email: data.user.email,
-        });
+      if (data.success && data.profile) {
+        setUser(data.profile);
         return true;
       } else {
         setUser(null);
@@ -49,6 +56,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       return false;
     }
+  };
+
+  // 刷新用户信息
+  const refreshUser = async () => {
+    await checkAuth();
   };
 
   useEffect(() => {
@@ -65,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/member/logout', { method: 'POST' });
     } catch {
       // 忽略错误
     }
@@ -82,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         checkAuth,
+        refreshUser,
       }}
     >
       {children}
