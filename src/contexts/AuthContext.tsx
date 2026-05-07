@@ -37,80 +37,75 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // 改为 false，默认不显示 loading
   const router = useRouter();
 
   // 检查登录状态
   const checkAuth = async (): Promise<boolean> => {
     try {
-      // 先尝试从 localStorage 获取
+      // 先尝试从 localStorage 获取（同步优先）
       if (typeof window !== 'undefined') {
         const cached = localStorage.getItem('member_user');
         if (cached) {
           try {
             const userData = JSON.parse(cached);
-            setUser(userData);
-            return true;
+            if (userData && userData.id) {
+              setUser(userData);
+              // 后台刷新用户信息（不阻塞）
+              refreshUserInfo().catch(() => {});
+              return true;
+            }
           } catch {
-            // 解析失败，继续检查 API
+            // 解析失败
           }
         }
       }
       
-      // 如果没有缓存，调用API（添加 credentials 确保发送 cookie）
+      // 如果没有缓存，尝试从 cookie 获取（用于服务端渲染）
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  // 后台刷新用户信息
+  const refreshUserInfo = async () => {
+    try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       
-      try {
-        const res = await fetch('/api/member/profile', {
-          credentials: 'include',
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        
-        const data = await res.json();
-        if (data.success && data.data) {
-          // API 返回的 data.data 就是用户信息
-          const userData = data.data;
-          setUser(userData);
-          localStorage.setItem('member_user', JSON.stringify(userData));
-          return true;
-        } else {
-          setUser(null);
-          localStorage.removeItem('member_user');
-          return false;
-        }
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          console.log('检查登录状态超时');
-        }
-        throw fetchError;
+      const res = await fetch('/api/member/profile', {
+        credentials: 'include',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      const data = await res.json();
+      if (data.success && data.data) {
+        const userData = data.data;
+        setUser(userData);
+        localStorage.setItem('member_user', JSON.stringify(userData));
       }
     } catch {
-      setUser(null);
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('member_user');
-      }
-      return false;
+      // 忽略错误，保持 localStorage 中的数据
     }
   };
 
   // 刷新用户信息
   const refreshUser = async () => {
-    await checkAuth();
+    await refreshUserInfo();
   };
 
   useEffect(() => {
-    const initAuth = async () => {
-      await checkAuth();
-      setIsLoading(false);
-    };
-    initAuth();
+    // 组件挂载时检查登录状态
+    checkAuth();
   }, []);
 
   const login = (userData: User) => {
     setUser(userData);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('member_user', JSON.stringify(userData));
+    }
   };
 
   const logout = async () => {
@@ -123,7 +118,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 忽略错误
     }
     setUser(null);
-    localStorage.removeItem('member_user');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('member_user');
+    }
     router.push('/auth');
   };
 
