@@ -254,7 +254,6 @@ ${generatedContent.substring(0, 500)}
         title: generatedTitle || '未命名文章',
         content: generatedContent,
         author: groupName || '未知',
-        group_id: groupId || null,
         group_name: groupName || null,
         status: 'completed',
         push_status: 'none',
