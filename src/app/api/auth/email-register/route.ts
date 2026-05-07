@@ -73,8 +73,7 @@ export async function POST(request: NextRequest) {
         email,
         password_hash: passwordHash,
         nickname: username,
-        is_active: true,
-        email_confirmed_at: new Date().toISOString()
+        is_active: true
       })
       .select('id, email, nickname, created_at')
       .single();
