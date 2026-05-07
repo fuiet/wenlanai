@@ -1008,7 +1008,7 @@ export default function SmartWritingPage() {
                 <Wand2 className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">智能创作</h1>
+                <h1 className="text-xl font-bold text-gray-900">智能创作</h1>
                 <p className="text-sm text-gray-500">AI 驱动的内容创作</p>
               </div>
             </div>

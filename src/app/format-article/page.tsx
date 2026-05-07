@@ -112,7 +112,7 @@ export default function FormatArticlePage() {
     <div className="container mx-auto px-4 py-8">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold text-gray-900 flex items-center">
+        <h1 className="mb-2 text-xl font-bold text-gray-900 flex items-center">
           <LayoutTemplate className="mr-3 h-8 w-8 text-orange-500" />
           一键排版
         </h1>

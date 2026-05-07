@@ -187,7 +187,7 @@ function PromptCraftingContent() {
     <div className="container mx-auto px-4 py-8">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold text-gray-900 flex items-center">
+        <h1 className="mb-2 text-xl font-bold text-gray-900 flex items-center">
           <Sparkles className="mr-3 h-8 w-8 text-purple-500" />
           提示词打造
         </h1>

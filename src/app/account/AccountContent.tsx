@@ -283,7 +283,7 @@ export default function AccountContent() {
       <div className="max-w-4xl mx-auto">
         {/* 页面标题 */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">公众号管理</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">公众号管理</h1>
           <p className="text-gray-600">绑定您的微信公众号，开启一键推送功能</p>
         </div>
 
