@@ -120,25 +120,42 @@ ${aiSummary ? 'AI摘要: ' + aiSummary + '\n\n' : ''}
         // 使用搜索结果和主题生成标题
         const titleContext = searchResults || `主题：${templatePrompt?.substring(0, 300)}`;
         
+        // 随机选择爆款标题类型
+        const titleTypes = [
+          '悬念式', '数字式', '疑问式', '感叹式', '对比式', 
+          '揭秘式', '干货式', '蹭热点式', '故事式', '命令式',
+          '忠告式', '提醒式', '提醒式', '忠告式'
+        ];
+        const randomType = titleTypes[Math.floor(Math.random() * titleTypes.length)];
+        
         const titlePrompt = `你是一个资深公众号运营专家，擅长写能让读者"忍不住点击"的爆款标题。
 
-请根据以下主题/内容，生成5个爆款标题：
+请根据以下主题，生成5个【${randomType}】风格的爆款标题：
 
-${titleContext}
+主题：${topic}
+${titleContext ? `\\n内容参考：${titleContext.substring(0, 500)}` : ''}
 
-【爆款标题公式】（必须全部满足）：
-1. 引发好奇：用"绝大多数人不知道"、"竟然"、"原来"等引发好奇
-2. 数字吸引：用具体数字如"3招"、"5个方法"、"1件事"等
-3. 情感共鸣：触及中老年读者的情感需求（健康、家庭、子女、养老）
-4. 实用价值：让读者觉得"看了有用"
-5. 限时紧迫：制造紧迫感如"现在知道还不晚"
+【爆款标题类型说明】（根据指定类型【${randomType}】生成）：
+1. 悬念式：用"绝大多数人不知道"、"原来"、"竟然"等制造悬念，如"绝大多数人不知道，XX的真相竟是..."
+2. 数字式：用具体数字吸引，如"XX的3个方法，第2个最有效"
+3. 疑问式：抛出问题引发思考，如"为什么XX？看完你就明白了"
+4. 感叹式：表达惊讶情绪，如"XX终于被曝光了！看完赶紧告诉家人"
+5. 对比式：制造反差，如"同样是XX，为什么有人XX，有人却XX"
+6. 揭秘式：揭示内幕，如"XX的真相曝光，XX人看完都震惊了"
+7. 干货式：突出实用价值，如"XX人必看！最全XX指南，收藏备用"
+8. 蹭热点式：结合时效性，如"刚刚，XX登上热搜，XX人都在看"
+9. 故事式：讲述案例，如"XX岁阿姨XX，她的经历值得每个人警惕"
+10. 命令式：催促行动，如"赶紧看！XX再不处理就晚了"
+11. 忠告式：善意的警告，如"XX人注意！XX后再看就来不及了"
+12. 提醒式：日常关心，如"今天XX人注意，这件事不做会后悔"
 
-【标题要求】：
+【必须满足的要求】：
 1. 每个标题20-30字，必须有冲击力
 2. 不能用emoji符号
 3. 不要太标题党，要真实可信
-4. 适合中老年读者群体
+4. 适合中老年读者群体（40-70岁）
 5. 严禁使用"震惊"类低俗词汇
+6. 标题中不要直接出现主题词"${topic}"，要换成同义表达
 
 请只返回5个标题，每行一个，不要加序号，不要任何解释：`;
 
@@ -155,13 +172,12 @@ ${titleContext}
           if (lines.length > 0) {
             // 找到第一个可能是标题的行
             for (const line of lines) {
+              // 保留标题中的标点符号和关键字符
               const cleanLine = line.replace(/^[【】\[\]「」""''1234567890.、\s%#@!！?？]+/g, '').trim();
               // 过滤掉纯数字、符号开头或包含大量链接的内容
-              if (cleanLine.length >= 10 && cleanLine.length <= 50 && !cleanLine.includes('http') && !cleanLine.includes('storage')) {
+              // 放宽字数限制到40字，保留完整爆款标题
+              if (cleanLine.length >= 10 && cleanLine.length <= 40 && !cleanLine.includes('http') && !cleanLine.includes('storage')) {
                 generatedTitle = cleanLine;
-                if (generatedTitle.length > 35) {
-                  generatedTitle = generatedTitle.substring(0, 35);
-                }
                 break;
               }
             }
