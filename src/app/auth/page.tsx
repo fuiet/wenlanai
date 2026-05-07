@@ -58,9 +58,11 @@ export default function AuthPage() {
       });
       const data = await res.json();
 
-      if (data.success) {
+      if (data.success && data.data?.user) {
         toast({ title: '登录成功！' });
-        await checkAuth();
+        // 使用API返回的用户数据
+        const userData = data.data.user;
+        localStorage.setItem('member_user', JSON.stringify(userData));
         setTimeout(() => router.push('/'), 500);
       } else {
         toast({ title: data.message || '登录失败', variant: 'destructive' });
@@ -106,7 +108,10 @@ export default function AuthPage() {
         await checkAuth();
         setTimeout(() => router.push('/'), 500);
       } else {
-        toast({ title: data.message || '注册失败', variant: 'destructive' });
+        toast({ 
+          title: data.error || data.message || '注册失败', 
+          variant: 'destructive' 
+        });
       }
     } catch {
       toast({ title: '网络错误', variant: 'destructive' });

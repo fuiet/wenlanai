@@ -7,11 +7,11 @@ interface User {
   id: string;
   username: string;
   email: string;
-  nickname: string;
-  avatar?: string;
+  nickname?: string;
+  avatar?: string | null;
   phone?: string;
-  vip_level?: number;
-  vip_expire_at?: string;
+  vipLevel?: number;
+  vipExpireAt?: string | null;
   points?: number;
   gender?: string;
   birthday?: string;
@@ -43,17 +43,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 检查登录状态
   const checkAuth = async (): Promise<boolean> => {
     try {
+      // 先尝试从 localStorage 获取
+      const cached = localStorage.getItem('member_user');
+      if (cached) {
+        const userData = JSON.parse(cached);
+        setUser(userData);
+        return true;
+      }
+      // 如果没有缓存，调用API
       const res = await fetch('/api/member/profile');
       const data = await res.json();
       if (data.success && data.profile) {
         setUser(data.profile);
+        localStorage.setItem('member_user', JSON.stringify(data.profile));
         return true;
       } else {
         setUser(null);
+        localStorage.removeItem('member_user');
         return false;
       }
     } catch {
       setUser(null);
+      localStorage.removeItem('member_user');
       return false;
     }
   };
