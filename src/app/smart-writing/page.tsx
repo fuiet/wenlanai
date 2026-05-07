@@ -127,7 +127,7 @@ export default function SmartWritingPage() {
     }
     setIsLoading(true);
     try {
-      const response = await fetch('/api/articles');
+      const response = await fetch('/api/articles', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -149,7 +149,7 @@ export default function SmartWritingPage() {
       return;
     }
     try {
-      const response = await fetch('/api/article-groups');
+      const response = await fetch('/api/article-groups', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -169,7 +169,7 @@ export default function SmartWritingPage() {
       return;
     }
     try {
-      const response = await fetch('/api/prompt-templates');
+      const response = await fetch('/api/prompt-templates', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -232,6 +232,7 @@ export default function SmartWritingPage() {
       const response = await fetch('/api/article-groups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ name: newGroupName })
       });
       
@@ -258,6 +259,7 @@ export default function SmartWritingPage() {
       const response = await fetch(`/api/article-groups?id=${editingGroup.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ name: newGroupName })
       });
       
@@ -283,7 +285,8 @@ export default function SmartWritingPage() {
     
     try {
       const response = await fetch(`/api/article-groups?id=${groupId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       });
       
       if (response.ok) {
@@ -308,6 +311,7 @@ export default function SmartWritingPage() {
       const response = await fetch('/api/articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           id: editingArticle.id,
           title: editingArticle.title,
@@ -382,6 +386,7 @@ export default function SmartWritingPage() {
       const response = await fetch('/api/generate-article', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           templateId: selectedPromptId,
           title: articleTitle || undefined,
@@ -491,6 +496,7 @@ export default function SmartWritingPage() {
       const response = await fetch('/api/push-to-wechat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           title: article.title,
           content: article.content,
@@ -546,7 +552,8 @@ export default function SmartWritingPage() {
     if (!confirm('确定要删除这篇文章吗？')) return;
     try {
       const response = await fetch(`/api/articles?id=${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       });
       if (response.ok) {
         setArticles(articles.filter(a => a.id !== id));

@@ -105,7 +105,7 @@ export default function DailyHotPage() {
       }
       params.append('limit', '50');
 
-      const response = await fetch(`/api/hot-articles?${params.toString()}`);
+      const response = await fetch(`/api/hot-articles?${params.toString()}`, { credentials: 'include' });
 
       const data = await response.json();
 
@@ -134,6 +134,7 @@ export default function DailyHotPage() {
       const response = await fetch('/api/fetch-pro-hot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           category: selectedCategory !== '全部' ? selectedCategory : undefined,
           sources: selectedSources
@@ -188,7 +189,7 @@ export default function DailyHotPage() {
       }
       params.append('limit', '50');
 
-      const response = await fetch(`/api/hot-articles?${params.toString()}`);
+      const response = await fetch(`/api/hot-articles?${params.toString()}`, { credentials: 'include' });
 
       const data = await response.json();
 

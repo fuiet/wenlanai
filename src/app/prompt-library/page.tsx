@@ -185,7 +185,7 @@ export default function PromptLibraryPage() {
 
   const fetchTemplates = async () => {
     try {
-      const res = await fetch("/api/prompt-templates");
+      const res = await fetch("/api/prompt-templates", { credentials: 'include' });
       const data = await res.json();
       if (data.success) {
         setTemplates(data.templates || []);
@@ -311,6 +311,7 @@ export default function PromptLibraryPage() {
       const response = await fetch("/api/generate-prompt-template", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify({
           raceType: formData.feedType,
           raceContent: formData.feedType === "link" ? formData.referenceLinks : formData.referenceText,
@@ -359,6 +360,7 @@ export default function PromptLibraryPage() {
       const response = await fetch("/api/prompt-templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify({
           name: formData.name || "未命名提示词",
           category: formData.category,
@@ -406,7 +408,10 @@ export default function PromptLibraryPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/prompt-templates?id=${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/prompt-templates?id=${id}`, { 
+        method: "DELETE",
+        credentials: 'include'
+      });
       const data = await res.json();
       if (data.success) {
         setTemplates(templates.filter((t) => t.id !== id));
@@ -433,6 +438,7 @@ export default function PromptLibraryPage() {
       const response = await fetch(`/api/prompt-templates?id=${editingTemplate.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify({
           name: editFormData.name,
           prompt: editFormData.prompt,
