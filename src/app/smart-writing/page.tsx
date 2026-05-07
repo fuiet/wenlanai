@@ -771,9 +771,10 @@ export default function SmartWritingPage() {
     ];
     
     const { textContent, images } = processArticleContent(article.content || '', article.images || []);
-    // 根据文章ID获取主题
-    const themeIndex = Math.abs(String(article.id).charCodeAt(0) || 0) % themes.length;
-    const theme = themes[themeIndex];
+    // 根据文章ID获取主题，确保索引有效
+    const idHash = String(article.id || '0').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const themeIndex = Math.abs(idHash) % themes.length;
+    const theme = themes[themeIndex] || themes[0]; // 兜底确保有主题
     
     // 解析文章内容，提取标题和段落
     const parseContent = (content: string) => {
