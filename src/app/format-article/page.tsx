@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useRequireLogin } from '@/hooks/useRequireLogin';
+
 
 // 预设主题
 const themes = [
@@ -38,7 +38,6 @@ const themes = [
 ];
 
 export default function FormatArticlePage() {
-  const { checkLogin } = useRequireLogin();
   const [content, setContent] = useState(`# 为什么你总是遇不到对的人？
 
 在快节奏的现代生活中，很多人都在寻找那个"对的人"。
@@ -217,7 +216,6 @@ export default function FormatArticlePage() {
           {/* Action Buttons */}
           <div className="flex gap-2">
             <Button onClick={() => {
-              if (!checkLogin('copy')) return;
               handleCopy();
             }} variant="outline" className="flex-1">
               {copied ? (
@@ -238,7 +236,6 @@ export default function FormatArticlePage() {
             </Button>
             <Button
               onClick={() => {
-                if (!checkLogin('save')) return;
                 handleSave();
               }}
               className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"

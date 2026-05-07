@@ -29,7 +29,7 @@ import {
   Globe,
   BarChart3
 } from 'lucide-react';
-import { useRequireLogin } from '@/hooks/useRequireLogin';
+
 
 interface Article {
   id: string | number;
@@ -76,7 +76,6 @@ const dataSources = [
 ];
 
 export default function DailyHotPage() {
-  const { checkLogin } = useRequireLogin();
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -487,7 +486,6 @@ export default function DailyHotPage() {
                 <div className="flex items-center justify-end">
                   <Button
                     onClick={() => {
-                      if (!checkLogin('fetch_data')) return;
                       handleRefresh();
                     }}
                     disabled={isRefreshing || selectedSources.length === 0}

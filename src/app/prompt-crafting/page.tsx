@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useRequireLogin } from '@/hooks/useRequireLogin';
+
 
 // 分析结果类型定义
 interface AnalysisResult {
@@ -51,7 +51,6 @@ interface AnalysisResult {
 
 function PromptCraftingContent() {
   const searchParams = useSearchParams();
-  const { checkLogin } = useRequireLogin();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [analysisResult, setAnalysisResult] = useState('');
@@ -244,7 +243,6 @@ function PromptCraftingContent() {
               <div className="flex gap-2">
                 <Button
                   onClick={() => {
-                    if (!checkLogin('analyze')) return;
                     handleAnalyze();
                   }}
                   disabled={isAnalyzing || !title.trim() || !content.trim()}
@@ -299,7 +297,6 @@ function PromptCraftingContent() {
                 </div>
                 <Button
                   onClick={() => {
-                    if (!checkLogin('copy')) return;
                     handleCopy(analysisResult, 'analysis');
                   }}
                   variant="outline"
@@ -461,7 +458,6 @@ function PromptCraftingContent() {
                 </div>
                 <Button
                   onClick={() => {
-                    if (!checkLogin('copy')) return;
                     handleCopy(generatedPrompt, 'prompt');
                   }}
                   variant="default"
