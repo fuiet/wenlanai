@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useLoginCheck } from '@/hooks/useLoginCheck';
 import {
   PenTool,
   Wand2,
@@ -77,6 +78,9 @@ interface PromptTemplate {
 }
 
 export default function SmartWritingPage() {
+  // 登录检查
+  const { checkLogin } = useLoginCheck();
+
   // 文章列表状态
   const [articles, setArticles] = useState<Article[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
@@ -203,6 +207,10 @@ export default function SmartWritingPage() {
 
   // 创建分组
   const handleCreateGroup = async () => {
+    // 检查登录状态
+    const { allowed } = checkLogin('save');
+    if (!allowed) return;
+
     if (!newGroupName.trim()) return;
     
     try {
@@ -226,6 +234,10 @@ export default function SmartWritingPage() {
 
   // 更新分组
   const handleUpdateGroup = async () => {
+    // 检查登录状态
+    const { allowed } = checkLogin('edit');
+    if (!allowed) return;
+
     if (!editingGroup || !newGroupName.trim()) return;
     
     try {
@@ -250,6 +262,10 @@ export default function SmartWritingPage() {
 
   // 删除分组
   const handleDeleteGroup = async (groupId: string) => {
+    // 检查登录状态
+    const { allowed } = checkLogin('delete');
+    if (!allowed) return;
+
     if (!confirm('确定要删除该分组吗？')) return;
     
     try {
@@ -270,6 +286,10 @@ export default function SmartWritingPage() {
 
   // 保存编辑的文章
   const handleSaveEdit = async () => {
+    // 检查登录状态
+    const { allowed } = checkLogin('save');
+    if (!allowed) return;
+
     if (!editingArticle) return;
     
     try {
@@ -305,6 +325,10 @@ export default function SmartWritingPage() {
 
   // 开始创作
   const handleStartCreate = async () => {
+    // 检查登录状态
+    const { allowed } = checkLogin('generate');
+    if (!allowed) return;
+
     if (!articleTopic) {
       alert('请输入文章主题');
       return;
@@ -449,6 +473,10 @@ export default function SmartWritingPage() {
 
   // 推送到微信草稿箱
   const handlePushToWechat = async (article: Article) => {
+    // 检查登录状态
+    const { allowed } = checkLogin('publish');
+    if (!allowed) return;
+
     try {
       const response = await fetch('/api/push-to-wechat', {
         method: 'POST',
@@ -502,6 +530,10 @@ export default function SmartWritingPage() {
 
   // 删除文章
   const handleDeleteArticle = async (id: string) => {
+    // 检查登录状态
+    const { allowed } = checkLogin('delete');
+    if (!allowed) return;
+
     if (!confirm('确定要删除这篇文章吗？')) return;
     try {
       const response = await fetch(`/api/articles?id=${id}`, {
