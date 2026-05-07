@@ -3,26 +3,22 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useAuth } from '@/contexts/AuthContext';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Zap,
   BookOpen,
   PenTool,
   LayoutTemplate,
   UserCheck,
-  Book,
-  Mail,
   Crown,
   LogIn,
-  User,
   LogOut
 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -35,61 +31,24 @@ const navItems = [
   { href: '/member', label: '会员中心', icon: Crown },
 ];
 
-interface UserInfo {
-  id: string;
-  email: string;
-  username: string;
-  nickname: string;
-  avatar?: string;
-  vip_level?: number;
-}
+const vipLevelMap: Record<number, string> = {
+  1: '普通会员',
+  2: '高级会员',
+  3: 'VIP会员'
+};
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<UserInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, logout } = useAuth();
 
-  useEffect(() => {
-    checkLoginStatus();
-  }, []);
-
-  const checkLoginStatus = async () => {
-    try {
-      const res = await fetch('/api/member/profile', { credentials: 'include' });
-      const data = await res.json();
-      if (data.success && data.data) {
-        // API 返回的是 data 直接就是用户信息
-        setUser({
-          id: data.data.id,
-          email: data.data.email,
-          username: data.data.username || data.data.nickname,
-          nickname: data.data.nickname,
-          avatar: data.data.avatar,
-          vip_level: data.data.vipLevel
-        });
-      } else {
-        setUser(null);
-      }
-    } catch {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
+  const handleLogout = () => {
+    logout();
   };
 
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/member/logout', { 
-        method: 'POST',
-        credentials: 'include'
-      });
-      setUser(null);
-      localStorage.removeItem('member_user');
-      router.push('/auth');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+  // 获取VIP等级名称
+  const getVipName = (level?: number) => {
+    return vipLevelMap[level || 1] || '普通会员';
   };
 
   return (
@@ -98,80 +57,82 @@ export default function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-500">
-              <PenTool className="h-7 w-7 text-white" />
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">文</span>
             </div>
-            <div className="flex flex-col">
-              <span className="text-2xl font-bold text-gray-900">文澜智作</span>
-              <span className="text-xs text-gray-500">自媒体爆款智能创作系统</span>
-            </div>
+            <span className="text-xl font-bold text-slate-800">文澜智作</span>
           </Link>
 
-          {/* Navigation */}
-          <div className="flex items-center space-x-1">
+          {/* Navigation Links */}
+          <div className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
-              const isPrimaryPage = true;
-
               return (
-                <Link key={item.href} href={item.href}>
-                  <Button
-                    variant={isActive && isPrimaryPage ? 'default' : 'ghost'}
-                    size="sm"
-                    className={`
-                      ${isActive && isPrimaryPage ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'text-gray-700 hover:text-orange-500 hover:bg-orange-50'}
-                      transition-all duration-200
-                    `}
-                  >
-                    <Icon className="mr-1.5 h-4 w-4" />
-                    {item.label}
-                  </Button>
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'text-blue-600 bg-blue-50'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{item.label}</span>
                 </Link>
               );
             })}
           </div>
 
-          {/* User Profile */}
-          <div className="flex items-center space-x-3">
-            {!loading && (
-              <>
-                {user ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="flex items-center space-x-2 hover:bg-orange-50">
-                        <Avatar className="h-9 w-9 border-2 border-orange-200">
-                          <AvatarImage src={user.avatar} />
-                          <AvatarFallback className="bg-purple-500 text-white">
-                            {user.username?.[0]?.toUpperCase() || user.nickname?.[0] || user.email?.[0]?.toUpperCase() || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium text-gray-700">{user.nickname || user.username || '用户'}</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem asChild>
-                        <Link href="/member" className="flex items-center">
-                          <Crown className="mr-2 h-4 w-4" />
-                          会员中心
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        退出登录
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <Link href="/auth">
-                    <Button className="bg-orange-500 hover:bg-orange-600">
-                      <LogIn className="mr-2 h-4 w-4" />
-                      登录 / 注册
-                    </Button>
-                  </Link>
-                )}
-              </>
+          {/* User Section */}
+          <div className="flex items-center">
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center space-x-2 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-cyan-400 text-white text-sm">
+                        {user.username?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="hidden sm:block text-left">
+                      <p className="text-sm font-medium text-slate-800">
+                        你好，{user.username}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {getVipName(user.vipLevel)}
+                      </p>
+                    </div>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => router.push('/member')}>
+                    <Crown className="w-4 h-4 mr-2" />
+                    会员中心
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    退出登录
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <Link
+                  href="/auth"
+                  className="flex items-center space-x-1 px-3 py-1.5 text-slate-600 hover:text-slate-800 text-sm font-medium"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>登录</span>
+                </Link>
+                <Link
+                  href="/auth"
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                >
+                  注册
+                </Link>
+              </div>
             )}
           </div>
         </div>

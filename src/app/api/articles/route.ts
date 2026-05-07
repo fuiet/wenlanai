@@ -1,76 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { query } from '@/lib/db';
 
-const supabaseUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+// 获取当前用户ID
+async function getCurrentUserId(request: NextRequest): Promise<string | null> {
+  const token = request.cookies.get('session_token')?.value;
+  if (!token) return null;
 
-// GET /api/articles - 获取文章列表
+  const result = await query(
+    `SELECT user_id FROM sessions 
+     WHERE token = $1 AND expires_at > NOW()`,
+    [token]
+  );
+
+  return result.rows.length > 0 ? result.rows[0].user_id : null;
+}
+
+// GET /api/articles - 获取当前用户的文章列表
 export async function GET(request: NextRequest) {
   try {
-    if (!supabase) {
-      // 演示模式，返回空列表
+    const userId = await getCurrentUserId(request);
+    
+    if (!userId) {
+      // 未登录，返回空列表
       return NextResponse.json({ success: true, articles: [] });
     }
 
-    const { data: articles, error } = await supabase
-      .from('articles')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const result = await query(
+      `SELECT * FROM articles 
+       WHERE user_id = $1 
+       ORDER BY created_at DESC`,
+      [userId]
+    );
 
-    if (error) {
-      console.error('获取文章失败:', error);
-      return NextResponse.json({ success: false, message: '获取文章失败' }, { status: 500 });
-    }
-
-    // 转换数据格式：将 images 转换为 image_urls
-    const formattedArticles = (articles || []).map(article => ({
+    // 转换数据格式
+    const articles = (result.rows || []).map(article => ({
       ...article,
       image_urls: article.images || []
     }));
 
-    return NextResponse.json({ success: true, articles: formattedArticles });
+    return NextResponse.json({ success: true, articles });
   } catch (error) {
     console.error('获取文章失败:', error);
-    return NextResponse.json({ success: false, message: '服务器错误' }, { status: 500 });
-  }
-}
-
-// DELETE /api/articles - 删除文章
-export async function DELETE(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json({ success: false, message: '文章ID不能为空' }, { status: 400 });
-    }
-
-    if (!supabase) {
-      // 演示模式
-      return NextResponse.json({ success: true, message: '演示模式：文章已删除' });
-    }
-
-    const { error } = await supabase
-      .from('articles')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('删除文章失败:', error);
-      return NextResponse.json({ success: false, message: '删除文章失败' }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, message: '文章已删除' });
-  } catch (error) {
-    console.error('删除文章失败:', error);
-    return NextResponse.json({ success: false, message: '服务器错误' }, { status: 500 });
+    return NextResponse.json({ success: false, message: '获取文章失败' }, { status: 500 });
   }
 }
 
 // POST /api/articles - 创建文章
 export async function POST(request: NextRequest) {
   try {
+    const userId = await getCurrentUserId(request);
+    
+    if (!userId) {
+      return NextResponse.json({ success: false, message: '请先登录' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { title, content, image_urls, group_id, status, push_status } = body;
 
@@ -78,65 +61,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: '标题不能为空' }, { status: 400 });
     }
 
-    if (!supabase) {
-      // 演示模式
-      const mockArticle = {
-        id: Date.now(),
-        title,
-        content: content || '',
-        image_urls: image_urls || [],
-        group_id: group_id || null,
-        status: status || 'generated',
-        push_status: push_status || 'pending',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      return NextResponse.json({ success: true, article: mockArticle });
-    }
+    const result = await query(
+      `INSERT INTO articles (user_id, title, content, images, group_id, status, push_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [userId, title, content || '', image_urls || [], group_id || null, status || 'generated', push_status || 'pending']
+    );
 
-    const { data: article, error } = await supabase
-      .from('articles')
-      .insert({
-        title,
-        content: content || '',
-        images: image_urls || [],
-        group_id: group_id || null,
-        status: status || 'generated',
-        push_status: push_status || 'pending'
-      })
-      .select()
-      .single();
+    const article = {
+      ...result.rows[0],
+      image_urls: result.rows[0].images || []
+    };
 
-    if (error) {
-      console.error('创建文章失败:', error);
-      return NextResponse.json({ success: false, message: '创建文章失败' }, { status: 500 });
-    }
-
-    // 转换返回数据格式：将 images 转换为 image_urls
-    const formattedArticle = article ? {
-      ...article,
-      image_urls: article.images || []
-    } : null;
-
-    // 更新分组的文章数量
-    if (group_id) {
-      const { data: group } = await supabase
-        .from('article_groups')
-        .select('article_count')
-        .eq('id', group_id)
-        .single();
-      
-      if (group) {
-        await supabase
-          .from('article_groups')
-          .update({ article_count: (group.article_count || 0) + 1 })
-          .eq('id', group_id);
-      }
-    }
-
-    return NextResponse.json({ success: true, article: formattedArticle });
+    return NextResponse.json({ success: true, article });
   } catch (error) {
     console.error('创建文章失败:', error);
-    return NextResponse.json({ success: false, message: '服务器错误' }, { status: 500 });
+    return NextResponse.json({ success: false, message: '创建文章失败' }, { status: 500 });
+  }
+}
+
+// DELETE /api/articles - 删除文章
+export async function DELETE(request: NextRequest) {
+  try {
+    const userId = await getCurrentUserId(request);
+    
+    if (!userId) {
+      return NextResponse.json({ success: false, message: '请先登录' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ success: false, message: '文章ID不能为空' }, { status: 400 });
+    }
+
+    // 只删除属于当前用户的文章
+    const result = await query(
+      `DELETE FROM articles WHERE id = $1 AND user_id = $2 RETURNING id`,
+      [id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ success: false, message: '文章不存在或无权删除' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: '文章已删除' });
+  } catch (error) {
+    console.error('删除文章失败:', error);
+    return NextResponse.json({ success: false, message: '删除文章失败' }, { status: 500 });
   }
 }

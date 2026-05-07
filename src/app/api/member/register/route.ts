@@ -8,20 +8,19 @@ function hashPassword(password: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, username, password } = await request.json();
+    const { username, password } = await request.json();
 
-    if (!email || !username || !password) {
+    if (!username || !password) {
       return NextResponse.json(
-        { success: false, error: '请填写所有必填字段' },
+        { success: false, error: '请填写用户名和密码' },
         { status: 400 }
       );
     }
 
-    // 验证邮箱格式
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    // 验证用户名格式
+    if (username.length < 2 || username.length > 20) {
       return NextResponse.json(
-        { success: false, error: '邮箱格式不正确' },
+        { success: false, error: '用户名长度需要在2-20个字符之间' },
         { status: 400 }
       );
     }
@@ -34,26 +33,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 检查邮箱是否已存在
-    const existingEmail = await query(
-      'SELECT id FROM users WHERE email = $1',
-      [email]
-    );
-
-    if (existingEmail.rows.length > 0) {
-      return NextResponse.json(
-        { success: false, error: '该邮箱已被注册' },
-        { status: 400 }
-      );
-    }
-
     // 检查用户名是否已存在
-    const existingUsername = await query(
+    const existingUser = await query(
       'SELECT id FROM member_profiles WHERE username = $1',
       [username]
     );
 
-    if (existingUsername.rows.length > 0) {
+    if (existingUser.rows.length > 0) {
       return NextResponse.json(
         { success: false, error: '该用户名已被使用' },
         { status: 400 }
@@ -63,52 +49,27 @@ export async function POST(request: NextRequest) {
     // 加密密码
     const passwordHash = hashPassword(password);
 
-    // 创建用户
+    // 创建用户（使用 username 作为唯一标识）
     const userResult = await query(
-      `INSERT INTO users (email, password_hash, nickname, is_active) 
+      `INSERT INTO users (email, nickname, password_hash, is_active) 
        VALUES ($1, $2, $3, true) 
        RETURNING id`,
-      [email, passwordHash, username]
+      [`${username}_${Date.now()}@local.com`, username, passwordHash]
     );
 
     const userId = userResult.rows[0].id;
 
     // 创建会员资料
     await query(
-      `INSERT INTO member_profiles (user_id, username) VALUES ($1, $2)`,
+      `INSERT INTO member_profiles (user_id, username, vip_level, categories) 
+       VALUES ($1, $2, 1, '{}')`,
       [userId, username]
     );
 
-    // 生成会话token
-    const sessionToken = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7天
-
-    await query(
-      `INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, $3)`,
-      [userId, sessionToken, expiresAt]
-    );
-
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
-      message: '注册成功',
-      data: {
-        user: {
-          id: userId,
-          email,
-          username
-        }
-      }
+      message: '注册成功，请登录'
     });
-
-    response.cookies.set('session_token', sessionToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'none', // 允许跨域
-      expires: expiresAt,
-      path: '/'
-    });
-
-    return response;
   } catch (error: any) {
     console.error('注册错误:', error);
     return NextResponse.json(

@@ -1,172 +1,468 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { LogOut, User, Mail, Crown } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import {
+  User,
+  Lock,
+  BarChart3,
+  Settings,
+  LogOut,
+  CheckCircle2,
+  XCircle,
+  Crown,
+  FileText,
+  MessageSquare,
+  Heart
+} from 'lucide-react';
 
-export default function MemberCenterPage() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+const CATEGORIES = [
+  '汽车', '民生', '星座情感', '科技数码', '财经理财', '职场干货'
+];
+
+const VIP_NAMES: Record<number, string> = {
+  1: '普通会员',
+  2: '高级会员',
+  3: 'VIP会员'
+};
+
+interface ProfileData {
+  id: string;
+  username: string;
+  email: string;
+  nickname: string;
+  createdAt: string;
+  vipLevel: number;
+  categories: string[];
+  stats: {
+    articleCount: number;
+    promptCount: number;
+    favoriteCount: number;
+  };
+}
+
+export default function MemberPage() {
+  const { user, logout } = useAuth();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'info' | 'password' | 'stats' | 'settings'>('info');
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // 修改密码表单
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  // 兴趣赛道
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [categoriesSaved, setCategoriesSaved] = useState(false);
+
+  // 未登录跳转
   useEffect(() => {
-    console.log('[Member] 页面加载，开始获取用户信息');
-    loadUser();
-  }, []);
-
-  const loadUser = async () => {
-    // 先尝试从 localStorage 读取（同步优先）
-    const cached = localStorage.getItem('member_user');
-    if (cached) {
-      try {
-        const userData = JSON.parse(cached);
-        if (userData && userData.id) {
-          console.log('[Member] 从 localStorage 获取用户:', userData);
-          setUser(userData);
-          setLoading(false);
-          // 后台刷新用户信息
-          refreshUserInfo();
-          return;
-        }
-      } catch (e) {
-        console.error('[Member] 解析 localStorage 失败:', e);
-      }
+    if (!loading && !user) {
+      router.push('/auth');
     }
-    
-    // 没有缓存，调用 API
+  }, [user, loading, router]);
+
+  // 获取用户资料
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
     try {
-      console.log('[Member] 发送请求到 /api/member/profile');
-      const res = await fetch('/api/member/profile', {
-        credentials: 'include'
-      });
-      console.log('[Member] 响应状态:', res.status);
+      const res = await fetch('/api/member/profile', { credentials: 'include' });
       const data = await res.json();
-      console.log('[Member] 响应数据:', JSON.stringify(data));
-      
       if (data.success && data.data) {
-        console.log('[Member] API获取成功，设置用户');
-        const userData = data.data;
-        setUser(userData);
-        localStorage.setItem('member_user', JSON.stringify(userData));
-      } else {
-        console.log('[Member] 未登录，跳转到登录页');
-        toast({ title: '请先登录' });
-        router.push('/auth');
+        setProfile(data.data);
+        setSelectedCategories(data.data.categories || []);
       }
-    } catch (error) {
-      console.error('[Member] 加载失败:', error);
-      toast({ title: '加载失败', variant: 'destructive' });
+    } catch (err) {
+      console.error('获取资料失败:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const refreshUserInfo = async () => {
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (newPassword.length < 6) {
+      setPasswordError('新密码至少6位');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('两次密码不一致');
+      return;
+    }
+
+    setPasswordLoading(true);
+
     try {
       const res = await fetch('/api/member/profile', {
-        credentials: 'include'
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'changePassword',
+          data: { oldPassword, newPassword, confirmPassword }
+        })
       });
+
       const data = await res.json();
-      if (data.success && data.data) {
-        setUser(data.data);
-        localStorage.setItem('member_user', JSON.stringify(data.data));
+
+      if (data.success) {
+        setPasswordSuccess('密码修改成功');
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setPasswordError(data.error);
       }
-    } catch (e) {
-      console.log('[Member] 后台刷新失败:', e);
+    } catch (err) {
+      setPasswordError('网络错误');
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
-  const handleLogout = async () => {
+  const handleSaveCategories = async () => {
     try {
-      await fetch('/api/member/logout', { 
-        method: 'POST',
-        credentials: 'include'
+      const res = await fetch('/api/member/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'updateCategories',
+          data: { categories: selectedCategories }
+        })
       });
-    } catch {}
-    setUser(null);
-    localStorage.removeItem('member_user');
-    router.push('/auth');
+
+      const data = await res.json();
+
+      if (data.success) {
+        setCategoriesSaved(true);
+        setTimeout(() => setCategoriesSaved(false), 2000);
+      }
+    } catch (err) {
+      console.error('保存失败:', err);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+  };
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-muted-foreground">加载中...</p>
-        </div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <CardTitle>提示</CardTitle>
-            <CardDescription>正在跳转到登录页面...</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
+  if (!user || !profile) {
+    return null;
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        <Card>
-          <CardHeader className="text-center pb-8">
-            <div className="mx-auto mb-4">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center mx-auto">
-                <User className="w-12 h-12 text-white" />
-              </div>
-            </div>
-            <CardTitle className="text-2xl">{user.nickname || user.username || '用户'}</CardTitle>
-            <CardDescription>{user.email}</CardDescription>
-            <div className="flex items-center justify-center gap-2 mt-2">
-              <Crown className="w-4 h-4 text-yellow-500" />
-              <span className="text-sm text-muted-foreground">
-                {user.vipLevel === 1 ? '普通会员' : user.vipLevel === 2 ? '高级会员' : 'VIP会员'}
-              </span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4">
-              <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-                <Mail className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">邮箱</p>
-                  <p className="font-medium">{user.email}</p>
+    <div className="min-h-screen bg-slate-50">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          {/* 页面标题 */}
+          <h1 className="text-2xl font-bold text-slate-800 mb-6">会员中心</h1>
+
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* 左侧菜单 */}
+            <div className="w-full md:w-64 flex-shrink-0">
+              <div className="bg-white rounded-xl shadow-sm p-4">
+                {/* 用户信息卡片 */}
+                <div className="text-center pb-4 border-b border-slate-100 mb-4">
+                  <Avatar className="w-16 h-16 mx-auto mb-3">
+                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-cyan-400 text-white text-xl">
+                      {profile.username?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <h3 className="font-semibold text-slate-800">{profile.username}</h3>
+                  <p className="text-sm text-slate-500 flex items-center justify-center gap-1">
+                    <Crown className="w-3 h-3 text-amber-500" />
+                    {VIP_NAMES[profile.vipLevel] || '普通会员'}
+                  </p>
                 </div>
+
+                {/* 菜单项 */}
+                <nav className="space-y-1">
+                  <button
+                    onClick={() => setActiveTab('info')}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeTab === 'info'
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <User className="w-4 h-4" />
+                    账号信息
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('password')}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeTab === 'password'
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Lock className="w-4 h-4" />
+                    修改密码
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('stats')}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeTab === 'stats'
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    创作数据
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('settings')}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeTab === 'settings'
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Settings className="w-4 h-4" />
+                    账号设置
+                  </button>
+                </nav>
+
+                {/* 退出按钮 */}
+                <button
+                  onClick={handleLogout}
+                  className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  退出登录
+                </button>
               </div>
-              {user.username && (
-                <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-                  <User className="w-5 h-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">用户名</p>
-                    <p className="font-medium">{user.username}</p>
+            </div>
+
+            {/* 右侧内容 */}
+            <div className="flex-1">
+              {/* 账号信息 */}
+              {activeTab === 'info' && (
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h2 className="text-lg font-semibold text-slate-800 mb-6">账号信息</h2>
+                  <div className="space-y-4">
+                    <div className="flex items-center py-3 border-b border-slate-100">
+                      <span className="w-24 text-slate-500">用户名</span>
+                      <span className="text-slate-800 font-medium">{profile.username}</span>
+                    </div>
+                    <div className="flex items-center py-3 border-b border-slate-100">
+                      <span className="w-24 text-slate-500">注册时间</span>
+                      <span className="text-slate-800">{formatDate(profile.createdAt)}</span>
+                    </div>
+                    <div className="flex items-center py-3 border-b border-slate-100">
+                      <span className="w-24 text-slate-500">账号等级</span>
+                      <span className="text-slate-800 flex items-center gap-1">
+                        <Crown className="w-4 h-4 text-amber-500" />
+                        {VIP_NAMES[profile.vipLevel] || '普通会员'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
-            </div>
 
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={handleLogout}
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              退出登录
-            </Button>
-          </CardContent>
-        </Card>
+              {/* 修改密码 */}
+              {activeTab === 'password' && (
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h2 className="text-lg font-semibold text-slate-800 mb-6">修改密码</h2>
+
+                  {passwordError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm flex items-center gap-2">
+                      <XCircle className="w-4 h-4" />
+                      {passwordError}
+                    </div>
+                  )}
+
+                  {passwordSuccess && (
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      {passwordSuccess}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        旧密码
+                      </label>
+                      <input
+                        type="password"
+                        value={oldPassword}
+                        onChange={(e) => setOldPassword(e.target.value)}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="请输入旧密码"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        新密码
+                      </label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="请输入新密码（至少6位）"
+                        minLength={6}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        确认新密码
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="再次输入新密码"
+                        minLength={6}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" disabled={passwordLoading}>
+                      {passwordLoading ? '修改中...' : '修改密码'}
+                    </Button>
+                  </form>
+                </div>
+              )}
+
+              {/* 创作数据 */}
+              {activeTab === 'stats' && (
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h2 className="text-lg font-semibold text-slate-800 mb-6">创作数据概览</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-slate-600 text-sm">我的文章</span>
+                      </div>
+                      <p className="text-3xl font-bold text-slate-800">
+                        {profile.stats?.articleCount || 0}
+                      </p>
+                      <p className="text-slate-500 text-sm mt-1">篇文章</p>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                          <MessageSquare className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-slate-600 text-sm">我的提示词</span>
+                      </div>
+                      <p className="text-3xl font-bold text-slate-800">
+                        {profile.stats?.promptCount || 0}
+                      </p>
+                      <p className="text-slate-500 text-sm mt-1">条提示词</p>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-6">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center">
+                          <Heart className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-slate-600 text-sm">收藏的爆款</span>
+                      </div>
+                      <p className="text-3xl font-bold text-slate-800">
+                        {profile.stats?.favoriteCount || 0}
+                      </p>
+                      <p className="text-slate-500 text-sm mt-1">篇收藏</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 账号设置 */}
+              {activeTab === 'settings' && (
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h2 className="text-lg font-semibold text-slate-800 mb-6">账号设置</h2>
+
+                  <div className="mb-6">
+                    <h3 className="text-sm font-medium text-slate-700 mb-3">
+                      选择感兴趣的创作赛道
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {CATEGORIES.map((category) => (
+                        <label
+                          key={category}
+                          className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+                            selectedCategories.includes(category)
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedCategories.includes(category)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedCategories([...selectedCategories, category]);
+                              } else {
+                                setSelectedCategories(selectedCategories.filter(c => c !== category));
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-slate-700">{category}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button onClick={handleSaveCategories} disabled={categoriesSaved}>
+                    {categoriesSaved ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        已保存
+                      </>
+                    ) : (
+                      '保存设置'
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
