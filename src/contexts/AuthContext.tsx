@@ -14,6 +14,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  isHydrated: boolean;
   login: (user: User) => void;
   logout: () => void;
   checkAuth: () => Promise<void>;
@@ -24,9 +25,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   const router = useRouter();
 
-  // 检查登录状态
+  // 初始化时从 localStorage 读取用户数据
+  useEffect(() => {
+    const stored = localStorage.getItem('user');
+    if (stored) {
+      try {
+        const userData = JSON.parse(stored);
+        setUser(userData);
+      } catch (e) {
+        console.error('解析用户数据失败:', e);
+      }
+    }
+    setIsHydrated(true);
+  }, []);
+
+  // 检查登录状态（后台刷新）
   const checkAuth = async () => {
     setIsLoading(true);
     try {
@@ -36,28 +52,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
 
       if (data.success && data.data) {
-        setUser({
+        const userData = {
           id: data.data.id,
           username: data.data.username,
           nickname: data.data.nickname || data.data.username,
           vipLevel: data.data.vipLevel || 1,
           email: data.data.email
-        });
+        };
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
       } else {
+        // API 返回失败，清除本地数据
         setUser(null);
+        localStorage.removeItem('user');
       }
     } catch (err) {
       console.error('检查登录状态失败:', err);
-      setUser(null);
+      // 网络错误时不清除本地数据，因为用户可能只是暂时离线
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 初始化时检查登录状态
+  // 初始化时检查登录状态（只在有本地数据时）
   useEffect(() => {
-    checkAuth();
-  }, []);
+    if (isHydrated && user) {
+      checkAuth();
+    }
+  }, [isHydrated]);
 
   // 登录
   const login = (userData: User) => {
@@ -80,14 +102,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     } catch (err) {
       console.error('退出登录失败:', err);
+    } finally {
+      setUser(null);
+      localStorage.removeItem('user');
+      router.push('/');
     }
-    setUser(null);
-    localStorage.removeItem('user');
-    router.push('/');
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, checkAuth }}>
+    <AuthContext.Provider value={{ user, isLoading, isHydrated, login, logout, checkAuth }}>
       {children}
     </AuthContext.Provider>
   );
