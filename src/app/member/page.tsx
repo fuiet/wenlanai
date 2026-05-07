@@ -76,7 +76,7 @@ export default function MemberCenterPage() {
       const res = await fetch('/api/member/profile');
       const data = await res.json();
       
-      if (data.success && data.isLoggedIn) {
+      if (data.success && data.data) {
         setUser(data.data.user);
         setProfile(data.data.profile);
         // 填充表单

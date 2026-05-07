@@ -53,9 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 如果没有缓存，调用API
       const res = await fetch('/api/member/profile');
       const data = await res.json();
-      if (data.success && data.profile) {
-        setUser(data.profile);
-        localStorage.setItem('member_user', JSON.stringify(data.profile));
+      if (data.success && data.data) {
+        setUser(data.data.user);
+        localStorage.setItem('member_user', JSON.stringify(data.data.user));
         return true;
       } else {
         setUser(null);
