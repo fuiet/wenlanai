@@ -756,6 +756,20 @@ export default function SmartWritingPage() {
 
   // 渲染文章内容组件（精美排版）
   const ArticleContentWithImages = ({ article }: { article: Article }) => {
+    // 10种精美排版主题
+    const themes = [
+      { bg: 'from-blue-50 to-blue-100', accent: '#3b82f6', secondary: '#60a5fa', text: '#1e40af', light: '#dbeafe' }, // 现代简约蓝
+      { bg: 'from-orange-50 to-orange-100', accent: '#f97316', secondary: '#fb923c', text: '#c2410c', light: '#ffedd5' }, // 活力橙
+      { bg: 'from-green-50 to-green-100', accent: '#22c55e', secondary: '#4ade80', text: '#166534', light: '#dcfce7' }, // 清新绿
+      { bg: 'from-purple-50 to-purple-100', accent: '#a855f7', secondary: '#c084fc', text: '#7e22ce', light: '#f3e8ff' }, // 优雅紫
+      { bg: 'from-slate-50 to-slate-100', accent: '#475569', secondary: '#64748b', text: '#1e293b', light: '#f1f5f9' }, // 商务灰蓝
+      { bg: 'from-rose-50 to-rose-100', accent: '#e11d48', secondary: '#fb7185', text: '#be123c', light: '#ffe4e6' }, // 热情红
+      { bg: 'from-amber-50 to-amber-100', accent: '#f59e0b', secondary: '#fbbf24', text: '#b45309', light: '#fef3c7' }, // 金色奢华
+      { bg: 'from-cyan-50 to-cyan-100', accent: '#06b6d4', secondary: '#22d3ee', text: '#0e7490', light: '#cffafe' }, // 科技蓝
+      { bg: 'from-pink-50 to-pink-100', accent: '#ec4899', secondary: '#f472b6', text: '#be185d', light: '#fce7f3' }, // 少女粉
+      { bg: 'from-emerald-50 to-emerald-100', accent: '#10b981', secondary: '#34d399', text: '#065f46', light: '#d1fae5' }, // 森林绿
+    ];
+    
     const { textContent, images } = processArticleContent(article.content || '', article.images || []);
     // 根据文章ID获取主题
     const themeIndex = Math.abs(String(article.id).charCodeAt(0) || 0) % themes.length;
