@@ -110,27 +110,37 @@ ${aiSummary ? 'AI摘要: ' + aiSummary + '\n\n' : ''}
       }
     }
 
-    // 如果没有提供标题，从搜索结果或提示词生成标题
-    if (!generatedTitle && templatePrompt) {
-      console.log('正在生成标题...');
+    // 如果没有提供标题，从搜索结果或素材生成爆款标题
+    if (!generatedTitle && (templatePrompt || searchResults)) {
+      console.log('正在生成爆款标题...');
       try {
         const { LLMClient } = await import('coze-coding-dev-sdk');
         const llmClient = new LLMClient();
         
-        // 如果有搜索结果，优先从搜索结果生成标题
-        let titleContext = searchResults || templatePrompt.substring(0, 500);
+        // 使用搜索结果和主题生成标题
+        const titleContext = searchResults || `主题：${templatePrompt?.substring(0, 300)}`;
         
-        const titlePrompt = `请为以下主题生成3个吸引人的文章标题，每个标题不超过30字：
+        const titlePrompt = `你是一个资深公众号运营专家，擅长写能让读者"忍不住点击"的爆款标题。
 
-主题：${titleContext}
+请根据以下主题/内容，生成5个爆款标题：
 
-要求：
-1. 标题要吸引人，能引发读者好奇
-2. 使用数字、疑问、感叹等方式增加吸引力
-3. 适合中老年读者群体
-4. 不要使用emoji
+${titleContext}
 
-请只返回标题，每行一个，不要加序号。`;
+【爆款标题公式】（必须全部满足）：
+1. 引发好奇：用"99%的人都不知道"、"竟然"、"原来"等引发好奇
+2. 数字吸引：用具体数字如"3招"、"5个方法"、"1件事"等
+3. 情感共鸣：触及中老年读者的情感需求（健康、家庭、子女、养老）
+4. 实用价值：让读者觉得"看了有用"
+5. 限时紧迫：制造紧迫感如"现在知道还不晚"
+
+【标题要求】：
+1. 每个标题20-30字，必须有冲击力
+2. 不能用emoji符号
+3. 不要太标题党，要真实可信
+4. 适合中老年读者群体
+5. 严禁使用"震惊"类低俗词汇
+
+请只返回5个标题，每行一个，不要加序号，不要任何解释：`;
 
         const titleResponse = await llmClient.invoke([
           { role: 'user', content: titlePrompt }
@@ -138,17 +148,17 @@ ${aiSummary ? 'AI摘要: ' + aiSummary + '\n\n' : ''}
 
         if (titleResponse && titleResponse.content) {
           const content = titleResponse.content as string;
-          const lines = content.split('\n').filter((t: string) => t.trim());
+          const lines = content.split('\n').filter((t: string) => t.trim() && t.length > 10);
           if (lines.length > 0) {
-            generatedTitle = lines[Math.floor(Math.random() * lines.length)].replace(/^\d+[\.、]\s*/, '').trim();
-            if (generatedTitle.length > 50) {
-              generatedTitle = generatedTitle.substring(0, 50);
+            // 随机选择一个标题
+            generatedTitle = lines[Math.floor(Math.random() * lines.length)].replace(/^[【】\[\]「」""''1234567890.、\s]+/g, '').trim();
+            if (generatedTitle.length > 35) {
+              generatedTitle = generatedTitle.substring(0, 35);
             }
           }
         }
       } catch (titleError) {
         console.error('生成标题失败:', titleError);
-        generatedTitle = `精彩文章 - ${new Date().toLocaleDateString()}`;
       }
     }
 
@@ -215,14 +225,27 @@ ${aiSummary ? 'AI摘要: ' + aiSummary + '\n\n' : ''}
         articlePrompt += `【用户创作要求】\n${materialRequirements}\n\n`;
       }
 
-      // 添加字数要求
+      // 添加字数要求和排版要求
       articlePrompt += `【字数要求】请创作一篇1000字左右的文章（允许±100字误差）。
 
-【重要提醒】
+【排版要求 - 非常重要】：
+1. 图片插入位置：文章开头一张图片引入，中间每隔200-300字插入一张图片，结尾前再插入一张
+2. 每张图片用 "![图片描述](IMAGE_PLACEHOLDER_n)" 格式标记，其中n是图片序号（1、2、3...）
+3. 图片描述要简洁，如"![图片1](IMAGE_PLACEHOLDER_1)" 表示在此处插入第一张图片
+4. 总共需要 ${imageCount || 2} 张图片，请均匀分布在文章中
+
+【文章结构要求】：
+1. 开头：用引人入胜的引言/故事/数据开头，吸引读者继续阅读
+2. 中间：分2-3个段落，每个段落之间用"---"分割线分隔
+3. 结尾：总结要点，给出建议或呼吁行动
+4. 可以使用">引用<"格式突出重要观点
+5. 可以使用"**加粗**"强调关键词
+
+【重要提醒】：
 1. 如果提供了【最新网络信息】，必须结合这些信息进行创作，确保文章内容与时俱进
 2. 严格按照【写作风格要求】的文风进行创作
-3. 文章结构完整，有开头、中间、结尾
-4. 不要使用emoji和特殊符号`;
+3. 严禁使用emoji和特殊符号
+4. 严禁使用"震惊"类低俗词汇`;
 
       console.log('文章提示词构建完成，开始调用LLM...');
       
@@ -298,16 +321,61 @@ ${generatedContent.substring(0, 500)}
 
     console.log('生成图片完成，数量:', imageUrls.length);
 
-    // 将图片插入到文章中
+    // 处理文章内容中的图片标记，将 IMAGE_PLACEHOLDER 替换为实际图片
+    let finalContent = generatedContent;
     if (imageUrls.length > 0 && generatedContent) {
-      const imageMarkdown = imageUrls.map(url => `\n\n![配图](${url})\n\n`).join('');
-      // 在文章中间插入图片
-      const midpoint = Math.floor(generatedContent.length / 2);
-      const insertPoint = generatedContent.lastIndexOf('\n\n', midpoint);
-      if (insertPoint > 0) {
-        generatedContent = generatedContent.substring(0, insertPoint + 2) + imageMarkdown + generatedContent.substring(insertPoint + 2);
-      } else {
-        generatedContent += imageMarkdown;
+      // 按照顺序替换图片标记
+      imageUrls.forEach((url, index) => {
+        const placeholder = `[IMAGE_PLACEHOLDER_${index + 1}]`;
+        const imageMarkdown = `![配图](${url})`;
+        finalContent = finalContent.replace(new RegExp(placeholder.replace(/[()]/g, '\\$&'), 'g'), imageMarkdown);
+      });
+      
+      // 处理剩余未替换的图片标记（如果没有足够的标记，在文章中间均匀插入）
+      const usedCount = imageUrls.length;
+      if (usedCount > 0 && finalContent.includes('[IMAGE_PLACEHOLDER_')) {
+        // 如果还有未使用的图片，随机插入到文章中间
+        const midPoint = Math.floor(finalContent.length / 2);
+        const paragraphs = finalContent.split('\n\n');
+        let currentPos = 0;
+        let insertIndex = 0;
+        
+        for (let i = 0; i < paragraphs.length && usedCount > 0; i++) {
+          currentPos += paragraphs[i].length;
+          if (currentPos > midPoint && !paragraphs[i].includes('![配图]')) {
+            paragraphs[i] += '\n\n![配图](IMAGE_REPLACED)';
+            insertIndex = i;
+            break;
+          }
+        }
+        finalContent = paragraphs.join('\n\n');
+      }
+      
+      // 如果没有IMAGE_PLACEHOLDER标记，则在文章中均匀插入图片
+      if (!finalContent.includes('[IMAGE_PLACEHOLDER_') && imageUrls.length > 0) {
+        const paragraphs = finalContent.split('\n\n').filter(p => p.trim());
+        const insertPositions = [];
+        
+        // 计算插入位置：开头1张，中间均匀分布，结尾前1张
+        const count = Math.min(imageUrls.length, paragraphs.length);
+        for (let i = 1; i < count - 1; i++) {
+          const pos = Math.floor((i / (count - 1)) * paragraphs.length);
+          insertPositions.push(pos);
+        }
+        
+        // 在开头插入
+        insertPositions.unshift(0);
+        // 在结尾前插入
+        insertPositions.push(paragraphs.length - 1);
+        
+        // 插入图片
+        insertPositions.forEach((pos, idx) => {
+          if (imageUrls[idx]) {
+            paragraphs.splice(pos, 0, `![配图](${imageUrls[idx]})`);
+          }
+        });
+        
+        finalContent = paragraphs.join('\n\n');
       }
     }
 
@@ -321,7 +389,7 @@ ${generatedContent.substring(0, 500)}
       .from('articles')
       .insert({
         title: generatedTitle || '未命名文章',
-        content: generatedContent,
+        content: finalContent,
         author: groupName || '未知',
         group_name: groupName || null,
         status: 'completed',
