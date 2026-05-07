@@ -597,6 +597,57 @@ export default function SmartWritingPage() {
     return <Badge className="bg-gray-500 text-white"><Clock className="h-3 w-3 mr-1" />未存稿</Badge>;
   };
 
+  // 处理文章内容：过滤Markdown图片格式，返回纯文本和图片URL数组
+  const processArticleContent = (content: string, images: string[] = []) => {
+    // 过滤掉所有 ![图片描述](url) 格式的 Markdown 图片
+    const textContent = content.replace(/!\[.*?\]\(.*?\)/g, '').trim();
+    return { textContent, images };
+  };
+
+  // 渲染文章内容组件（图片间隔插入）
+  const ArticleContentWithImages = ({ article }: { article: Article }) => {
+    const { textContent, images } = processArticleContent(article.content || '', article.images || []);
+    
+    // 如果没有图片，直接显示文本
+    if (!images || images.length === 0) {
+      return <div className="whitespace-pre-wrap text-gray-700">{textContent}</div>;
+    }
+
+    // 将文本按段落分割
+    const paragraphs = textContent.split(/\n\n+/).filter(p => p.trim());
+    
+    // 计算每个段落后应该插入图片的位置
+    // 策略：在段落之间均匀分布图片
+    const result: React.ReactNode[] = [];
+    const imagesPerParagraph = Math.ceil(images.length / paragraphs.length);
+    
+    paragraphs.forEach((paragraph, pIdx) => {
+      result.push(
+        <p key={`text-${pIdx}`} className="mb-4 text-gray-700">
+          {paragraph}
+        </p>
+      );
+      
+      // 在段落之间插入图片
+      const startImgIdx = pIdx * imagesPerParagraph;
+      const endImgIdx = Math.min(startImgIdx + imagesPerParagraph, images.length);
+      
+      for (let imgIdx = startImgIdx; imgIdx < endImgIdx; imgIdx++) {
+        result.push(
+          <div key={`img-${imgIdx}`} className="my-4">
+            <img 
+              src={images[imgIdx]} 
+              alt={`配图${imgIdx + 1}`} 
+              className="w-full max-w-lg mx-auto rounded-lg" 
+            />
+          </div>
+        );
+      }
+    });
+
+    return <>{result}</>;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 页面头部 */}
@@ -906,7 +957,7 @@ export default function SmartWritingPage() {
                 <div className="w-8 h-8 rounded bg-orange-500 flex items-center justify-center">
                   <Sparkles className="h-4 w-4 text-white" />
                 </div>
-                {editingArticle ? '编辑文章' : '文章创作设置'}
+                {editingArticle ? '智能生文' : '文章创作设置'}
               </DialogTitle>
               <Button variant="ghost" size="sm" onClick={() => setShowCreateDialog(false)}>
                 <X className="h-4 w-4" />
@@ -1179,22 +1230,9 @@ export default function SmartWritingPage() {
           
           {viewingArticle && (
             <div className="space-y-4">
-              {/* 图片展示 */}
-              {Array.isArray(viewingArticle.images) && viewingArticle.images.length > 0 && (
-                <div className="grid grid-cols-3 gap-2">
-                  {viewingArticle.images.map((url: string, idx: number) => (
-                    <div key={idx} className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
-                      <img src={url} alt={`配图${idx + 1}`} className="w-full h-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* 文章内容 */}
+              {/* 文章内容（图片间隔插入） */}
               <div className="prose prose-sm max-w-none">
-                <div className="whitespace-pre-wrap text-gray-700">
-                  {viewingArticle.content}
-                </div>
+                <ArticleContentWithImages article={viewingArticle} />
               </div>
               
               {/* 操作按钮 */}
