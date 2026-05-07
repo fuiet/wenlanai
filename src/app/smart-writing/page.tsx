@@ -43,11 +43,12 @@ import { cn } from '@/lib/utils';
 type GenerateProgress = 'idle' | 'title' | 'content' | 'images' | 'done' | 'failed';
 
 interface Article {
-  id: number;
+  id: number | string;
   title: string;
   content: string;
   image_urls: string[];
-  group_id: number | null;
+  group_id: string | null;
+  group_name?: string;
   status: 'generating' | 'generated' | 'failed' | 'draft' | 'published';
   push_status: 'pending' | 'success' | 'failed';
   created_at: string;
@@ -57,7 +58,7 @@ interface Article {
 
 // 分组类型定义
 interface ArticleGroup {
-  id: number;
+  id: string;
   name: string;
   article_count: number;
   created_at: string;
@@ -65,7 +66,7 @@ interface ArticleGroup {
 
 // 提示词模板类型
 interface PromptTemplate {
-  id: number;
+  id: string;
   name: string;
   category: string;
   description: string;
@@ -286,7 +287,8 @@ export default function SmartWritingPage() {
       title: '正在生成标题...',
       content: '...',
       image_urls: [],
-      group_id: parseInt(selectedGroupId),
+      group_id: null, // 分组信息通过 group_name 显示
+      group_name: groups.find(g => g.id === selectedGroupId)?.name || '默认分组',
       status: 'generating',
       push_status: 'pending',
       created_at: new Date().toISOString(),
@@ -321,7 +323,7 @@ export default function SmartWritingPage() {
           enableMaterial,
           materialLinks: enableMaterial ? materialLinks : undefined,
           materialRequirements: enableMaterial ? materialRequirements : undefined,
-          groupName: selectedGroupId
+          groupName: groups.find(g => g.id === selectedGroupId)?.name || selectedGroupId
         })
       });
 
@@ -391,7 +393,7 @@ export default function SmartWritingPage() {
                 image_urls: data.images?.map((img: string | { url: string }) => 
                   typeof img === 'string' ? img : img.url
                 ) || [],
-                group_id: parseInt(selectedGroupId)
+                group_id: null // 分组信息已通过 groupName 保存，不再使用 group_id
               })
             });
             
@@ -411,7 +413,8 @@ export default function SmartWritingPage() {
             title: data.title || articleTitle || '未命名文章',
             content: finalContent,
             image_urls: data.images?.map((img: { url: string }) => img.url) || [],
-            group_id: parseInt(selectedGroupId),
+            group_id: null, // 分组信息通过 group_name 显示
+            group_name: groups.find(g => g.id === selectedGroupId)?.name || '默认分组',
             status: 'generated',
             push_status: 'pending',
             created_at: tempArticle.created_at,
