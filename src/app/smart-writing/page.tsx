@@ -25,7 +25,6 @@ import {
   Trash2,
   RefreshCw,
   Plus,
-  Zap,
   BookOpen,
   X,
   FileWarning,
@@ -952,17 +951,12 @@ export default function SmartWritingPage() {
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <div className="flex items-center justify-between">
-              <DialogTitle className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded bg-orange-500 flex items-center justify-center">
-                  <Sparkles className="h-4 w-4 text-white" />
-                </div>
-                {editingArticle ? '智能生文' : '文章创作设置'}
-              </DialogTitle>
-              <Button variant="ghost" size="sm" onClick={() => setShowCreateDialog(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded bg-orange-500 flex items-center justify-center">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              {editingArticle ? '智能生文' : '文章创作设置'}
+            </DialogTitle>
           </DialogHeader>
 
           {/* AI提示 */}
@@ -971,18 +965,6 @@ export default function SmartWritingPage() {
             <p className="text-sm text-purple-700">
               AI辅助创作：AI仅为辅助工具，请在创作中融入您的想法、思考和个人经历，让内容更具独特性和真实性
             </p>
-          </div>
-
-          {/* 功能切换 */}
-          <div className="flex gap-2">
-            <Button className="flex-1 bg-gradient-to-r from-purple-500 to-blue-500">
-              <Zap className="h-4 w-4 mr-2" />
-              一键创作
-            </Button>
-            <Button variant="outline" className="flex-1">
-              <BookOpen className="h-4 w-4 mr-2" />
-              爆文信息差
-            </Button>
           </div>
 
           {/* 表单 */}
