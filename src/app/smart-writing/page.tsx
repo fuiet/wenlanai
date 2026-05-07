@@ -389,89 +389,34 @@ export default function SmartWritingPage() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          // 将图片插入到文章内容中
-          let finalContent = data.content || '';
-          const hasImages = data.images && data.images.length > 0;
-          
-          if (hasImages) {
-            const sections = finalContent.split(/\n(?=#|\n#{1,2}\s)/);
-            const insertPoints: number[] = [];
-            
-            if (sections.length > 2) {
-              const insertCount = Math.min(data.images.length, sections.length - 1);
-              for (let i = 0; i < insertCount; i++) {
-                const pos = Math.floor((i + 1) * sections.length / (insertCount + 1));
-                insertPoints.push(pos);
-              }
-            } else {
-              insertPoints.push(0);
-            }
-            
-            let imgIndex = 0;
-            finalContent = sections.map((section: string, idx: number) => {
-              let result = section;
-              if (insertPoints.includes(idx) && imgIndex < data.images.length) {
-                // data.images 可能是字符串数组或对象数组
-                const imgUrl = typeof data.images[imgIndex] === 'string' 
-                  ? data.images[imgIndex] 
-                  : data.images[imgIndex]?.url;
-                if (imgUrl) {
-                  result = `\n![配图](${imgUrl})\n` + result;
-                  imgIndex++;
-                }
-              }
-              return result;
-            }).join('');
-          }
+          // API 已经保存了文章，直接使用返回的数据
+          // 图片单独存储在 images 字段，不插入到 content 中
+          const savedArticle = data.data;
           
           // 更新为已完成
           updateProgress('done', { 
-            title: data.title || '未命名文章', 
-            content: finalContent,
+            title: savedArticle?.title || '未命名文章', 
+            content: savedArticle?.content || '',
             status: 'generated'
           });
           
-          // 保存到数据库
-          let savedArticle: Article | null = null;
-          try {
-            const saveResponse = await fetch('/api/articles', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                title: data.title || articleTitle || '未命名文章',
-                content: finalContent,
-                image_urls: data.images?.map((img: string | { url: string }) => 
-                  typeof img === 'string' ? img : img.url
-                ) || [],
-                group_id: null // 分组信息已通过 groupName 保存，不再使用 group_id
-              })
-            });
-            
-            if (saveResponse.ok) {
-              const saveData = await saveResponse.json();
-              if (saveData.success) {
-                savedArticle = saveData.article;
-              }
-            }
-          } catch (saveError) {
-            console.error('保存文章失败:', saveError);
-          }
-          
-          // 更新文章列表中的文章
-          const finalArticle: Article = savedArticle || {
-            id: tempArticle.id,
-            title: data.title || articleTitle || '未命名文章',
-            content: finalContent,
-            image_urls: data.images?.map((img: { url: string }) => img.url) || [],
-            group_id: null, // 分组信息通过 group_name 显示
-            group_name: groups.find(g => g.id === selectedGroupId)?.name || '默认分组',
-            status: 'generated',
+          // 构建最终的文章对象（从API返回的数据）
+          const finalArticle: Article = {
+            id: savedArticle?.id || tempArticle.id,
+            title: savedArticle?.title || articleTitle || '未命名文章',
+            content: savedArticle?.content || '',
+            images: savedArticle?.images || [],
+            image_urls: savedArticle?.images || [],
+            group_id: null,
+            group_name: groups.find(g => g.id === selectedGroupId)?.name || savedArticle?.group_name || '默认分组',
+            status: 'completed',
             push_status: 'pending',
             created_at: tempArticle.created_at,
             updated_at: new Date().toISOString(),
             generate_progress: 'done'
           };
           
+          // 替换临时文章为真实文章
           setArticles(articles => articles.map(a => a.id === tempArticle.id ? finalArticle : a));
         } else {
           // 生成失败，更新状态
