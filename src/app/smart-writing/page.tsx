@@ -32,6 +32,7 @@ import {
   SendHorizontal,
   Check,
   Eye,
+  Save,
   Clock,
   AlertCircle,
   Download,
@@ -89,6 +90,7 @@ export default function SmartWritingPage() {
   
   // 创作弹窗状态
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [articleTitle, setArticleTitle] = useState('');
   const [selectedPromptId, setSelectedPromptId] = useState<string>('');
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
@@ -262,6 +264,41 @@ export default function SmartWritingPage() {
       }
     } catch (error) {
       console.error('删除分组失败:', error);
+    }
+  };
+
+  // 保存编辑的文章
+  const handleSaveEdit = async () => {
+    if (!editingArticle) return;
+    
+    try {
+      const response = await fetch('/api/articles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingArticle.id,
+          title: editingArticle.title,
+          content: editingArticle.content,
+          images: editingArticle.images || editingArticle.image_urls,
+          group_id: editingArticle.group_id,
+          group_name: editingArticle.group_name,
+          status: editingArticle.status,
+          push_status: editingArticle.push_status
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setArticles(articles.map(a => a.id === editingArticle.id ? data.article : a));
+          setShowCreateDialog(false);
+          setEditingArticle(null);
+          alert('保存成功');
+        }
+      }
+    } catch (error) {
+      console.error('保存失败:', error);
+      alert('保存失败，请稍后重试');
     }
   };
 
@@ -482,6 +519,45 @@ export default function SmartWritingPage() {
     }
   };
 
+  // 编辑文章
+  const handleEditArticle = (article: Article) => {
+    setEditingArticle(article);
+    setShowCreateDialog(true);
+  };
+
+  // 保存文章到本地
+  const handleSaveArticle = (article: Article) => {
+    // 创建 Markdown 格式的内容
+    const markdown = `# ${article.title}\n\n${article.content}`;
+    const blob = new Blob([markdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${article.title}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    alert('文章已保存为 Markdown 文件');
+  };
+
+  // 删除文章
+  const handleDeleteArticle = async (id: string) => {
+    if (!confirm('确定要删除这篇文章吗？')) return;
+    try {
+      const response = await fetch(`/api/articles?id=${id}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        setArticles(articles.filter(a => a.id !== id));
+        alert('删除成功');
+      }
+    } catch (error) {
+      console.error('删除失败:', error);
+      alert('删除失败，请稍后重试');
+    }
+  };
+
   // 获取状态标签
   const getStatusBadge = (article: Article) => {
     if (article.status === 'generating') {
@@ -687,30 +763,43 @@ export default function SmartWritingPage() {
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-2 ml-4">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
+                      {/* 操作按钮 */}
+                      <div className="flex items-center gap-3 ml-4">
+                        {/* 查看 */}
+                        <button 
                           onClick={() => setViewingArticle(article)}
+                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-blue-100 hover:bg-blue-200 transition-colors"
                         >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {article.status === 'generated' && article.push_status !== 'success' && (
-                          <Button 
-                            size="sm"
-                            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-                            onClick={() => handlePushToWechat(article)}
-                          >
-                            <SendHorizontal className="h-4 w-4 mr-1" />
-                            推送
-                          </Button>
-                        )}
-                        {article.push_status === 'success' && (
-                          <Button size="sm" variant="outline" disabled>
-                            <Check className="h-4 w-4 mr-1" />
-                            已推送
-                          </Button>
-                        )}
+                          <Eye className="h-4 w-4 text-white" />
+                          <span className="text-xs text-gray-700">查看</span>
+                        </button>
+                        
+                        {/* 编辑 */}
+                        <button 
+                          onClick={() => handleEditArticle(article)}
+                          className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          <Edit className="h-4 w-4 text-gray-700" />
+                          <span className="text-xs text-gray-700">编辑</span>
+                        </button>
+                        
+                        {/* 存稿 */}
+                        <button 
+                          onClick={() => handleSaveArticle(article)}
+                          className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          <Save className="h-4 w-4 text-gray-700" />
+                          <span className="text-xs text-gray-700">存稿</span>
+                        </button>
+                        
+                        {/* 删除 */}
+                        <button 
+                          onClick={() => handleDeleteArticle(String(article.id))}
+                          className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4 text-gray-700" />
+                          <span className="text-xs text-gray-700">删除</span>
+                        </button>
                       </div>
                     </div>
                   </Card>
@@ -817,7 +906,7 @@ export default function SmartWritingPage() {
                 <div className="w-8 h-8 rounded bg-orange-500 flex items-center justify-center">
                   <Sparkles className="h-4 w-4 text-white" />
                 </div>
-                文章创作设置
+                {editingArticle ? '编辑文章' : '文章创作设置'}
               </DialogTitle>
               <Button variant="ghost" size="sm" onClick={() => setShowCreateDialog(false)}>
                 <X className="h-4 w-4" />
@@ -1051,23 +1140,26 @@ export default function SmartWritingPage() {
 
           {/* 操作按钮 */}
           <div className="flex gap-3 pt-4 border-t">
-            <Button variant="outline" className="flex-1" onClick={() => setShowCreateDialog(false)}>
+            <Button variant="outline" className="flex-1" onClick={() => {
+              setShowCreateDialog(false);
+              setEditingArticle(null);
+            }}>
               取消
             </Button>
             <Button 
               className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-              onClick={handleStartCreate}
-              disabled={isGenerating || !selectedPromptId || !selectedGroupId}
+              onClick={editingArticle ? handleSaveEdit : handleStartCreate}
+              disabled={!selectedPromptId || !selectedGroupId || isGenerating}
             >
               {isGenerating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  创作中...
+                  {editingArticle ? '保存中...' : '创作中...'}
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
-                  开始创作
+                  {editingArticle ? '保存编辑' : '开始创作'}
                 </>
               )}
             </Button>
