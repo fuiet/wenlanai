@@ -14,7 +14,7 @@ import { Loader2, User, Lock, Mail } from 'lucide-react';
 
 export default function AuthPage() {
   const router = useRouter();
-  const { checkAuth } = useAuth();
+  const { login, checkAuth } = useAuth();
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState('login');
@@ -64,6 +64,16 @@ export default function AuthPage() {
         // 使用API返回的用户数据
         const userData = data.data.user;
         localStorage.setItem('member_user', JSON.stringify(userData));
+        // 更新全局状态
+        login({
+          id: userData.id,
+          email: userData.email,
+          username: userData.username,
+          nickname: userData.nickname,
+          avatar: userData.avatar,
+          vipLevel: userData.vipLevel,
+          vipExpireAt: userData.vipExpireAt
+        });
         setTimeout(() => router.push('/'), 500);
       } else {
         toast({ title: data.message || '登录失败', variant: 'destructive' });
@@ -107,6 +117,7 @@ export default function AuthPage() {
 
       if (data.success) {
         toast({ title: '注册成功！' });
+        // 注册成功后调用 checkAuth 并更新全局状态
         await checkAuth();
         setTimeout(() => router.push('/'), 500);
       } else {

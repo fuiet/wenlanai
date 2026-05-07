@@ -72,11 +72,15 @@ export default function MemberCenterPage() {
   }, []);
 
   const fetchUserInfo = async () => {
+    setLoading(true);
     try {
+      console.log('[DEBUG] 开始获取用户信息...');
       const res = await fetch('/api/member/profile', {
         credentials: 'include'
       });
+      console.log('[DEBUG] 响应状态:', res.status);
       const data = await res.json();
+      console.log('[DEBUG] API响应:', JSON.stringify(data));
       
       if (data.success && data.data) {
         // API 返回的是 data 直接就是用户信息
@@ -130,7 +134,7 @@ export default function MemberCenterPage() {
         return;
       }
     } catch (error) {
-      console.error('获取用户信息失败:', error);
+      console.error('[DEBUG] 获取用户信息失败:', error);
       toast({ title: '加载失败', description: '请稍后重试', variant: 'destructive' });
     } finally {
       setLoading(false);

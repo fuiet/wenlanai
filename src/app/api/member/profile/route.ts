@@ -16,8 +16,10 @@ export async function GET(request: NextRequest) {
     // 查找会话
     const sessionResult = await query(
       `SELECT s.user_id, s.expires_at,
-              u.email, u.nickname, u.is_active, u.created_at,
-              mp.*
+              u.id as user_id, u.email, u.nickname, u.is_active, u.created_at,
+              mp.id as profile_id, mp.username, mp.avatar, mp.phone, mp.gender, 
+              mp.birthday, mp.bio, mp.company, mp.position, mp.website, 
+              mp.wechat, mp.qq, mp.vip_level, mp.vip_expire_at, mp.points
        FROM sessions s
        JOIN users u ON u.id = s.user_id
        LEFT JOIN member_profiles mp ON mp.user_id = s.user_id

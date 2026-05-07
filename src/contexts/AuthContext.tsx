@@ -90,11 +90,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch('/api/member/logout', { method: 'POST' });
+      await fetch('/api/member/logout', { 
+        method: 'POST',
+        credentials: 'include'
+      });
     } catch {
       // 忽略错误
     }
     setUser(null);
+    localStorage.removeItem('member_user');
     router.push('/auth');
   };
 
