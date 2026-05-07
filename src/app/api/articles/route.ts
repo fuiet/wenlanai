@@ -36,6 +36,38 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// DELETE /api/articles - 删除文章
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ success: false, message: '文章ID不能为空' }, { status: 400 });
+    }
+
+    if (!supabase) {
+      // 演示模式
+      return NextResponse.json({ success: true, message: '演示模式：文章已删除' });
+    }
+
+    const { error } = await supabase
+      .from('articles')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('删除文章失败:', error);
+      return NextResponse.json({ success: false, message: '删除文章失败' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, message: '文章已删除' });
+  } catch (error) {
+    console.error('删除文章失败:', error);
+    return NextResponse.json({ success: false, message: '服务器错误' }, { status: 500 });
+  }
+}
+
 // POST /api/articles - 创建文章
 export async function POST(request: NextRequest) {
   try {
