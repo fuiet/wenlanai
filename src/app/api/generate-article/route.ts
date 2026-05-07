@@ -350,18 +350,42 @@ ${generatedContent.substring(0, 500)}
 
     // 清理文章内容：过滤掉图片链接，只保留纯文本
     let cleanedContent = generatedContent;
+    
     // 过滤掉 Markdown 图片格式 ![xxx](url)
     cleanedContent = cleanedContent.replace(/!\[.*?\]\(.*?\)/g, '');
+    
     // 过滤掉残留的 IMAGE_PLACEHOLDER 标记
     cleanedContent = cleanedContent.replace(/\[IMAGE_PLACEHOLDER_\d+\]/g, '');
+    
     // 过滤掉 IMAGE_REPLACED 占位符
     cleanedContent = cleanedContent.replace(/IMAGE_REPLACED/g, '');
+    
     // 过滤掉纯 URL 链接（图片存储链接）
     cleanedContent = cleanedContent.replace(/https?:\/\/storage[^\s]*/gi, '');
-    // 过滤掉任何可能的图片链接文本
-    cleanedContent = cleanedContent.replace(/storage\/\d+\/image\/generateimage\/[a-zA-Z0-9]+\.[a-z]+[^\s]*/gi, '');
+    
+    // 过滤掉任何包含 storage/ 的文本（整行删除包含图片链接的行）
+    cleanedContent = cleanedContent.split('\n')
+      .filter(line => !line.includes('storage/'))
+      .join('\n');
+    
+    // 过滤掉包含 Image: [URL] 或 Image: URL 格式的行
+    cleanedContent = cleanedContent.split('\n')
+      .filter(line => !/Image\s*:\s*\[?https?:\/\//i.test(line))
+      .join('\n');
+    
+    // 过滤掉包含 .png .jpg .jpeg .gif 等图片扩展名的行（如果是链接形式）
+    cleanedContent = cleanedContent.split('\n')
+      .filter(line => {
+        // 如果行只是纯链接或包含链接的描述，才过滤
+        if (/^!?\[.*?\]\(.*?\.(png|jpg|jpeg|gif|webp)/i.test(line.trim())) return false;
+        if (/^https?:\/\/.*\.(png|jpg|jpeg|gif|webp)/i.test(line.trim())) return false;
+        return true;
+      })
+      .join('\n');
+    
     // 清理多余空行
     cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n');
+    
     // 去除首尾空白
     cleanedContent = cleanedContent.trim();
 
