@@ -539,9 +539,63 @@ export default function SmartWritingPage() {
     return { textContent, images };
   };
 
+  // 多样化排版主题定义
+  const layoutThemes = [
+    { 
+      name: '现代简约',
+      title: { bg: 'bg-blue-600', text: 'text-gray-900' },
+      icon: { bg: 'bg-blue-500', shape: 'rounded-full' },
+      accent: 'border-blue-200',
+      highlight: 'text-red-600'
+    },
+    { 
+      name: '活力橙',
+      title: { bg: 'bg-orange-600', text: 'text-orange-900' },
+      icon: { bg: 'bg-orange-500', shape: 'rounded-lg' },
+      accent: 'border-orange-200',
+      highlight: 'text-orange-600'
+    },
+    { 
+      name: '清新绿',
+      title: { bg: 'bg-emerald-600', text: 'text-emerald-900' },
+      icon: { bg: 'bg-emerald-500', shape: 'rounded-full' },
+      accent: 'border-emerald-200',
+      highlight: 'text-emerald-600'
+    },
+    { 
+      name: '优雅紫',
+      title: { bg: 'bg-purple-600', text: 'text-purple-900' },
+      icon: { bg: 'bg-purple-500', shape: 'rounded-xl' },
+      accent: 'border-purple-200',
+      highlight: 'text-purple-600'
+    },
+    { 
+      name: '商务蓝',
+      title: { bg: 'bg-slate-700', text: 'text-slate-900' },
+      icon: { bg: 'bg-slate-600', shape: 'rounded-full' },
+      accent: 'border-slate-200',
+      highlight: 'text-slate-600'
+    },
+    { 
+      name: '热情红',
+      title: { bg: 'bg-rose-600', text: 'text-rose-900' },
+      icon: { bg: 'bg-rose-500', shape: 'rounded-lg' },
+      accent: 'border-rose-200',
+      highlight: 'text-rose-600'
+    },
+  ];
+
+  // 随机选择排版主题（基于文章ID确保同一文章一致性）
+  const getTheme = (articleId: string | number) => {
+    const hash = String(articleId).split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0);
+    const index = Math.abs(hash) % layoutThemes.length;
+    return layoutThemes[index];
+  };
+
   // 渲染文章内容组件（精美排版）
   const ArticleContentWithImages = ({ article }: { article: Article }) => {
     const { textContent, images } = processArticleContent(article.content || '', article.images || []);
+    const theme = getTheme(article.id);
     
     // 解析文章内容，提取标题和段落
     const parseContent = (content: string) => {
@@ -557,6 +611,16 @@ export default function SmartWritingPage() {
           if (currentParagraph) {
             currentParagraph += '\n';
           }
+          return;
+        }
+        
+        // 检测分隔线
+        if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
+          if (currentParagraph.trim()) {
+            sections.push({ type: 'paragraph', content: currentParagraph.trim() });
+            currentParagraph = '';
+          }
+          sections.push({ type: 'separator', content: '' });
           return;
         }
         
@@ -585,22 +649,38 @@ export default function SmartWritingPage() {
     
     const sections = parseContent(textContent);
     
-    // 插入图片的策略
+    // 插入图片的策略（随机化）
     const getImageInsertIndices = (imgCount: number, sectionCount: number) => {
       if (imgCount === 0 || sectionCount === 0) return [];
       
-      // 策略：开头1张、结尾1张、中间均匀分布
       const indices: number[] = [];
       
-      if (imgCount >= 1) indices.push(0); // 开头
-      if (imgCount >= 2) indices.push(sectionCount - 1); // 结尾
+      // 随机决定：开头 + 均匀 / 纯开头+结尾 / 纯均匀
+      const pattern = Math.abs(String(article.id).charCodeAt(0) || 0) % 3;
       
-      // 中间图片均匀分布
-      const middleCount = imgCount - (imgCount >= 2 ? 2 : 1);
-      if (middleCount > 0 && sectionCount > 2) {
-        for (let i = 0; i < middleCount; i++) {
-          const pos = Math.floor((i + 1) * (sectionCount - 1) / (middleCount + 1));
+      if (pattern === 0) {
+        // 模式1：开头 + 结尾 + 均匀分布
+        if (imgCount >= 1) indices.push(0);
+        if (imgCount >= 2 && sectionCount > 1) indices.push(sectionCount - 1);
+        
+        const middleCount = imgCount - (imgCount >= 2 ? 2 : 1);
+        if (middleCount > 0 && sectionCount > 2) {
+          for (let i = 0; i < middleCount; i++) {
+            const pos = Math.floor((i + 1) * (sectionCount - 1) / (middleCount + 1));
+            if (!indices.includes(pos)) indices.push(pos);
+          }
+        }
+      } else if (pattern === 1) {
+        // 模式2：纯开头 + 均匀分布
+        for (let i = 0; i < Math.min(imgCount, Math.ceil(sectionCount / 2)); i++) {
+          const pos = Math.floor(i * sectionCount / Math.min(imgCount, Math.ceil(sectionCount / 2)));
           if (!indices.includes(pos)) indices.push(pos);
+        }
+      } else {
+        // 模式3：纯均匀分布
+        for (let i = 0; i < imgCount; i++) {
+          const pos = Math.floor((i + 0.5) * sectionCount / imgCount);
+          if (!indices.includes(pos) && pos < sectionCount) indices.push(pos);
         }
       }
       
@@ -610,10 +690,36 @@ export default function SmartWritingPage() {
     const imageIndices = getImageInsertIndices(images.length, sections.length);
     let imageIdx = 0;
     
+    // 序号样式随机
+    const getIconStyle = (idx: number) => {
+      const styles = [
+        { bg: 'bg-blue-500', shape: 'rounded-full', size: 'w-8 h-8' },
+        { bg: 'bg-orange-500', shape: 'rounded-lg', size: 'w-10 h-10' },
+        { bg: 'bg-emerald-500', shape: 'rounded-full', size: 'w-7 h-7' },
+        { bg: 'bg-purple-500', shape: 'rounded-xl', size: 'w-9 h-9' },
+        { bg: 'bg-rose-500', shape: 'rounded-full', size: 'w-8 h-8' },
+      ];
+      const hash = String(article.id).split('').reduce((a, b) => a + b.charCodeAt(0), 0) + idx;
+      return styles[hash % styles.length];
+    };
+    
+    // 图片样式随机
+    const getImageStyle = (idx: number) => {
+      const styles = [
+        'rounded-lg shadow-md',
+        'rounded-xl shadow-lg',
+        'rounded-2xl shadow-sm',
+        'rounded-lg shadow-blue-200',
+        'rounded-xl shadow-orange-200',
+      ];
+      const hash = String(article.id).split('').reduce((a, b) => a + b.charCodeAt(0), 0) + idx * 2;
+      return styles[hash % styles.length];
+    };
+    
     return (
       <div className="article-content space-y-5">
         {sections.map((section, idx) => {
-          const element = [];
+          const element: React.ReactNode[] = [];
           
           // 在段落前插入图片
           while (imageIdx < imageIndices.length && imageIndices[imageIdx] === idx && imageIdx < images.length) {
@@ -622,39 +728,58 @@ export default function SmartWritingPage() {
                 <img 
                   src={images[imageIdx]} 
                   alt={`配图${imageIdx + 1}`} 
-                  className="w-full rounded-lg shadow-md" 
+                  className={`w-full ${getImageStyle(imageIdx)}`} 
                 />
               </div>
             );
             imageIdx++;
           }
           
-          if (section.type === 'title') {
-            const level = section.level || 1;
-            const isMainTitle = level === 1;
+          if (section.type === 'separator') {
             element.push(
-              <div key={`title-${idx}`} className={`
-                flex items-center gap-3 ${isMainTitle ? 'mt-8 mb-4' : 'mt-6 mb-3'}
-              `}>
-                {/* 序号图标 */}
-                <div className={`
-                  w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0
-                  ${isMainTitle ? 'bg-blue-600' : 'bg-blue-500'}
-                `}>
-                  {idx + 1}
-                </div>
-                <h2 className={`
-                  ${isMainTitle ? 'text-xl font-bold text-gray-900' : 'text-lg font-semibold text-orange-600'}
-                `}>
-                  {section.content}
-                </h2>
+              <div key={`sep-${idx}`} className="flex items-center justify-center my-6">
+                <span className={`w-2 h-2 ${theme.icon.bg} ${theme.icon.shape} mx-1`}></span>
+                <span className={`w-2 h-2 ${theme.icon.bg} ${theme.icon.shape} mx-1`}></span>
+                <span className={`w-2 h-2 ${theme.icon.bg} ${theme.icon.shape} mx-1`}></span>
               </div>
             );
+          } else if (section.type === 'title') {
+            const level = section.level || 1;
+            const isMainTitle = level === 1;
+            const iconStyle = getIconStyle(idx);
+            
+            if (isMainTitle) {
+              // 一级标题样式
+              element.push(
+                <div key={`title-${idx}`} className={`
+                  flex items-center gap-3 mt-8 mb-5 pb-3 border-b-2 ${theme.accent}
+                `}>
+                  <div className={`${iconStyle.bg} ${iconStyle.shape} ${iconStyle.size} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                    {idx + 1}
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {section.content}
+                  </h2>
+                </div>
+              );
+            } else {
+              // 二级标题样式
+              element.push(
+                <div key={`title-${idx}`} className={`
+                  flex items-center gap-2 mt-6 mb-3
+                `}>
+                  <span className={`w-1.5 h-6 ${theme.icon.bg} rounded-full`}></span>
+                  <h3 className={`text-lg font-semibold ${theme.highlight}`}>
+                    {section.content}
+                  </h3>
+                </div>
+              );
+            }
           } else if (section.type === 'paragraph') {
             // 处理段落中的强调文字
             const processedContent = section.content
-              .replace(/\*\*(.*?)\*\*/g, '<strong class="text-red-600 font-semibold">$1</strong>')
-              .replace(/__(.*?)__/g, '<strong class="text-blue-600 font-semibold">$1</strong>');
+              .replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.highlight} font-semibold">$1</strong>`)
+              .replace(/__(.*?)__/g, `<strong class="${theme.highlight} font-semibold">$1</strong>`);
             
             element.push(
               <p key={`para-${idx}`} className="text-gray-700 leading-relaxed text-base">
@@ -672,13 +797,15 @@ export default function SmartWritingPage() {
             <img 
               src={img} 
               alt={`配图${imageIdx + i + 1}`} 
-              className="w-full rounded-lg shadow-md" 
+              className={`w-full ${getImageStyle(imageIdx + i)}`} 
             />
           </div>
         ))}
         
-        {/* 添加分隔线 */}
-        <hr className="my-8 border-gray-200" />
+        {/* 底部装饰 */}
+        <div className="mt-8 pt-4 border-t border-gray-200 text-center">
+          <span className="text-xs text-gray-400">- END -</span>
+        </div>
       </div>
     );
   };
