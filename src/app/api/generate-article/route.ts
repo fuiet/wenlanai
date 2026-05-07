@@ -348,62 +348,37 @@ ${generatedContent.substring(0, 500)}
 
     console.log('生成图片完成，数量:', imageUrls.length);
 
+    // 清理文章内容：过滤掉图片链接，只保留纯文本
+    let cleanedContent = generatedContent;
+    // 过滤掉 Markdown 图片格式 ![xxx](url)
+    cleanedContent = cleanedContent.replace(/!\[.*?\]\(.*?\)/g, '');
+    // 过滤掉残留的 IMAGE_PLACEHOLDER 标记
+    cleanedContent = cleanedContent.replace(/\[IMAGE_PLACEHOLDER_\d+\]/g, '');
+    // 过滤掉 IMAGE_REPLACED 占位符
+    cleanedContent = cleanedContent.replace(/IMAGE_REPLACED/g, '');
+    // 过滤掉纯 URL 链接（图片存储链接）
+    cleanedContent = cleanedContent.replace(/https?:\/\/storage[^\s]*/gi, '');
+    // 过滤掉任何可能的图片链接文本
+    cleanedContent = cleanedContent.replace(/storage\/\d+\/image\/generateimage\/[a-zA-Z0-9]+\.[a-z]+[^\s]*/gi, '');
+    // 清理多余空行
+    cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n');
+    // 去除首尾空白
+    cleanedContent = cleanedContent.trim();
+
     // 处理文章内容中的图片标记，将 IMAGE_PLACEHOLDER 替换为实际图片
-    let finalContent = generatedContent;
+    let finalContent = cleanedContent;
+    
+    // 保存纯文本内容到数据库，图片URL单独存储
+    let pureTextContent = cleanedContent;
+    
     if (imageUrls.length > 0 && generatedContent) {
-      // 按照顺序替换图片标记
-      imageUrls.forEach((url, index) => {
-        const placeholder = `[IMAGE_PLACEHOLDER_${index + 1}]`;
-        const imageMarkdown = `![配图](${url})`;
-        finalContent = finalContent.replace(new RegExp(placeholder.replace(/[()]/g, '\\$&'), 'g'), imageMarkdown);
-      });
+      // 处理剩余未替换的图片标记（如果没有足够的标记，清理掉）
+      const paragraphs = finalContent.split('\n\n');
+      const cleanedParagraphs = paragraphs.map(p => p.replace(/!\[.*?\]\(.*?\)/g, '').trim()).filter(p => p);
+      finalContent = cleanedParagraphs.join('\n\n');
+      pureTextContent = finalContent;
       
-      // 处理剩余未替换的图片标记（如果没有足够的标记，在文章中间均匀插入）
-      const usedCount = imageUrls.length;
-      if (usedCount > 0 && finalContent.includes('[IMAGE_PLACEHOLDER_')) {
-        // 如果还有未使用的图片，随机插入到文章中间
-        const midPoint = Math.floor(finalContent.length / 2);
-        const paragraphs = finalContent.split('\n\n');
-        let currentPos = 0;
-        let insertIndex = 0;
-        
-        for (let i = 0; i < paragraphs.length && usedCount > 0; i++) {
-          currentPos += paragraphs[i].length;
-          if (currentPos > midPoint && !paragraphs[i].includes('![配图]')) {
-            paragraphs[i] += '\n\n![配图](IMAGE_REPLACED)';
-            insertIndex = i;
-            break;
-          }
-        }
-        finalContent = paragraphs.join('\n\n');
-      }
-      
-      // 如果没有IMAGE_PLACEHOLDER标记，则在文章中均匀插入图片
-      if (!finalContent.includes('[IMAGE_PLACEHOLDER_') && imageUrls.length > 0) {
-        const paragraphs = finalContent.split('\n\n').filter(p => p.trim());
-        const insertPositions = [];
-        
-        // 计算插入位置：开头1张，中间均匀分布，结尾前1张
-        const count = Math.min(imageUrls.length, paragraphs.length);
-        for (let i = 1; i < count - 1; i++) {
-          const pos = Math.floor((i / (count - 1)) * paragraphs.length);
-          insertPositions.push(pos);
-        }
-        
-        // 在开头插入
-        insertPositions.unshift(0);
-        // 在结尾前插入
-        insertPositions.push(paragraphs.length - 1);
-        
-        // 插入图片
-        insertPositions.forEach((pos, idx) => {
-          if (imageUrls[idx]) {
-            paragraphs.splice(pos, 0, `![配图](${imageUrls[idx]})`);
-          }
-        });
-        
-        finalContent = paragraphs.join('\n\n');
-      }
+      // 图片将在前端根据 images 字段渲染，不写入 content
     }
 
     // 保存文章到数据库
@@ -416,12 +391,12 @@ ${generatedContent.substring(0, 500)}
       .from('articles')
       .insert({
         title: generatedTitle || '未命名文章',
-        content: finalContent,
+        content: pureTextContent,  // 保存纯文本内容
         author: groupName || '未知',
         group_name: groupName || null,
         status: 'completed',
         push_status: 'none',
-        images: imageUrls,
+        images: imageUrls,  // 图片单独存储
         created_by: userId
       })
       .select()
