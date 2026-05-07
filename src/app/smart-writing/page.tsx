@@ -1368,7 +1368,7 @@ export default function SmartWritingPage() {
                   文章主题 <span className="text-red-500">*</span>
                 </Label>
               </div>
-              <p className="text-xs text-gray-500 mb-2">输入你想创作的文章主题</p>
+              <p className="text-[10px] text-gray-500 mb-2">输入你想创作的文章主题</p>
               <Input
                 placeholder="输入你想创作的文章主题"
                 value={articleTopic}

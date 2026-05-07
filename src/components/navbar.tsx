@@ -109,7 +109,7 @@ export default function Navbar() {
                       transition-all duration-200 text-sm
                     `}
                   >
-                    <Icon className="mr-1.5 h-3.5 w-3.5" />
+                    <Icon className="mr-1.5 h-4 w-4" />
                     {item.label}
                   </Button>
                 </Link>
