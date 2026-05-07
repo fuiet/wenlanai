@@ -284,7 +284,7 @@ export default function AccountContent() {
         {/* 页面标题 */}
         <div className="mb-8">
           <h1 className="text-xl font-bold text-gray-900 mb-2">公众号管理</h1>
-          <p className="text-gray-600">绑定您的微信公众号，开启一键推送功能</p>
+          <p className="text-[10px] text-gray-500">绑定您的微信公众号，开启一键推送功能</p>
         </div>
 
         {/* 状态消息 */}

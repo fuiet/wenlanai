@@ -473,7 +473,7 @@ export default function PromptLibraryPage() {
                 <MessageSquare className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">提示词库</h1>
+                <h1 className="text-xl font-bold text-gray-900">提示词库</h1>
                 <p className="text-sm text-gray-500">管理和生成AI提示词</p>
               </div>
             </div>

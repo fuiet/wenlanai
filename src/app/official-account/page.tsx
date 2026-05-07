@@ -440,7 +440,7 @@ function OfficialAccountContent() {
           <UserCheck className="mr-3 h-8 w-8 text-orange-500" />
           公众号管理
         </h1>
-        <p className="text-gray-600">管理您的授权公众号，绑定账号并推送文章</p>
+        <p className="text-[10px] text-gray-500">管理您的授权公众号，绑定账号并推送文章</p>
       </div>
 
       {/* 状态消息 */}

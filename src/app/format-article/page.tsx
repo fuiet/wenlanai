@@ -116,7 +116,7 @@ export default function FormatArticlePage() {
           <LayoutTemplate className="mr-3 h-8 w-8 text-orange-500" />
           一键排版
         </h1>
-        <p className="text-gray-600">Markdown编辑，一键排版成可以直接发布到公众号的格式</p>
+        <p className="text-[10px] text-gray-500">Markdown编辑，一键排版成可以直接发布到公众号的格式</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

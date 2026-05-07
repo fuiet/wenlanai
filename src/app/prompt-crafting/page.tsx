@@ -191,7 +191,7 @@ function PromptCraftingContent() {
           <Sparkles className="mr-3 h-8 w-8 text-purple-500" />
           提示词打造
         </h1>
-        <p className="text-gray-600">分析爆款文章，提炼人设、文笔、思路、排版，生成可复用的创作提示词</p>
+        <p className="text-[10px] text-gray-500">分析爆款文章，提炼人设、文笔、思路、排版，生成可复用的创作提示词</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
