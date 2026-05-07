@@ -44,29 +44,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkAuth = async (): Promise<boolean> => {
     try {
       // 先尝试从 localStorage 获取
-      const cached = localStorage.getItem('member_user');
-      if (cached) {
-        const userData = JSON.parse(cached);
-        setUser(userData);
-        return true;
+      if (typeof window !== 'undefined') {
+        const cached = localStorage.getItem('member_user');
+        if (cached) {
+          try {
+            const userData = JSON.parse(cached);
+            setUser(userData);
+            return true;
+          } catch {
+            // 解析失败，继续检查 API
+          }
+        }
       }
+      
       // 如果没有缓存，调用API（添加 credentials 确保发送 cookie）
-      const res = await fetch('/api/member/profile', {
-        credentials: 'include'
-      });
-      const data = await res.json();
-      if (data.success && data.data) {
-        setUser(data.data.user);
-        localStorage.setItem('member_user', JSON.stringify(data.data.user));
-        return true;
-      } else {
-        setUser(null);
-        localStorage.removeItem('member_user');
-        return false;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
+      
+      try {
+        const res = await fetch('/api/member/profile', {
+          credentials: 'include',
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
+        const data = await res.json();
+        if (data.success && data.data) {
+          // API 返回的 data.data 就是用户信息
+          const userData = data.data;
+          setUser(userData);
+          localStorage.setItem('member_user', JSON.stringify(userData));
+          return true;
+        } else {
+          setUser(null);
+          localStorage.removeItem('member_user');
+          return false;
+        }
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          console.log('检查登录状态超时');
+        }
+        throw fetchError;
       }
     } catch {
       setUser(null);
-      localStorage.removeItem('member_user');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('member_user');
+      }
       return false;
     }
   };
