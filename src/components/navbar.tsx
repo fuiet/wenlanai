@@ -128,10 +128,10 @@ export default function Navbar() {
                         <Avatar className="h-9 w-9 border-2 border-orange-200">
                           <AvatarImage src={user.avatar_url} />
                           <AvatarFallback className="bg-purple-500 text-white">
-                            {user.nickname?.[0] || user.phone?.[0] || 'U'}
+                            {user.nickname?.[0] || user.email?.[0]?.toUpperCase() || user.phone?.[0] || 'U'}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="font-medium text-gray-700">{user.nickname}</span>
+                        <span className="font-medium text-gray-700">{user.nickname || user.email?.split('@')[0] || '用户'}</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
