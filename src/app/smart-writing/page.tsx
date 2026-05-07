@@ -115,10 +115,6 @@ export default function SmartWritingPage() {
 
   // 加载文章列表
   const loadArticles = async () => {
-    // 未登录时不加载数据
-      setArticles([]);
-      return;
-    }
     setIsLoading(true);
     try {
       const response = await fetch('/api/articles', { credentials: 'include' });
@@ -137,10 +133,6 @@ export default function SmartWritingPage() {
 
   // 加载分组列表
   const loadGroups = async () => {
-    // 未登录时不加载数据
-      setGroups([]);
-      return;
-    }
     try {
       const response = await fetch('/api/article-groups', { credentials: 'include' });
       if (response.ok) {
@@ -156,10 +148,6 @@ export default function SmartWritingPage() {
 
   // 加载提示词模板
   const loadPromptTemplates = async () => {
-    // 未登录时不加载数据
-      setPromptTemplates([]);
-      return;
-    }
     try {
       const response = await fetch('/api/prompt-templates', { credentials: 'include' });
       if (response.ok) {
@@ -215,8 +203,6 @@ export default function SmartWritingPage() {
 
   // 创建分组
   const handleCreateGroup = async () => {
-    // 检查登录状态
-    
 
     if (!newGroupName.trim()) return;
     
@@ -242,8 +228,6 @@ export default function SmartWritingPage() {
 
   // 更新分组
   const handleUpdateGroup = async () => {
-    // 检查登录状态
-    
 
     if (!editingGroup || !newGroupName.trim()) return;
     
@@ -270,8 +254,6 @@ export default function SmartWritingPage() {
 
   // 删除分组
   const handleDeleteGroup = async (groupId: string) => {
-    // 检查登录状态
-    
 
     if (!confirm('确定要删除该分组吗？')) return;
     
@@ -294,8 +276,6 @@ export default function SmartWritingPage() {
 
   // 保存编辑的文章
   const handleSaveEdit = async () => {
-    // 检查登录状态
-    
 
     if (!editingArticle) return;
     
@@ -333,9 +313,6 @@ export default function SmartWritingPage() {
 
   // 开始创作
   const handleStartCreate = async () => {
-    // 检查登录状态
-    
-
     if (!articleTopic) {
       alert('请输入文章主题');
       return;
@@ -481,8 +458,6 @@ export default function SmartWritingPage() {
 
   // 推送到微信草稿箱
   const handlePushToWechat = async (article: Article) => {
-    // 检查登录状态
-    
 
     try {
       const response = await fetch('/api/push-to-wechat', {
@@ -538,8 +513,6 @@ export default function SmartWritingPage() {
 
   // 删除文章
   const handleDeleteArticle = async (id: string) => {
-    // 检查登录状态
-    
 
     if (!confirm('确定要删除这篇文章吗？')) return;
     try {
