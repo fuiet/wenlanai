@@ -791,68 +791,113 @@ export default function SmartWritingPage() {
                 </Button>
               </Card>
             ) : (
-              <div className="grid gap-4">
+              <div className="border rounded-lg overflow-hidden">
+                {/* 表头 */}
+                <div className="bg-gray-50 border-b px-4 py-3 grid grid-cols-12 gap-4 items-center text-sm font-medium text-gray-600">
+                  <div className="col-span-1">选择</div>
+                  <div className="col-span-1">封面</div>
+                  <div className="col-span-2">文章标题</div>
+                  <div className="col-span-1">分组</div>
+                  <div className="col-span-1">生成状态</div>
+                  <div className="col-span-1">推送状态</div>
+                  <div className="col-span-2">更新时间</div>
+                  <div className="col-span-3">操作</div>
+                </div>
+                {/* 表格内容 */}
                 {filteredArticles.map(article => (
-                  <Card key={article.id} className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-gray-900">{article.title}</h3>
-                          {getStatusBadge(article)}
-                        </div>
-                        <p className="text-sm text-gray-500 line-clamp-2">
-                          {article.content?.substring(0, 200)}...
-                        </p>
-                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
-                          <span>{new Date(article.created_at).toLocaleDateString()}</span>
-                          {Array.isArray(article.images) && article.images.length > 0 && (
-                            <span className="flex items-center gap-1">
-                              <ImageIcon className="h-3 w-3" />
-                              {article.images.length}张图片
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {/* 操作按钮 */}
-                      <div className="flex items-center gap-3 ml-4">
-                        {/* 查看 */}
-                        <button 
-                          onClick={() => setViewingArticle(article)}
-                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-blue-100 hover:bg-blue-200 transition-colors"
-                        >
-                          <Eye className="h-4 w-4 text-white" />
-                          <span className="text-xs text-gray-700">查看</span>
-                        </button>
-                        
-                        {/* 编辑 */}
-                        <button 
-                          onClick={() => handleEditArticle(article)}
-                          className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                        >
-                          <Edit className="h-4 w-4 text-gray-700" />
-                          <span className="text-xs text-gray-700">编辑</span>
-                        </button>
-                        
-                        {/* 存稿 */}
-                        <button 
-                          onClick={() => handleSaveArticle(article)}
-                          className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                        >
-                          <Save className="h-4 w-4 text-gray-700" />
-                          <span className="text-xs text-gray-700">存稿</span>
-                        </button>
-                        
-                        {/* 删除 */}
-                        <button 
-                          onClick={() => handleDeleteArticle(String(article.id))}
-                          className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4 text-gray-700" />
-                          <span className="text-xs text-gray-700">删除</span>
-                        </button>
-                      </div>
+                  <div 
+                    key={article.id} 
+                    className="border-b last:border-b-0 px-4 py-3 grid grid-cols-12 gap-4 items-center text-sm hover:bg-gray-50"
+                  >
+                    {/* 选择 */}
+                    <div className="col-span-1">
+                      <Checkbox checked={false} onCheckedChange={() => {}} />
                     </div>
-                  </Card>
+                    {/* 封面 */}
+                    <div className="col-span-1">
+                      {Array.isArray(article.images) && article.images.length > 0 ? (
+                        <img 
+                          src={article.images[0]} 
+                          alt="封面" 
+                          className="w-12 h-12 object-cover rounded"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                          <ImageIcon className="h-5 w-5 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                    {/* 文章标题 */}
+                    <div className="col-span-2">
+                      <p className="font-medium text-gray-900 truncate">{article.title}</p>
+                    </div>
+                    {/* 分组 */}
+                    <div className="col-span-1">
+                      <span className="text-gray-600 text-xs">
+                        {article.group_name || '-'}
+                      </span>
+                    </div>
+                    {/* 生成状态 */}
+                    <div className="col-span-1">
+                      {getStatusBadge(article)}
+                    </div>
+                    {/* 推送状态 */}
+                    <div className="col-span-1">
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        article.push_status === 'success' ? 'bg-green-100 text-green-700' :
+                        article.push_status === 'failed' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {article.push_status === 'success' ? '已推送' :
+                         article.push_status === 'failed' ? '推送失败' :
+                         article.push_status === 'pending' ? '推送中' : '未推送'}
+                      </span>
+                    </div>
+                    {/* 更新时间 */}
+                    <div className="col-span-2">
+                      <span className="text-gray-500 text-xs">
+                        {new Date(article.updated_at).toLocaleDateString()} {new Date(article.updated_at).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    {/* 操作 */}
+                    <div className="col-span-3 flex items-center gap-2">
+                      {/* 查看 */}
+                      <button 
+                        onClick={() => setViewingArticle(article)}
+                        className="flex flex-col items-center gap-1 p-2 rounded-lg bg-blue-100 hover:bg-blue-200 transition-colors"
+                      >
+                        <Eye className="h-4 w-4 text-white" />
+                        <span className="text-xs text-gray-700">查看</span>
+                      </button>
+                      
+                      {/* 编辑 */}
+                      <button 
+                        onClick={() => handleEditArticle(article)}
+                        className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <Edit className="h-4 w-4 text-gray-700" />
+                        <span className="text-xs text-gray-700">编辑</span>
+                      </button>
+                      
+                      {/* 存稿 */}
+                      <button 
+                        onClick={() => handleSaveArticle(article)}
+                        className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <Save className="h-4 w-4 text-gray-700" />
+                        <span className="text-xs text-gray-700">存稿</span>
+                      </button>
+                      
+                      {/* 删除 */}
+                      <button 
+                        onClick={() => handleDeleteArticle(String(article.id))}
+                        className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4 text-gray-700" />
+                        <span className="text-xs text-gray-700">删除</span>
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
