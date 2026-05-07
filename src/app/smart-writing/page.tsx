@@ -340,7 +340,7 @@ export default function SmartWritingPage() {
       generate_progress: 'title'
     };
     
-    setArticles(prev => [...prev, tempArticle]);
+    setArticles(prev => [tempArticle, ...prev]);
 
     // 后台异步生成文章
     try {
