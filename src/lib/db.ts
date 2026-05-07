@@ -22,4 +22,33 @@ export async function getClient() {
   return pool.connect();
 }
 
+// 获取当前登录用户的ID（从Cookie中）
+export async function getCurrentUserId(request: Request): Promise<string | null> {
+  const cookieHeader = request.headers.get('cookie') || '';
+  const cookies = Object.fromEntries(
+    cookieHeader.split('; ').map(c => {
+      const [key, ...val] = c.split('=');
+      return [key, val.join('=')];
+    })
+  );
+  
+  const token = cookies['session_token'];
+  if (!token) return null;
+  
+  try {
+    const result = await query(
+      'SELECT user_id::text FROM sessions WHERE token = $1 AND expires_at > NOW()',
+      [token]
+    );
+    
+    if (result.rows.length > 0) {
+      return result.rows[0].user_id;
+    }
+  } catch (e) {
+    console.error('getCurrentUserId error:', e);
+  }
+  
+  return null;
+}
+
 export default pool;
