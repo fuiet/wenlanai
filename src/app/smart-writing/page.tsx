@@ -539,48 +539,163 @@ export default function SmartWritingPage() {
     return { textContent, images };
   };
 
-  // 渲染文章内容组件（图片间隔插入）
+  // 渲染文章内容组件（精美排版）
   const ArticleContentWithImages = ({ article }: { article: Article }) => {
     const { textContent, images } = processArticleContent(article.content || '', article.images || []);
     
-    // 如果没有图片，直接显示文本
-    if (!images || images.length === 0) {
-      return <div className="whitespace-pre-wrap text-gray-700">{textContent}</div>;
-    }
-
-    // 将文本按段落分割
-    const paragraphs = textContent.split(/\n\n+/).filter(p => p.trim());
-    
-    // 计算每个段落后应该插入图片的位置
-    // 策略：在段落之间均匀分布图片
-    const result: React.ReactNode[] = [];
-    const imagesPerParagraph = Math.ceil(images.length / paragraphs.length);
-    
-    paragraphs.forEach((paragraph, pIdx) => {
-      result.push(
-        <p key={`text-${pIdx}`} className="mb-4 text-gray-700">
-          {paragraph}
-        </p>
-      );
+    // 解析文章内容，提取标题和段落
+    const parseContent = (content: string) => {
+      const lines = content.split('\n');
+      const sections: { type: 'title' | 'paragraph' | 'separator'; content: string; level?: number }[] = [];
+      let currentParagraph = '';
       
-      // 在段落之间插入图片
-      const startImgIdx = pIdx * imagesPerParagraph;
-      const endImgIdx = Math.min(startImgIdx + imagesPerParagraph, images.length);
+      lines.forEach((line, idx) => {
+        const trimmed = line.trim();
+        
+        // 跳过空行，累积到当前段落
+        if (!trimmed) {
+          if (currentParagraph) {
+            currentParagraph += '\n';
+          }
+          return;
+        }
+        
+        // 检测标题 (# 开头的)
+        if (trimmed.startsWith('#')) {
+          // 先保存当前段落
+          if (currentParagraph.trim()) {
+            sections.push({ type: 'paragraph', content: currentParagraph.trim() });
+            currentParagraph = '';
+          }
+          const level = trimmed.match(/^#+/)?.[0].length || 1;
+          sections.push({ type: 'title', content: trimmed.replace(/^#+\s*/, ''), level });
+        } else {
+          // 添加到当前段落
+          currentParagraph += (currentParagraph ? '\n' : '') + trimmed;
+        }
+      });
       
-      for (let imgIdx = startImgIdx; imgIdx < endImgIdx; imgIdx++) {
-        result.push(
-          <div key={`img-${imgIdx}`} className="my-4">
+      // 保存最后一个段落
+      if (currentParagraph.trim()) {
+        sections.push({ type: 'paragraph', content: currentParagraph.trim() });
+      }
+      
+      return sections;
+    };
+    
+    const sections = parseContent(textContent);
+    
+    // 插入图片的策略
+    const getImageInsertIndices = (imgCount: number, sectionCount: number) => {
+      if (imgCount === 0 || sectionCount === 0) return [];
+      
+      // 策略：开头1张、结尾1张、中间均匀分布
+      const indices: number[] = [];
+      
+      if (imgCount >= 1) indices.push(0); // 开头
+      if (imgCount >= 2) indices.push(sectionCount - 1); // 结尾
+      
+      // 中间图片均匀分布
+      const middleCount = imgCount - (imgCount >= 2 ? 2 : 1);
+      if (middleCount > 0 && sectionCount > 2) {
+        for (let i = 0; i < middleCount; i++) {
+          const pos = Math.floor((i + 1) * (sectionCount - 1) / (middleCount + 1));
+          if (!indices.includes(pos)) indices.push(pos);
+        }
+      }
+      
+      return indices.sort((a, b) => a - b);
+    };
+    
+    const imageIndices = getImageInsertIndices(images.length, sections.length);
+    let imageIdx = 0;
+    
+    return (
+      <div className="article-content space-y-5">
+        {sections.map((section, idx) => {
+          const element = [];
+          
+          // 在段落前插入图片
+          while (imageIdx < imageIndices.length && imageIndices[imageIdx] === idx && imageIdx < images.length) {
+            element.push(
+              <div key={`img-wrap-${imageIdx}`} className="my-6">
+                <img 
+                  src={images[imageIdx]} 
+                  alt={`配图${imageIdx + 1}`} 
+                  className="w-full rounded-lg shadow-md" 
+                />
+              </div>
+            );
+            imageIdx++;
+          }
+          
+          if (section.type === 'title') {
+            const level = section.level || 1;
+            const isMainTitle = level === 1;
+            element.push(
+              <div key={`title-${idx}`} className={`
+                flex items-center gap-3 ${isMainTitle ? 'mt-8 mb-4' : 'mt-6 mb-3'}
+              `}>
+                {/* 序号图标 */}
+                <div className={`
+                  w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0
+                  ${isMainTitle ? 'bg-blue-600' : 'bg-blue-500'}
+                `}>
+                  {idx + 1}
+                </div>
+                <h2 className={`
+                  ${isMainTitle ? 'text-xl font-bold text-gray-900' : 'text-lg font-semibold text-orange-600'}
+                `}>
+                  {section.content}
+                </h2>
+              </div>
+            );
+          } else if (section.type === 'paragraph') {
+            // 处理段落中的强调文字
+            const processedContent = section.content
+              .replace(/\*\*(.*?)\*\*/g, '<strong class="text-red-600 font-semibold">$1</strong>')
+              .replace(/__(.*?)__/g, '<strong class="text-blue-600 font-semibold">$1</strong>');
+            
+            element.push(
+              <p key={`para-${idx}`} className="text-gray-700 leading-relaxed text-base">
+                <span dangerouslySetInnerHTML={{ __html: processedContent }} />
+              </p>
+            );
+          }
+          
+          return <div key={`section-${idx}`}>{element}</div>;
+        })}
+        
+        {/* 在结尾插入剩余图片 */}
+        {images.slice(imageIdx).map((img, i) => (
+          <div key={`img-end-${i}`} className="my-6">
             <img 
-              src={images[imgIdx]} 
-              alt={`配图${imgIdx + 1}`} 
-              className="w-full max-w-lg mx-auto rounded-lg" 
+              src={img} 
+              alt={`配图${imageIdx + i + 1}`} 
+              className="w-full rounded-lg shadow-md" 
             />
           </div>
-        );
-      }
-    });
+        ))}
+        
+        {/* 添加分隔线 */}
+        <hr className="my-8 border-gray-200" />
+      </div>
+    );
+  };
 
-    return <>{result}</>;
+  // 简单的文本渲染（无图片时）
+  const SimpleArticleContent = ({ content }: { content: string }) => {
+    const sections = content.split(/\n\n+/).filter(p => p.trim());
+    
+    return (
+      <div className="space-y-4">
+        {sections.map((section, idx) => (
+          <p key={idx} className="text-gray-700 leading-relaxed">
+            {section}
+          </p>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -1198,16 +1313,26 @@ export default function SmartWritingPage() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
-              <span>{viewingArticle?.title}</span>
+              <span className="text-lg font-bold">{viewingArticle?.title}</span>
               {viewingArticle && getStatusBadge(viewingArticle)}
             </DialogTitle>
+            {viewingArticle?.group_name && (
+              <p className="text-sm text-gray-500 mt-1">
+                <FolderOpen className="h-3 w-3 inline mr-1" />
+                {viewingArticle.group_name}
+              </p>
+            )}
           </DialogHeader>
           
           {viewingArticle && (
             <div className="space-y-4">
-              {/* 文章内容（图片间隔插入） */}
-              <div className="prose prose-sm max-w-none">
-                <ArticleContentWithImages article={viewingArticle} />
+              {/* 文章内容（精美排版） */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                {viewingArticle.content || viewingArticle.images?.length ? (
+                  <ArticleContentWithImages article={viewingArticle} />
+                ) : (
+                  <SimpleArticleContent content={viewingArticle.content || '暂无内容'} />
+                )}
               </div>
               
               {/* 操作按钮 */}
