@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 // 分析结果类型定义
 interface AnalysisResult {
@@ -50,6 +51,7 @@ interface AnalysisResult {
 
 function PromptCraftingContent() {
   const searchParams = useSearchParams();
+  const { checkLogin } = useRequireLogin();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [analysisResult, setAnalysisResult] = useState('');
@@ -241,7 +243,10 @@ function PromptCraftingContent() {
               </div>
               <div className="flex gap-2">
                 <Button
-                  onClick={handleAnalyze}
+                  onClick={() => {
+                    if (!checkLogin('analyze')) return;
+                    handleAnalyze();
+                  }}
                   disabled={isAnalyzing || !title.trim() || !content.trim()}
                   className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                   size="lg"
@@ -293,7 +298,10 @@ function PromptCraftingContent() {
                   分析结果
                 </div>
                 <Button
-                  onClick={() => handleCopy(analysisResult, 'analysis')}
+                  onClick={() => {
+                    if (!checkLogin('copy')) return;
+                    handleCopy(analysisResult, 'analysis');
+                  }}
                   variant="outline"
                   size="sm"
                 >
@@ -452,7 +460,10 @@ function PromptCraftingContent() {
                   生成提示词
                 </div>
                 <Button
-                  onClick={() => handleCopy(generatedPrompt, 'prompt')}
+                  onClick={() => {
+                    if (!checkLogin('copy')) return;
+                    handleCopy(generatedPrompt, 'prompt');
+                  }}
                   variant="default"
                   size="sm"
                   className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"

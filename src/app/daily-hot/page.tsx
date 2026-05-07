@@ -29,6 +29,7 @@ import {
   Globe,
   BarChart3
 } from 'lucide-react';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 interface Article {
   id: string | number;
@@ -75,6 +76,7 @@ const dataSources = [
 ];
 
 export default function DailyHotPage() {
+  const { checkLogin } = useRequireLogin();
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -483,7 +485,10 @@ export default function DailyHotPage() {
                 {/* 获取按钮 */}
                 <div className="flex items-center justify-end">
                   <Button
-                    onClick={handleRefresh}
+                    onClick={() => {
+                      if (!checkLogin('fetch_data')) return;
+                      handleRefresh();
+                    }}
                     disabled={isRefreshing || selectedSources.length === 0}
                     className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
                   >

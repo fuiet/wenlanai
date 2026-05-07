@@ -29,6 +29,7 @@ import {
   Trash2,
   Smartphone
 } from 'lucide-react';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 // 公众号账号类型
 interface WechatAccount {
@@ -66,6 +67,7 @@ const groups = [
 
 function OfficialAccountContent() {
   const searchParams = useSearchParams();
+  const { checkLogin } = useRequireLogin();
   const [selectedGroup, setSelectedGroup] = useState('all');
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isManageGroupDialogOpen, setIsManageGroupDialogOpen] = useState(false);
@@ -773,7 +775,10 @@ function OfficialAccountContent() {
                   />
                 </div>
                 <Button 
-                  onClick={handleBindAccount}
+                  onClick={() => {
+                    if (!checkLogin('bind')) return;
+                    handleBindAccount();
+                  }}
                   disabled={isBinding || !bindAppId || !bindAppSecret}
                   className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
                 >
@@ -1109,7 +1114,10 @@ function OfficialAccountContent() {
                 取消
               </Button>
               <Button
-                onClick={handleBatchSend}
+                onClick={() => {
+                  if (!checkLogin('batch_send')) return;
+                  handleBatchSend();
+                }}
                 disabled={selectedArticles.length === 0}
                 className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
               >

@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useRequireLogin } from "@/hooks/useRequireLogin";
 
 interface FormData {
   name: string;
@@ -134,6 +135,7 @@ function formatTimeAgo(dateString: string): string {
 
 export default function PromptLibraryPage() {
   const router = useRouter();
+  const { checkLogin } = useRequireLogin();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
@@ -478,7 +480,10 @@ export default function PromptLibraryPage() {
               </div>
             </div>
             <Button
-              onClick={() => setShowCreateForm(true)}
+              onClick={() => {
+                if (!checkLogin('generate_prompt')) return;
+                setShowCreateForm(true);
+              }}
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -542,7 +547,10 @@ export default function PromptLibraryPage() {
                       ))}
                       <div
                         className="flex items-center gap-2 px-2 py-2 text-orange-500 cursor-pointer hover:bg-orange-50 rounded-b-lg"
-                        onClick={() => setShowNewCategory(true)}
+                        onClick={() => {
+                          if (!checkLogin('add_category')) return;
+                          setShowNewCategory(true);
+                        }}
                       >
                         <Plus className="w-4 h-4" />
                         <span>新建赛道</span>
@@ -567,7 +575,10 @@ export default function PromptLibraryPage() {
                       <span className="text-xs text-gray-400 whitespace-nowrap">可选</span>
                     </div>
                     <div className="flex gap-2">
-                      <Button onClick={handleCreateCategory} className="bg-orange-500 hover:bg-orange-600 text-white">
+                      <Button onClick={() => {
+                        if (!checkLogin('add_category')) return;
+                        handleCreateCategory();
+                      }} className="bg-orange-500 hover:bg-orange-600 text-white">
                         确定
                       </Button>
                       <Button variant="outline" onClick={() => setShowNewCategory(false)}>
@@ -806,7 +817,10 @@ export default function PromptLibraryPage() {
                   </Button>
                   {!generatedPrompt ? (
                     <Button
-                      onClick={handleGenerate}
+                      onClick={() => {
+                        if (!checkLogin('generate_prompt')) return;
+                        handleGenerate();
+                      }}
                       disabled={!canGenerate || isGenerating}
                       className="bg-orange-500 hover:bg-orange-600 text-white"
                     >
@@ -824,7 +838,10 @@ export default function PromptLibraryPage() {
                     </Button>
                   ) : (
                     <Button
-                      onClick={handleSave}
+                      onClick={() => {
+                        if (!checkLogin('save_prompt')) return;
+                        handleSave();
+                      }}
                       disabled={isSaving}
                       className="bg-orange-500 hover:bg-orange-600 text-white"
                     >
@@ -907,7 +924,10 @@ export default function PromptLibraryPage() {
 
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <button
-                    onClick={openCategoryManager}
+                    onClick={() => {
+                      if (!checkLogin('manage_category')) return;
+                      openCategoryManager();
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-gray-500 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
                   >
                     <Settings2 className="w-4 h-4" />
@@ -937,7 +957,10 @@ export default function PromptLibraryPage() {
                     <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
                     <h3 className="text-lg font-medium text-gray-600 mb-2">暂无提示词</h3>
                     <p className="text-gray-400 mb-4">创建您的第一个提示词模板，开始智能创作</p>
-                    <Button onClick={() => setShowCreateForm(true)} className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
+                    <Button onClick={() => {
+                      if (!checkLogin('add_prompt')) return;
+                      setShowCreateForm(true);
+                    }} className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
                       <Sparkles className="w-4 h-4 mr-2" />
                       生成提示词
                     </Button>
@@ -984,7 +1007,10 @@ export default function PromptLibraryPage() {
                         <div className="flex items-center justify-between">
                           {/* 查看按钮 */}
                           <button
-                            onClick={() => handleEditTemplate(template)}
+                            onClick={() => {
+                              if (!checkLogin('view_prompt')) return;
+                              handleEditTemplate(template);
+                            }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                           >
                             <Eye className="w-4 h-4" />
@@ -994,13 +1020,19 @@ export default function PromptLibraryPage() {
                           {/* 编辑和删除图标 */}
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => handleEditTemplate(template)}
+                              onClick={() => {
+                                if (!checkLogin('edit_prompt')) return;
+                                handleEditTemplate(template);
+                              }}
                               className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDelete(template.id)}
+                              onClick={() => {
+                                if (!checkLogin('delete_prompt')) return;
+                                handleDelete(template.id);
+                              }}
                               className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1061,7 +1093,10 @@ export default function PromptLibraryPage() {
                   取消
                 </Button>
                 <Button
-                  onClick={handleUpdateTemplate}
+                  onClick={() => {
+                    if (!checkLogin('update_prompt')) return;
+                    handleUpdateTemplate();
+                  }}
                   className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                 >
                   保存修改
@@ -1116,7 +1151,10 @@ export default function PromptLibraryPage() {
                                   if (e.key === "Escape") cancelEditingCategory();
                                 }}
                               />
-                              <Button size="sm" onClick={saveEditingCategory} className="h-8 bg-blue-500 hover:bg-blue-600">
+                              <Button size="sm" onClick={() => {
+                                if (!checkLogin('update_category')) return;
+                                saveEditingCategory();
+                              }} className="h-8 bg-blue-500 hover:bg-blue-600">
                                 保存
                               </Button>
                               <Button size="sm" variant="outline" onClick={cancelEditingCategory} className="h-8">
@@ -1135,13 +1173,19 @@ export default function PromptLibraryPage() {
                               </div>
                               <div className="flex items-center gap-1">
                                 <button
-                                  onClick={() => startEditingCategory(cat)}
+                                  onClick={() => {
+                                    if (!checkLogin('edit_category')) return;
+                                    startEditingCategory(cat);
+                                  }}
                                   className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
                                 >
                                   <Edit2 className="w-4 h-4" />
                                 </button>
                                 <button
-                                  onClick={() => confirmDeleteCategory(cat)}
+                                  onClick={() => {
+                                    if (!checkLogin('delete_category')) return;
+                                    confirmDeleteCategory(cat);
+                                  }}
                                   className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -1170,7 +1214,10 @@ export default function PromptLibraryPage() {
                           if (e.key === "Escape") setCreatingCategory(false);
                         }}
                       />
-                      <Button onClick={handleCreateCategoryInManager} className="h-10 bg-blue-500 hover:bg-blue-600">
+                      <Button onClick={() => {
+                        if (!checkLogin('create_category')) return;
+                        handleCreateCategoryInManager();
+                      }} className="h-10 bg-blue-500 hover:bg-blue-600">
                         创建
                       </Button>
                       <Button variant="outline" onClick={() => setCreatingCategory(false)} className="h-10">
@@ -1179,7 +1226,10 @@ export default function PromptLibraryPage() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => setCreatingCategory(true)}
+                      onClick={() => {
+                        if (!checkLogin('create_category')) return;
+                        setCreatingCategory(true);
+                      }}
                       className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl font-medium hover:from-purple-600 hover:to-blue-600 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
@@ -1227,7 +1277,10 @@ export default function PromptLibraryPage() {
                   取消
                 </Button>
                 <Button
-                  onClick={executeDeleteCategory}
+                  onClick={() => {
+                    if (!checkLogin('delete_category')) return;
+                    executeDeleteCategory();
+                  }}
                   className="flex-1 bg-red-500 hover:bg-red-600 text-white"
                 >
                   确认删除

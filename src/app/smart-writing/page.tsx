@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useLoginCheck } from '@/hooks/useLoginCheck';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 import {
   PenTool,
   Wand2,
@@ -79,7 +80,7 @@ interface PromptTemplate {
 
 export default function SmartWritingPage() {
   // 登录检查
-  const { checkLogin } = useLoginCheck();
+  const { checkLogin } = useRequireLogin();
 
   // 文章列表状态
   const [articles, setArticles] = useState<Article[]>([]);
@@ -119,6 +120,11 @@ export default function SmartWritingPage() {
 
   // 加载文章列表
   const loadArticles = async () => {
+    // 未登录时不加载数据
+    if (!checkLogin('default')) {
+      setArticles([]);
+      return;
+    }
     setIsLoading(true);
     try {
       const response = await fetch('/api/articles');
@@ -137,6 +143,11 @@ export default function SmartWritingPage() {
 
   // 加载分组列表
   const loadGroups = async () => {
+    // 未登录时不加载数据
+    if (!checkLogin('default')) {
+      setGroups([]);
+      return;
+    }
     try {
       const response = await fetch('/api/article-groups');
       if (response.ok) {
@@ -152,6 +163,11 @@ export default function SmartWritingPage() {
 
   // 加载提示词模板
   const loadPromptTemplates = async () => {
+    // 未登录时不加载数据
+    if (!checkLogin('default')) {
+      setPromptTemplates([]);
+      return;
+    }
     try {
       const response = await fetch('/api/prompt-templates');
       if (response.ok) {
@@ -208,8 +224,7 @@ export default function SmartWritingPage() {
   // 创建分组
   const handleCreateGroup = async () => {
     // 检查登录状态
-    const { allowed } = checkLogin('save');
-    if (!allowed) return;
+    if (!checkLogin('create')) return;
 
     if (!newGroupName.trim()) return;
     
@@ -235,8 +250,7 @@ export default function SmartWritingPage() {
   // 更新分组
   const handleUpdateGroup = async () => {
     // 检查登录状态
-    const { allowed } = checkLogin('edit');
-    if (!allowed) return;
+    if (!checkLogin('edit')) return;
 
     if (!editingGroup || !newGroupName.trim()) return;
     
@@ -263,8 +277,7 @@ export default function SmartWritingPage() {
   // 删除分组
   const handleDeleteGroup = async (groupId: string) => {
     // 检查登录状态
-    const { allowed } = checkLogin('delete');
-    if (!allowed) return;
+    if (!checkLogin('delete')) return;
 
     if (!confirm('确定要删除该分组吗？')) return;
     
@@ -287,8 +300,7 @@ export default function SmartWritingPage() {
   // 保存编辑的文章
   const handleSaveEdit = async () => {
     // 检查登录状态
-    const { allowed } = checkLogin('save');
-    if (!allowed) return;
+    if (!checkLogin('save')) return;
 
     if (!editingArticle) return;
     
@@ -326,8 +338,7 @@ export default function SmartWritingPage() {
   // 开始创作
   const handleStartCreate = async () => {
     // 检查登录状态
-    const { allowed } = checkLogin('generate');
-    if (!allowed) return;
+    if (!checkLogin('generate')) return;
 
     if (!articleTopic) {
       alert('请输入文章主题');
@@ -474,8 +485,7 @@ export default function SmartWritingPage() {
   // 推送到微信草稿箱
   const handlePushToWechat = async (article: Article) => {
     // 检查登录状态
-    const { allowed } = checkLogin('publish');
-    if (!allowed) return;
+    if (!checkLogin('publish')) return;
 
     try {
       const response = await fetch('/api/push-to-wechat', {
@@ -531,8 +541,7 @@ export default function SmartWritingPage() {
   // 删除文章
   const handleDeleteArticle = async (id: string) => {
     // 检查登录状态
-    const { allowed } = checkLogin('delete');
-    if (!allowed) return;
+    if (!checkLogin('delete')) return;
 
     if (!confirm('确定要删除这篇文章吗？')) return;
     try {
@@ -1045,7 +1054,10 @@ export default function SmartWritingPage() {
               </div>
             </div>
             <Button 
-              onClick={() => setShowCreateDialog(true)}
+              onClick={() => {
+                if (!checkLogin('create')) return;
+                setShowCreateDialog(true);
+              }}
               className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -1104,7 +1116,10 @@ export default function SmartWritingPage() {
               <Button
                 variant="outline"
                 className="w-full justify-start mt-4"
-                onClick={() => setShowGroupDialog(true)}
+                onClick={() => {
+                  if (!checkLogin('manage')) return;
+                  setShowGroupDialog(true);
+                }}
               >
                 <Settings className="h-4 w-4 mr-2" />
                 管理分组
@@ -1308,6 +1323,7 @@ export default function SmartWritingPage() {
                       size="sm" 
                       variant="outline"
                       onClick={() => {
+                        if (!checkLogin('edit_group')) return;
                         setEditingGroup(group);
                         setNewGroupName(group.name);
                       }}
@@ -1318,7 +1334,10 @@ export default function SmartWritingPage() {
                       size="sm" 
                       variant="outline"
                       className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                      onClick={() => handleDeleteGroup(group.id)}
+                      onClick={() => {
+                        if (!checkLogin('delete_group')) return;
+                        handleDeleteGroup(group.id);
+                      }}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -1343,7 +1362,10 @@ export default function SmartWritingPage() {
                 onChange={(e) => setNewGroupName(e.target.value)}
               />
               <Button 
-                onClick={editingGroup ? handleUpdateGroup : handleCreateGroup}
+                onClick={() => {
+                  if (!checkLogin(editingGroup ? 'update_group' : 'create_group')) return;
+                  editingGroup ? handleUpdateGroup() : handleCreateGroup();
+                }}
                 disabled={!newGroupName.trim()}
               >
                 {editingGroup ? '保存' : '创建'}
@@ -1363,7 +1385,13 @@ export default function SmartWritingPage() {
             )}
           </div>
 
-          <Button className="w-full mt-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
+          <Button 
+            className="w-full mt-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+            onClick={() => {
+              if (!checkLogin('create_group')) return;
+              handleCreateGroup();
+            }}
+          >
             <Plus className="h-4 w-4 mr-2" />
             创建新分组
           </Button>
