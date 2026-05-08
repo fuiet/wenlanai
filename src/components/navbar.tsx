@@ -58,11 +58,32 @@ export default function Navbar() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-xl">文</span>
+          <Link href="/" className="flex items-center gap-3 group">
+            {/* 新设计Logo图标 */}
+            <div className="relative w-10 h-10">
+              {/* 背景圆角方形 */}
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow duration-300"></div>
+              {/* 内层装饰 */}
+              <div className="absolute inset-[3px] bg-white/10 rounded-lg backdrop-blur-sm"></div>
+              {/* 文澜首字母 W */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <svg viewBox="0 0 40 40" className="w-7 h-7">
+                  <defs>
+                    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#ffffff" />
+                      <stop offset="100%" stopColor="#f0f9ff" />
+                    </linearGradient>
+                  </defs>
+                  <text x="50%" y="55%" dominantBaseline="middle" textAnchor="middle" 
+                    fontSize="22" fontWeight="bold" fontFamily="serif" fill="url(#logoGrad)">文</text>
+                </svg>
+              </div>
             </div>
-            <span className="text-2xl font-bold text-slate-800 tracking-tight">文澜智作</span>
+            {/* Logo文字 */}
+            <div className="flex flex-col leading-tight">
+              <span className="text-xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 bg-clip-text text-transparent">文澜智作</span>
+              <span className="text-[10px] text-muted-foreground -mt-0.5 tracking-wider">WENLAN</span>
+            </div>
           </Link>
 
           {/* Navigation Links - 居中 */}
