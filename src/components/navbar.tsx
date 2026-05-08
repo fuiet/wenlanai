@@ -57,10 +57,10 @@ export default function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">文</span>
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-white font-bold text-xl">文</span>
             </div>
-            <span className="text-xl font-bold text-slate-800">文澜智作</span>
+            <span className="text-2xl font-bold text-slate-800 tracking-tight">文澜智作</span>
           </Link>
 
           {/* Navigation Links */}
