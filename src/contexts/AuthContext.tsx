@@ -87,12 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // 初始化时检查登录状态（只在有本地数据时）
+  // 初始化时检查登录状态（总是检查服务端session）
   useEffect(() => {
-    if (isHydrated && user) {
-      checkAuth();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // 每次页面加载都检查服务端session状态
+    checkAuth();
   }, [isHydrated]);
 
   // 登录
