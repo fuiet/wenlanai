@@ -164,35 +164,8 @@ function FormatArticleContent() {
         const article = JSON.parse(decodeURIComponent(articleParam));
         if (article.title) setTitle(article.title);
         if (article.content) {
-          // 智能分布图片到文章各段落中
-          let fullContent = article.content;
-          if (article.images && article.images.length > 0) {
-            // 将文章分成段落
-            const sections = article.content.split(/\n\n+/);
-            const imageCount = article.images.length;
-            
-            // 计算平均分配间隔（确保图片均匀分布）
-            const interval = Math.max(1, Math.floor(sections.length / (imageCount + 1)));
-            
-            // 智能插入图片
-            let insertedContent = [];
-            let imgIdx = 0;
-            for (let i = 0; i < sections.length; i++) {
-              insertedContent.push(sections[i]);
-              // 在每个间隔点插入图片
-              if ((i + 1) % interval === 0 && imgIdx < imageCount) {
-                insertedContent.push(`\n![配图](${article.images[imgIdx]})\n`);
-                imgIdx++;
-              }
-            }
-            // 如果还有剩余图片，追加到末尾
-            while (imgIdx < imageCount) {
-              insertedContent.push(`\n![配图](${article.images[imgIdx]})\n`);
-              imgIdx++;
-            }
-            fullContent = insertedContent.join('\n\n');
-          }
-          setContent(fullContent);
+          // 直接使用传入的内容（已包含图片在正确位置）
+          setContent(article.content);
         }
       } catch (e) {
         console.error('解析文章数据失败:', e);
