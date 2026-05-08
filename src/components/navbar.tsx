@@ -73,7 +73,7 @@ export default function Navbar() {
             {/* 品牌文字 */}
             <div className="flex flex-col leading-tight">
               <span className="text-2xl font-bold text-slate-800 tracking-wide">文澜智作</span>
-              <span className="text-xs text-slate-500 -mt-0.5 tracking-wider">AI智能内容创作平台</span>
+              <span className="text-xs text-slate-500 -mt-0.5 tracking-wider">自媒体爆款内容智能创作平台</span>
             </div>
           </Link>
 
