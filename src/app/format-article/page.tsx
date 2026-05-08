@@ -433,9 +433,6 @@ function FormatArticleContent() {
               <span className="text-sm font-medium text-gray-700">Markdown编辑</span>
               <span className="text-xs text-gray-400">Ctrl+B 加粗 · Ctrl+I 斜体</span>
             </div>
-            <Button variant="outline" size="sm" className="text-xs h-7 bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100">
-              支持粘贴插入配图
-            </Button>
           </div>
           
           <div className="flex-1 p-4 overflow-auto">
