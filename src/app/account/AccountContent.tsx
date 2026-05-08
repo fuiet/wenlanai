@@ -170,7 +170,7 @@ export default function AccountContent() {
       await navigator.clipboard.writeText(scanAuthData.authUrl);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
-    } catch (error) {
+    } catch {
       const textArea = document.createElement('textarea');
       textArea.value = scanAuthData.authUrl;
       document.body.appendChild(textArea);

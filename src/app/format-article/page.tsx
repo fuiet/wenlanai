@@ -7,9 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
+import {
   LayoutTemplate,
   Save,
   Copy,
@@ -25,11 +23,8 @@ import {
   AlignLeft,
   AlignCenter,
   Bold,
-  Quote,
-  Highlighter,
   Bookmark,
   RotateCcw,
-  Upload,
   Wand2,
   Loader2,
   Send
@@ -206,8 +201,8 @@ function FormatArticleContent() {
           // 直接使用传入的内容（已包含图片在正确位置）
           setContent(article.content);
         }
-      } catch (e) {
-        console.error('解析文章数据失败:', e);
+      } catch (error) {
+        console.error('解析文章数据失败:', error);
       }
     }
   }, [searchParams]);
@@ -218,7 +213,7 @@ function FormatArticleContent() {
     if (saved) {
       try {
         setUserTemplates(JSON.parse(saved));
-      } catch (e) {}
+      } catch {}
     }
   }, []);
 

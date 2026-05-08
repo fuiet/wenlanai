@@ -92,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isHydrated && user) {
       checkAuth();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHydrated]);
 
   // 登录
@@ -117,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('退出登录失败:', err);
     } finally {
       setUser(null);
+      setProfile(null);
       localStorage.removeItem('user');
       router.push('/');
     }

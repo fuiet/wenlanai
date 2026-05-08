@@ -51,9 +51,6 @@ export async function POST(request: NextRequest) {
 
     // 提取文章主题
     const extractTheme = () => {
-      const titleLower = title?.toLowerCase() || '';
-      const summaryLower = articleSummary.toLowerCase();
-      
       // 根据关键词判断主题
       if (mainKeywords.some(k => ['爱情', '情感', '感情', '分手', '婚姻', '恋爱'].includes(k))) {
         return '情感故事';

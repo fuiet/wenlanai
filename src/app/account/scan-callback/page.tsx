@@ -13,7 +13,6 @@ function ScanCallbackContent() {
   const [message, setMessage] = useState('');
   
   const ticket = searchParams.get('ticket');
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
   
   useEffect(() => {
     const processCallback = async () => {

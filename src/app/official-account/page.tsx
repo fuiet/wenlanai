@@ -17,17 +17,14 @@ import {
   CheckCircle,
   AlertCircle,
   Send,
-  Key,
   QrCode,
   UserCircle,
   Loader2,
   Shield,
   Copy,
   Check,
-  RefreshCw,
   ExternalLink,
-  Trash2,
-  Smartphone
+  Trash2
 } from 'lucide-react';
 
 

@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
   X, FileText, Target, User, Settings, Zap, Plus, Info, AlertTriangle, 
-  Lightbulb, Check, Rocket, Loader2, Trash2, Edit2, Copy, BookOpen, 
-  Sparkles, ArrowLeft, Eye, Clock, MessageSquare, Settings2, ChevronRight
+  Lightbulb, Check, Rocket, Loader2, Trash2, Edit2, 
+  Sparkles, Eye, Clock, MessageSquare, Settings2, ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

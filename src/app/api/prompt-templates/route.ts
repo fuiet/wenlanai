@@ -26,7 +26,7 @@ async function getUserIdFromCookie(): Promise<string | null> {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const userId = await getUserIdFromCookie();
     

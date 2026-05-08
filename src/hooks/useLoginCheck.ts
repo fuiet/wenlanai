@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function useLoginCheck() {

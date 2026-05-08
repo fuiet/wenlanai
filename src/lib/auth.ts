@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from './supabase-admin';
 
 export const COOKIE_NAME = 'wenlan_session';
 
-export async function createSession(userId: string, request?: Request): Promise<string> {
+export async function createSession(userId: string): Promise<string> {
   const sessionId = uuidv4();
   const supabase = getSupabaseAdmin();
   

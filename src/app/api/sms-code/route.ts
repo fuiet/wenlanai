@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { sendSmsCode, checkConfig } from "@/lib/sms";
-import { v4 as uuidv4 } from "uuid";
 
 // 生成6位验证码
 function generateCode(): string {

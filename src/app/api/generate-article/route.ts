@@ -46,7 +46,6 @@ export async function POST(request: NextRequest) {
       title: providedTitle,
       topic,
       templateId,
-      groupId,
       groupName,
       imageSource = 'ai',
       imageCount = 3,
@@ -70,7 +69,6 @@ export async function POST(request: NextRequest) {
 
     // 获取提示词模板
     let templatePrompt = '';
-    let templateName = '';
     if (templateId) {
       const { data: template } = await supabase
         .from('prompt_templates')
@@ -80,7 +78,6 @@ export async function POST(request: NextRequest) {
       
       if (template) {
         templatePrompt = template.prompt;
-        templateName = template.name || '';
       }
     }
 

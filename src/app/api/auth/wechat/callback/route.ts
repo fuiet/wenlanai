@@ -6,7 +6,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { createSession, COOKIE_NAME } from "@/lib/auth";
-import crypto from "crypto";
 
 // 获取配置
 function getWechatConfig() {
@@ -151,7 +150,7 @@ export async function GET(request: NextRequest) {
     }
     
     // 创建session
-    const sessionToken = await createSession(user.id, request);
+    const sessionToken = await createSession(user.id);
     
     // 创建响应
     const response = NextResponse.redirect(new URL(callbackUrl, request.url));

@@ -12,7 +12,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  PenTool,
   Wand2,
   FileText,
   Loader2,
@@ -20,21 +19,17 @@ import {
   Image as ImageIcon,
   Settings,
   FolderOpen,
-  FolderPlus,
   Edit,
   Trash2,
   RefreshCw,
   Plus,
   BookOpen,
-  X,
   FileWarning,
   SendHorizontal,
   Check,
   Eye,
-  Save,
   Clock,
   AlertCircle,
-  Download,
   Lightbulb,
   Send
 } from 'lucide-react';
@@ -1494,7 +1489,6 @@ export default function SmartWritingPage() {
           <Button 
             className="w-full mt-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
             onClick={() => {
-              
               handleCreateGroup();
             }}
           >

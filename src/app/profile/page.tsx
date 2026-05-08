@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { User, Mail, Phone, Lock, Save, LogOut } from 'lucide-react';
+import { User, Lock, Save, LogOut } from 'lucide-react';
 
 interface UserInfo {
   id: string;

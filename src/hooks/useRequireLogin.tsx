@@ -22,21 +22,9 @@ const actionMessages: Record<string, string> = {
   default: '操作',
 };
 
-// 通用登录检查 - 未登录时弹出提示
-export function requireLogin(action: string = 'default'): boolean {
-  const { isAuthenticated } = useAuth();
-  const { toast } = useToast();
-
-  if (!isAuthenticated) {
-    toast({
-      title: '请先登录',
-      description: `登录后才能进行${actionMessages[action] || '操作'}哦~`,
-      variant: 'destructive',
-      duration: 3000,
-    });
-    return false;
-  }
-  return true;
+// 获取操作对应的中文提示
+export function getActionMessage(action: string): string {
+  return actionMessages[action] || '操作';
 }
 
 // 登录检查 Hook - 用于在组件中使用

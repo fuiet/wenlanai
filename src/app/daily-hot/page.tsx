@@ -21,7 +21,6 @@ import {
   Copy,
   Search,
   Filter,
-  RefreshCw,
   AlertCircle,
   Loader2,
   Sparkles,

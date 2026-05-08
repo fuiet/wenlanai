@@ -1,19 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// 初始化Supabase客户端（延迟初始化）
-const createSupabaseClient = () => {
-  const supabaseUrl = process.env.COZE_SUPABASE_URL || '';
-  const supabaseServiceKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || '';
-  
-  if (!supabaseUrl || !supabaseServiceKey) {
-    return null;
-  }
-  
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createClient } = require('@supabase/supabase-js');
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
-
 // 内存存储授权信息
 const authSessions = new Map<string, {
   authCode: string;
@@ -27,7 +13,7 @@ const authSessions = new Map<string, {
  * POST /api/wechat-auth/scan
  * 生成授权链接（真正的微信扫码授权）
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // 获取公众号AppID和AppSecret（可以是服务商的，也可以直接用公众号的）
     const appId = process.env.WECHAT_APP_ID;

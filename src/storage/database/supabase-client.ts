@@ -86,14 +86,6 @@ function getSupabaseServiceRoleKey(): string | undefined {
 }
 
 // 延迟导入 Supabase
-let supabaseModule: typeof import('@supabase/supabase-js') | null = null;
-
-async function getSupabaseModule() {
-  if (!supabaseModule) {
-    supabaseModule = await import('@supabase/supabase-js');
-  }
-  return supabaseModule;
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getSupabaseClient(token?: string): any {

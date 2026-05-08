@@ -92,7 +92,7 @@ export default function TutorialPage() {
 
         {/* 教程卡片 */}
         <div className="space-y-8">
-          {tutorials.map((tutorial, index) => {
+          {tutorials.map((tutorial) => {
             const IconComponent = tutorial.icon;
             return (
               <div 
