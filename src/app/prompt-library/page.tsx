@@ -473,7 +473,7 @@ export default function PromptLibraryPage() {
     <div className="min-h-screen bg-gray-50">
       {/* 顶部标题栏 */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
