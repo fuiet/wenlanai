@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Loader2 } from 'lucide-react';
 
 // 预设主题样式
 const themes = [
@@ -51,7 +53,9 @@ const fontOptions = [
   { value: 'Arial', label: 'Arial' },
 ];
 
-export default function FormatArticlePage() {
+function FormatArticleContent() {
+  const searchParams = useSearchParams();
+  
   const [title, setTitle] = useState('点击这里设置标题');
   const [content, setContent] = useState(`在这里编辑文章内容...
 
@@ -90,6 +94,33 @@ export default function FormatArticlePage() {
   const [showLeftPanel, setShowLeftPanel] = useState(true);
   const [showRightPanel, setShowRightPanel] = useState(true);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+
+  // 从 URL 参数读取文章数据
+  useEffect(() => {
+    const articleParam = searchParams.get('article');
+    if (articleParam) {
+      try {
+        const article = JSON.parse(decodeURIComponent(articleParam));
+        if (article.title) {
+          setTitle(article.title);
+        }
+        if (article.content) {
+          // 如果有图片，需要把图片重新加入到内容中
+          let fullContent = article.content;
+          if (article.images && article.images.length > 0) {
+            // 在内容末尾添加图片
+            const imagesMarkdown = article.images
+              .map((img: string) => `\n![配图](${img})\n`)
+              .join('');
+            fullContent = article.content + imagesMarkdown;
+          }
+          setContent(fullContent);
+        }
+      } catch (e) {
+        console.error('解析文章数据失败:', e);
+      }
+    }
+  }, [searchParams]);
 
   const currentTheme = themes.find(t => t.id === selectedTheme) || themes[0];
 
@@ -591,5 +622,21 @@ export default function FormatArticlePage() {
         )}
       </div>
     </div>
+  );
+}
+
+// 包装组件处理 Suspense
+export default function FormatArticlePage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-purple-500 mx-auto mb-2" />
+          <p className="text-gray-500">加载中...</p>
+        </div>
+      </div>
+    }>
+      <FormatArticleContent />
+    </Suspense>
   );
 }
