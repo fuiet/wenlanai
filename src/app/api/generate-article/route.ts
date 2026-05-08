@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     // 搜索最新信息
     let searchResults = '';
     const searchKeyword = topic || providedTitle || '';
-    let generatedTitle = providedTitle || '';
+    let generatedTitle = providedTitle || ''; // 如果没有提供标题，将在生成文章后从内容中提取
     
     if (searchEnabled && searchKeyword) {
       try {
@@ -167,9 +167,10 @@ ${resultSummaries}`;
       articlePrompt += `【字数要求】请创作一篇1000字左右的文章（允许±100字误差）。
 
 【排版要求 - 非常重要】：
-1. 文章结构：使用 ## 标题 格式组织文章结构
-2. 图片插入：使用 "![图片描述](IMAGE_PLACEHOLDER_n)" 格式标记，其中n是图片序号
-3. 总共需要 ${imageCount || 2} 张图片
+1. 如果没有提供标题，请根据文章主题生成一个吸引人的标题，放在文章开头，格式：# 文章标题
+2. 文章主体使用 ## 标题 格式组织文章结构
+3. 图片插入：使用 "![图片描述](IMAGE_PLACEHOLDER_n)" 格式标记，其中n是图片序号
+4. 总共需要 ${imageCount || 2} 张图片
 
 【重要提醒】：
 1. 如果提供了【最新网络信息】，必须结合这些信息进行创作
@@ -185,6 +186,23 @@ ${resultSummaries}`;
         rawContent = rawContent.replace(/https?:\/\/[^\s\)\"'\\]+/g, '');
         rawContent = rawContent.replace(/\n{3,}/g, '\n\n');
         generatedContent = rawContent.trim();
+        
+        // 如果没有提供标题，从文章内容中提取（支持 # 或 ## 标题）
+        if (!providedTitle || providedTitle === '') {
+          // 先尝试提取第一个 # 或 ## 标题
+          const titleMatch = generatedContent.match(/^#+\s*(.+?)[\n\r]/);
+          if (titleMatch) {
+            generatedTitle = titleMatch[1].trim();
+            generatedContent = generatedContent.replace(/^#+\s*.+?[\n\r]+/, '');
+          } else {
+            // 尝试取第一行作为标题
+            const firstLine = generatedContent.split(/\n/)[0].trim();
+            if (firstLine && firstLine.length < 50 && !firstLine.startsWith('![') && !firstLine.startsWith('-')) {
+              generatedTitle = firstLine.replace(/^[#*\s]+/, '');
+              generatedContent = generatedContent.replace(/^.+\n+/, '');
+            }
+          }
+        }
       } else {
         throw new Error('生成内容为空');
       }
@@ -201,15 +219,19 @@ ${resultSummaries}`;
         const { ImageGenerationClient } = await import('coze-coding-dev-sdk');
         const imageClient = new ImageGenerationClient();
 
-        const defaultPrompts = [
-          `文章主题 "${generatedTitle}" 的场景图，温馨生活氛围`,
-          `文章核心观点的示意图，温暖人心的画面`,
-          `总结感悟相关的意境图，情感升华`
+        // 根据文章内容生成相关的图片提示词
+        const articleKeywords = generatedContent.substring(0, 200).replace(/[#*\n]/g, ' ').trim();
+        const articleTheme = generatedTitle || topic;
+        
+        const imagePrompts = [
+          `文章主题 "${articleTheme}" 的配图，${articleKeywords.substring(0, 50)}，专业摄影风格，温暖色调，高质量`,
+          `${articleKeywords.substring(0, 80)}，文章配图，真实场景，专业摄影`,
+          `${articleKeywords.substring(0, 60)}相关配图，情感表达，温暖治愈风格`
         ];
 
         for (let i = 0; i < Math.min(imageCount, 5); i++) {
           try {
-            const imagePrompt = defaultPrompts[i] || defaultPrompts[0];
+            const imagePrompt = imagePrompts[i] || imagePrompts[0];
             
             const imageResponse = await imageClient.generate({
               prompt: imagePrompt,
