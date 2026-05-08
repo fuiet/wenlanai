@@ -304,39 +304,6 @@ export default function DailyHotPage() {
         </div>
 
         <TabsContent value="hot" className="mt-0">
-          {/* 数据库已有数据 - 显示刷新按钮 */}
-          <Card className="mb-6 border-blue-200 bg-blue-50">
-            <CardContent className="py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <Database className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-blue-700">
-                    <p className="font-semibold mb-1">数据库文章</p>
-                    <p>显示已保存的爆款文章数据。如需获取最新数据，请切换到&quot;获取实时数据&quot;标签。</p>
-                  </div>
-                </div>
-                <Button
-                  onClick={handleRefresh}
-                  disabled={isLoading}
-                  variant="outline"
-                  size="sm"
-                  className="border-blue-500 text-blue-600 hover:bg-blue-50"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      加载中...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      刷新数据库
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="realtime" className="mt-0">
@@ -509,19 +476,6 @@ export default function DailyHotPage() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* 数据来源提示 */}
-      <Card className="mb-6 border-blue-200 bg-blue-50">
-        <CardContent className="py-4">
-          <div className="flex items-start gap-3">
-            <Search className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-700">
-              <p className="font-semibold mb-1">数据说明</p>
-              <p>爆款文章数据来自微信等平台，显示最近30天内的热门内容。点击&quot;刷新数据&quot;可手动触发更新。</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Search and Filter */}
       <div className="mb-6 space-y-4">
