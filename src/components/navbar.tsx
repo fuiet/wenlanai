@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Zap,
+  BookText,
   BookOpen,
   PenTool,
   LayoutTemplate,
@@ -28,6 +29,7 @@ const navItems = [
   { href: '/smart-writing', label: '智能生文', icon: PenTool },
   { href: '/format-article', label: '一键排版', icon: LayoutTemplate },
   { href: '/official-account', label: '公众号', icon: UserCheck },
+  { href: '/tutorial', label: '使用教程', icon: BookText },
   { href: '/member', label: '会员中心', icon: Crown },
 ];
 
@@ -56,14 +58,14 @@ export default function Navbar() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center justify-start space-x-3 mr-auto">
+          <Link href="/" className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-white font-bold text-xl">文</span>
             </div>
             <span className="text-2xl font-bold text-slate-800 tracking-tight">文澜智作</span>
           </Link>
 
-          {/* Navigation Links */}
+          {/* Navigation Links - 居中 */}
           <div className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon;
