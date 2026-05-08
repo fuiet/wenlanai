@@ -488,7 +488,7 @@ export default function SmartWritingPage() {
     }
   };
 
-  // 生成完整文章内容（包含图片在正确位置）- 与 ArticleContentWithImages 相同的逻辑
+  // 生成完整文章内容（包含图片在正确位置）- 与 ArticleContentWithImages 完全相同的逻辑
   const generateFullContent = (article: Article): string => {
     const { textContent, images } = processArticleContent(article.content || '', article.images || []);
     
@@ -496,44 +496,117 @@ export default function SmartWritingPage() {
       return textContent;
     }
     
-    // 根据文章ID获取主题，确保索引有效（与 ArticleContentWithImages 保持一致）
-    const idHash = String(article.id || '0').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const themeIndex = Math.abs(idHash) % 10;
-    const imageInsertPositions = [
-      [0.3],           // 主题1：在30%处
-      [0.4],           // 主题2：在40%处
-      [0.5],           // 主题3：在50%处
-      [0.33, 0.66],   // 主题4：在33%和66%处
-      [0.4],           // 主题5：在40%处
-      [0.33, 0.67],   // 主题6：在33%和67%处
-      [0.3, 0.6],     // 主题7：在30%和60%处
-      [0.25, 0.5, 0.75], // 主题8：在25%、50%和75%处
-      [0.5],           // 主题9：在50%处
-      [0.4, 0.8],     // 主题10：在40%和80%处
-    ];
-    const positions = imageInsertPositions[themeIndex] || [0.5];
+    // 解析文章内容，提取标题和段落（与 ArticleContentWithImages 的 parseContent 完全相同）
+    const parseContent = (content: string) => {
+      const lines = content.split('\n');
+      const sections: { type: 'title' | 'paragraph' | 'separator'; content: string; level?: number }[] = [];
+      let currentParagraph = '';
+      
+      lines.forEach((line, idx) => {
+        const trimmed = line.trim();
+        
+        if (!trimmed) {
+          if (currentParagraph) {
+            currentParagraph += '\n';
+          }
+          return;
+        }
+        
+        if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
+          if (currentParagraph.trim()) {
+            sections.push({ type: 'paragraph', content: currentParagraph.trim() });
+            currentParagraph = '';
+          }
+          sections.push({ type: 'separator', content: '' });
+          return;
+        }
+        
+        if (trimmed.startsWith('#')) {
+          if (currentParagraph.trim()) {
+            sections.push({ type: 'paragraph', content: currentParagraph.trim() });
+            currentParagraph = '';
+          }
+          const level = trimmed.match(/^#+/)?.[0].length || 1;
+          sections.push({ type: 'title', content: trimmed.replace(/^#+\s*/, ''), level });
+        } else {
+          currentParagraph += (currentParagraph ? '\n' : '') + trimmed;
+        }
+      });
+      
+      if (currentParagraph.trim()) {
+        sections.push({ type: 'paragraph', content: currentParagraph.trim() });
+      }
+      
+      return sections;
+    };
     
-    // 将内容分成段落
-    const paragraphs = textContent.split(/\n\n+/).filter(p => p.trim());
-    if (paragraphs.length === 0) return textContent;
+    const sections = parseContent(textContent);
     
-    // 计算插入点
-    const insertPoints = positions.map(pos => Math.floor(paragraphs.length * pos));
+    // 插入图片的策略（与 ArticleContentWithImages 的 getImageInsertIndices 完全相同）
+    const getImageInsertIndices = (imgCount: number, sectionCount: number) => {
+      if (imgCount === 0 || sectionCount === 0) return [];
+      
+      const indices: number[] = [];
+      
+      // 随机决定：开头 + 均匀 / 纯开头+结尾 / 纯均匀
+      const pattern = Math.abs(String(article.id).charCodeAt(0) || 0) % 3;
+      
+      if (pattern === 0) {
+        // 模式1：开头 + 结尾 + 均匀分布
+        if (imgCount >= 1) indices.push(0);
+        if (imgCount >= 2 && sectionCount > 1) indices.push(sectionCount - 1);
+        
+        const middleCount = imgCount - (imgCount >= 2 ? 2 : 1);
+        if (middleCount > 0 && sectionCount > 2) {
+          for (let i = 0; i < middleCount; i++) {
+            const pos = Math.floor((i + 1) * (sectionCount - 1) / (middleCount + 1));
+            if (!indices.includes(pos)) indices.push(pos);
+          }
+        }
+      } else if (pattern === 1) {
+        // 模式2：纯开头 + 均匀分布
+        for (let i = 0; i < Math.min(imgCount, Math.ceil(sectionCount / 2)); i++) {
+          const pos = Math.floor(i * sectionCount / Math.min(imgCount, Math.ceil(sectionCount / 2)));
+          if (!indices.includes(pos)) indices.push(pos);
+        }
+      } else {
+        // 模式3：纯均匀分布
+        for (let i = 0; i < imgCount; i++) {
+          const pos = Math.floor((i + 0.5) * sectionCount / imgCount);
+          if (!indices.includes(pos) && pos < sectionCount) indices.push(pos);
+        }
+      }
+      
+      return indices.sort((a, b) => a - b);
+    };
+    
+    const imageIndices = getImageInsertIndices(images.length, sections.length);
+    let imageIdx = 0;
+    
+    // 构建包含图片的完整内容
     const result: string[] = [];
-    let imgIdx = 0;
-    
-    for (let i = 0; i < paragraphs.length; i++) {
-      result.push(paragraphs[i]);
-      if (insertPoints.includes(i) && imgIdx < images.length) {
-        result.push(`\n![配图](${images[imgIdx]})\n`);
-        imgIdx++;
+    for (let i = 0; i < sections.length; i++) {
+      // 在段落前插入图片
+      while (imageIdx < imageIndices.length && imageIndices[imageIdx] === i && imageIdx < images.length) {
+        result.push(`\n![配图](${images[imageIdx]})\n`);
+        imageIdx++;
+      }
+      
+      // 添加当前段落
+      if (sections[i].type === 'title') {
+        const level = sections[i].level || 1;
+        result.push('#'.repeat(level) + ' ' + sections[i].content);
+      } else if (sections[i].type === 'separator') {
+        result.push('---');
+      } else {
+        result.push(sections[i].content);
       }
     }
     
     // 如果还有剩余图片，追加到末尾
-    while (imgIdx < images.length) {
-      result.push(`\n![配图](${images[imgIdx]})\n`);
-      imgIdx++;
+    while (imageIdx < images.length) {
+      result.push(`\n![配图](${images[imageIdx]})\n`);
+      imageIdx++;
     }
     
     return result.join('\n\n');
