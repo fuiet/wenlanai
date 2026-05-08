@@ -56,17 +56,9 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-xl">文</span>
-            </div>
-            <span className="text-2xl font-bold text-slate-800 tracking-tight">文澜智作</span>
-          </Link>
-
-          {/* Navigation Links */}
-          <div className="hidden md:flex items-center space-x-1">
+        <div className="flex h-16 items-center justify-between w-full">
+          {/* 左侧导航 */}
+          <div className="hidden lg:flex items-center space-x-1 flex-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -87,9 +79,9 @@ export default function Navbar() {
             })}
           </div>
 
-          {/* User Section */}
-          <div className="flex items-center">
-            {user ? (
+          {/* 右侧：用户 + Logo */}
+          {user ? (
+            <div className="flex items-center space-x-4 ml-auto">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center space-x-2 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors">
@@ -119,7 +111,16 @@ export default function Navbar() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
+              {/* Logo */}
+              <Link href="/" className="flex items-center space-x-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-white font-bold text-xl">文</span>
+                </div>
+                <span className="text-xl font-bold text-slate-800 tracking-tight">文澜智作</span>
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-4 ml-auto">
               <div className="flex items-center space-x-2">
                 <Link
                   href="/auth"
@@ -135,8 +136,15 @@ export default function Navbar() {
                   注册
                 </Link>
               </div>
-            )}
-          </div>
+              {/* Logo */}
+              <Link href="/" className="flex items-center space-x-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-white font-bold text-xl">文</span>
+                </div>
+                <span className="text-xl font-bold text-slate-800 tracking-tight">文澜智作</span>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </nav>
