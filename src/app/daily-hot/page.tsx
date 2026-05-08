@@ -266,7 +266,7 @@ export default function DailyHotPage() {
             <TrendingUp className="mr-3 h-8 w-8 text-orange-500" />
             每日爆款
           </h1>
-          <p className="text-xs text-gray-500">实时更新低粉爆款，对标写作手法，快速创作出爆款文章</p>
+          <p className="text-sm text-gray-500">实时更新低粉爆款，对标写作手法，快速创作出爆款文章</p>
         </div>
         <div className="flex items-center gap-3">
           {dataStats.total > 0 && (
