@@ -57,32 +57,23 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
+          {/* Logo - 左图右文布局 */}
           <Link href="/" className="flex items-center gap-3 group">
-            {/* 新设计Logo图标 */}
-            <div className="relative w-10 h-10">
-              {/* 背景圆角方形 */}
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow duration-300"></div>
-              {/* 内层装饰 */}
-              <div className="absolute inset-[3px] bg-white/10 rounded-lg backdrop-blur-sm"></div>
-              {/* 文澜首字母 W */}
+            {/* 红色圆形图标 */}
+            <div className="relative w-10 h-10 flex-shrink-0">
+              {/* 红色圆形背景，带阴影 */}
+              <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-orange-500 rounded-full shadow-md group-hover:shadow-lg transition-shadow duration-300"></div>
+              {/* 高光效果 */}
+              <div className="absolute top-0.5 left-1 right-1 h-3 bg-white/20 rounded-t-full"></div>
+              {/* 白色"文"字 */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <svg viewBox="0 0 40 40" className="w-7 h-7">
-                  <defs>
-                    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#ffffff" />
-                      <stop offset="100%" stopColor="#f0f9ff" />
-                    </linearGradient>
-                  </defs>
-                  <text x="50%" y="55%" dominantBaseline="middle" textAnchor="middle" 
-                    fontSize="22" fontWeight="bold" fontFamily="serif" fill="url(#logoGrad)">文</text>
-                </svg>
+                <span className="text-white font-bold text-xl" style={{ fontFamily: 'serif' }}>文</span>
               </div>
             </div>
-            {/* Logo文字 */}
+            {/* 品牌文字 */}
             <div className="flex flex-col leading-tight">
-              <span className="text-xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 bg-clip-text text-transparent">文澜智作</span>
-              <span className="text-[10px] text-muted-foreground -mt-0.5 tracking-wider">WENLAN</span>
+              <span className="text-xl font-bold text-slate-800 tracking-wide">文澜智作</span>
+              <span className="text-[10px] text-slate-500 -mt-0.5 tracking-wider">AI智能内容创作平台</span>
             </div>
           </Link>
 
