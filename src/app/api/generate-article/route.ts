@@ -250,15 +250,14 @@ ${resultSummaries}`;
     const { data: savedArticle, error: saveError } = await supabase
       .from('articles')
       .insert({
-        user_id: userId,  // 关联当前用户
+        created_by: userId,  // 关联当前用户
         title: generatedTitle || '未命名文章',
         content: cleanedContent,
         author: groupName || '未知',
         group_name: groupName || null,
         status: 'completed',
         push_status: 'none',
-        images: imageUrls,
-        created_by: userId
+        images: imageUrls
       })
       .select()
       .single();
