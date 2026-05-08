@@ -31,7 +31,8 @@ import {
   RotateCcw,
   Upload,
   Wand2,
-  Loader2
+  Loader2,
+  Send
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -139,6 +140,8 @@ function FormatArticleContent() {
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [activeSection, setActiveSection] = useState('theme');
   const [copied, setCopied] = useState(false);
+  const [pushing, setPushing] = useState(false);
+  const [pushSuccess, setPushSuccess] = useState(false);
   
   // 折叠状态
   const [collapsedSections, setCollapsedSections] = useState<{[key: string]: boolean}>({
@@ -271,6 +274,56 @@ function FormatArticleContent() {
     alert('文章已存入草稿箱');
   };
 
+  // 推送到微信草稿箱
+  const handlePushToWechat = async () => {
+    if (!title || title === '点击这里设置标题') {
+      alert('请先设置文章标题');
+      return;
+    }
+    
+    setPushing(true);
+    setPushSuccess(false);
+    
+    try {
+      // 提取文章中的图片URL
+      const imageUrls: string[] = [];
+      const imageRegex = /!\[.*?\]\((.*?)\)/g;
+      let match;
+      while ((match = imageRegex.exec(content)) !== null) {
+        if (match[1] && !imageUrls.includes(match[1])) {
+          imageUrls.push(match[1]);
+        }
+      }
+      
+      // 清理标题中的 Markdown 格式
+      const cleanTitle = title.replace(/^#+\s*/, '').replace(/[*_`]/g, '');
+      
+      const response = await fetch('/api/push-to-wechat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: cleanTitle,
+          content: content,
+          imageUrls: imageUrls,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setPushSuccess(true);
+        alert('已成功推送到微信公众号草稿箱！');
+      } else {
+        alert(result.message || '推送失败，请检查微信配置');
+      }
+    } catch (error) {
+      console.error('推送失败:', error);
+      alert('推送失败，请重试');
+    } finally {
+      setPushing(false);
+    }
+  };
+
   // 一键排版
   const handleAutoFormat = () => {
     // 自动美化文章格式
@@ -367,6 +420,29 @@ function FormatArticleContent() {
           >
             <Save className="h-4 w-4 mr-1" />
             存入草稿箱
+          </Button>
+          <Button 
+            onClick={handlePushToWechat}
+            size="sm"
+            disabled={pushing}
+            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+          >
+            {pushing ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                推送中...
+              </>
+            ) : pushSuccess ? (
+              <>
+                <Check className="h-4 w-4 mr-1" />
+                已推送
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4 mr-1" />
+                推送到微信
+              </>
+            )}
           </Button>
           <Button 
             onClick={handleCopy}
