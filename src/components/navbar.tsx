@@ -13,7 +13,8 @@ import {
   UserCheck,
   Crown,
   LogIn,
-  LogOut
+  LogOut,
+  BookText
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -28,6 +29,7 @@ const navItems = [
   { href: '/smart-writing', label: '智能生文', icon: PenTool },
   { href: '/format-article', label: '一键排版', icon: LayoutTemplate },
   { href: '/official-account', label: '公众号', icon: UserCheck },
+  { href: '/tutorial', label: '使用教程', icon: BookText },
   { href: '/member', label: '会员中心', icon: Crown },
 ];
 
