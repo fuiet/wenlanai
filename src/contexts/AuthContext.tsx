@@ -9,10 +9,22 @@ interface User {
   nickname?: string;
   vipLevel?: number;
   email?: string;
+  categories?: string[];
+  createdAt?: string;
+}
+
+interface MemberProfile {
+  id: string;
+  userId: string;
+  phone?: string;
+  bio?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface AuthContextType {
   user: User | null;
+  profile: MemberProfile | null;
   isLoading: boolean;
   isHydrated: boolean;
   login: (user: User) => void;
@@ -24,6 +36,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const router = useRouter();
@@ -110,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isHydrated, login, logout, checkAuth }}>
+    <AuthContext.Provider value={{ user, profile, isLoading, isHydrated, login, logout, checkAuth }}>
       {children}
     </AuthContext.Provider>
   );

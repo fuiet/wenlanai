@@ -49,8 +49,44 @@ const presetThemes = [
   { id: 'heian', name: '暗夜风', bg: '#1f2937', accent: '#fbbf24', textColor: '#f3f4f6' },
 ];
 
+// 样式配置类型
+type TextAlignType = 'left' | 'center' | 'right' | 'justify' | 'inherit';
+type ImageCaptionAlignType = 'left' | 'center' | 'right';
+
+interface FormatStyles {
+  bgColor: string;
+  accentColor: string;
+  textColor: string;
+  fontFamily: string;
+  titleFont: string;
+  fontSize: number;
+  lineHeight: number;
+  paragraphSpacing: number;
+  sidePadding: number;
+  h1Size: number;
+  h1Color: string;
+  h1Bold: boolean;
+  h1Align: TextAlignType;
+  h2Size: number;
+  h2Color: string;
+  h2Bold: boolean;
+  h2Align: TextAlignType;
+  boldColor: string;
+  quoteBorderColor: string;
+  quoteBgColor: string;
+  quoteIcon: boolean;
+  highlightColor: string;
+  imageRadius: number;
+  imageCaptionSize: number;
+  imageCaptionColor: string;
+  imageCaptionAlign: ImageCaptionAlignType;
+  imageSpacing: number;
+  firstLineIndent: boolean;
+  dividerStyle: 'solid' | 'dashed' | 'dotted';
+}
+
 // 默认样式配置
-const defaultStyles = {
+const defaultStyles: FormatStyles = {
   bgColor: '#ffffff',
   accentColor: '#059669',
   textColor: '#1f2937',
@@ -358,14 +394,14 @@ function FormatArticleContent() {
   }, []);
 
   // 渲染样式
-  const previewStyles = {
+  const previewStyles: React.CSSProperties = {
     fontFamily: styles.fontFamily,
     fontSize: `${styles.fontSize}px`,
     lineHeight: styles.lineHeight,
     padding: `${styles.paragraphSpacing}px ${styles.sidePadding}px`,
     backgroundColor: styles.bgColor,
     color: styles.textColor,
-    textAlign: styles.firstLineIndent ? 'justify' : 'left',
+    textAlign: (styles.firstLineIndent ? 'justify' : 'left') as 'left' | 'right' | 'center' | 'justify' | 'inherit',
   };
 
   // 获取分割线样式

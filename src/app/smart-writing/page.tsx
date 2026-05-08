@@ -386,7 +386,7 @@ export default function SmartWritingPage() {
             image_urls: savedArticle?.images || [],
             group_id: null,
             group_name: groups.find(g => g.id === selectedGroupId)?.name || savedArticle?.group_name || '默认分组',
-            status: 'completed',
+            status: 'generated',
             push_status: 'pending',
             created_at: tempArticle.created_at,
             updated_at: new Date().toISOString(),
