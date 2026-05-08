@@ -1,6 +1,5 @@
 'use client';
 
-import Navbar from '@/components/navbar';
 import { BookOpen, Zap, PenTool, LayoutTemplate, UserCheck, Crown, Lightbulb, ArrowRight, Star } from 'lucide-react';
 
 const tutorials = [
@@ -79,8 +78,6 @@ const tutorials = [
 export default function TutorialPage() {
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
       <div className="max-w-5xl mx-auto px-4 py-12">
         {/* 页面标题 */}
         <div className="text-center mb-12">
