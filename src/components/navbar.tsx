@@ -77,8 +77,8 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* Navigation Links - 居中 */}
-          <div className="hidden md:flex items-center space-x-1">
+          {/* Navigation Links - Logo右侧 */}
+          <div className="hidden md:flex items-center space-x-1 ml-8">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
