@@ -60,20 +60,20 @@ export default function Navbar() {
           {/* Logo - 左图右文布局 */}
           <Link href="/" className="flex items-center gap-3 group">
             {/* 红色圆形图标 */}
-            <div className="relative w-10 h-10 flex-shrink-0">
+            <div className="relative w-12 h-12 flex-shrink-0">
               {/* 红色圆形背景，带阴影 */}
               <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-orange-500 rounded-full shadow-md group-hover:shadow-lg transition-shadow duration-300"></div>
               {/* 高光效果 */}
               <div className="absolute top-0.5 left-1 right-1 h-3 bg-white/20 rounded-t-full"></div>
               {/* 白色"文"字 */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-white font-bold text-xl" style={{ fontFamily: 'serif' }}>文</span>
+                <span className="text-white font-bold text-2xl" style={{ fontFamily: 'serif' }}>文</span>
               </div>
             </div>
             {/* 品牌文字 */}
             <div className="flex flex-col leading-tight">
-              <span className="text-xl font-bold text-slate-800 tracking-wide">文澜智作</span>
-              <span className="text-[10px] text-slate-500 -mt-0.5 tracking-wider">AI智能内容创作平台</span>
+              <span className="text-2xl font-bold text-slate-800 tracking-wide">文澜智作</span>
+              <span className="text-xs text-slate-500 -mt-0.5 tracking-wider">AI智能内容创作平台</span>
             </div>
           </Link>
 
