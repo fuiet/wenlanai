@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     const result = await query(
       `SELECT * FROM articles 
-       WHERE user_id = $1 
+       WHERE created_by = $1 
        ORDER BY created_at DESC`,
       [userId]
     );
@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await query(
-      `INSERT INTO articles (user_id, title, content, images, group_id, status, push_status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO articles (created_by, title, content, images, group_id, status, push_status)
+       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [userId, title, content || '', image_urls || [], group_id || null, status || 'generated', push_status || 'pending']
     );
