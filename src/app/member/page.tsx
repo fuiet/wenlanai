@@ -15,9 +15,12 @@ const VIP_NAMES: Record<number, string> = {
   3: 'VIP会员'
 };
 
+import { ChevronDown } from 'lucide-react';
+
 export default function MemberPage() {
   const { user, logout, profile } = useAuth();
   const router = useRouter();
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState({ type: '', msg: '' });
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
@@ -143,51 +146,64 @@ export default function MemberPage() {
               <span className="font-medium">{VIP_NAMES[user.vipLevel || 1] || '普通会员'}</span>
             </div>
           </div>
-        </div>
-
-        {/* 修改密码 */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">修改密码</h2>
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">旧密码</label>
-              <input
-                type="password"
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">新密码</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">确认新密码</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                required
-              />
-            </div>
-            {passwordMsg.msg && (
-              <p className={passwordMsg.type === 'error' ? 'text-red-500' : 'text-green-500'}>
-                {passwordMsg.msg}
-              </p>
+          
+          {/* 修改密码 - 可展开 */}
+          <div className="mt-4 pt-4 border-t">
+            <button
+              type="button"
+              onClick={() => setShowPasswordForm(!showPasswordForm)}
+              className="flex items-center gap-2 text-orange-600 hover:text-orange-700 font-medium"
+            >
+              <ChevronDown className={`w-5 h-5 transition-transform ${showPasswordForm ? 'rotate-180' : ''}`} />
+              {showPasswordForm ? '收起修改密码' : '修改密码'}
+            </button>
+            
+            {showPasswordForm && (
+              <form onSubmit={handleChangePassword} className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">旧密码</label>
+                  <input
+                    type="password"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="请输入旧密码"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">新密码</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="请输入新密码（至少6位）"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">确认新密码</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="请再次输入新密码"
+                    required
+                  />
+                </div>
+                {passwordMsg.msg && (
+                  <p className={`text-sm ${passwordMsg.type === 'error' ? 'text-red-500' : 'text-green-500'}`}>
+                    {passwordMsg.msg}
+                  </p>
+                )}
+                <Button type="submit" disabled={passwordLoading} size="sm">
+                  {passwordLoading ? '修改中...' : '确认修改'}
+                </Button>
+              </form>
             )}
-            <Button type="submit" disabled={passwordLoading}>
-              {passwordLoading ? '修改中...' : '修改密码'}
-            </Button>
-          </form>
+          </div>
         </div>
 
         {/* 兴趣赛道 */}
