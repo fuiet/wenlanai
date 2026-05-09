@@ -182,14 +182,19 @@ export default function SmartWritingPage() {
     // 状态筛选
     switch (selectedFilter) {
       case 'generating':
+        // 生成中：状态为 generating
         return article.status === 'generating';
       case 'generated':
-        return article.status === 'generated' && article.push_status !== 'success';
+        // 已生成：状态为 generated 的所有文章
+        return article.status === 'generated';
       case 'failed':
+        // 生成失败：状态为 failed
         return article.status === 'failed';
       case 'draft':
+        // 未推送：已生成但未推送的文章
         return article.status === 'generated' && article.push_status !== 'success';
       case 'published':
+        // 已推送：推送成功的文章
         return article.push_status === 'success';
       default:
         return true;
@@ -1239,9 +1244,9 @@ export default function SmartWritingPage() {
                     今日已生成 <span className="font-semibold text-orange-500">{todayCount}</span> / <span className="font-semibold">10</span> 篇
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2" data-filter-buttons>
                   <span className="text-sm text-gray-500">筛选:</span>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1" data-filter-buttons>
                     {[
                       { key: 'all', label: '全部' },
                       { key: 'generating', label: '生成中' },
@@ -1257,7 +1262,10 @@ export default function SmartWritingPage() {
                         className={cn(
                           selectedFilter === filter.key && 'bg-orange-500 hover:bg-orange-600'
                         )}
-                        onClick={() => setSelectedFilter(filter.key)}
+                        onClick={() => {
+                          console.log('点击筛选按钮:', filter.key);
+                          setSelectedFilter(filter.key);
+                        }}
                       >
                         {filter.label}
                       </Button>
