@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { query } from '@/lib/db';
-import { auditArticle } from '@/lib/content-audit';
+import { auditArticle, diagnosePrompt } from '@/lib/content-audit';
 
 interface GenerateRequest {
   title?: string;
@@ -424,12 +424,18 @@ ${articleContent}`;
           const foundWords = auditResult.violations.map(v => v.word);
           console.log(`[审核] 第${retryCount}次审核不通过，违禁词: ${foundWords.join(', ')}`);
           
-          if (retryCount >= MAX_RETRIES) {
-            // 达到最大重试次数，标记失败
-            reviewStatus = 'failed';
-            reviewMessage = `自动修复${MAX_RETRIES}次仍未通过审核，违禁词：${foundWords.join('、')}`;
-            break;
-          }
+          // 诊断提示词
+        const diagnosis = diagnosePrompt(templateInfo.prompt || '', 
+          reviewStatus === 'failed' ? auditResult.violations.map(v => v.word) : undefined
+        );
+        
+        if (diagnosis.hasProblem) {
+          reviewMessage = diagnosis.report;
+        } else if (reviewStatus === 'failed') {
+          reviewMessage = diagnosis.report;
+        }
+        
+        console.log('[审核] 提示词诊断结果:', diagnosis.problemType);
 
           try {
             // 自动修复
@@ -440,8 +446,11 @@ ${articleContent}`;
             // 修复接口调用失败
             console.error(`[修复] 第${retryCount}次修复失败:`, error);
             if (retryCount >= MAX_RETRIES) {
+              // 达到最大重试次数，进行提示词诊断
+              const diagnosis = diagnosePrompt(templateInfo.prompt || '', auditResult.violations.map(v => v.word));
               reviewStatus = 'failed';
-              reviewMessage = `自动修复${MAX_RETRIES}次失败，请稍后重试`;
+              reviewMessage = diagnosis.report;
+              console.log('[审核] 提示词诊断结果:', diagnosis.problemType, diagnosis.hasProblem ? '- 发现问题' : '- 无明显问题');
             }
             // 未达到最大次数，继续重试
           }

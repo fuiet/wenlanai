@@ -174,6 +174,204 @@ export function hasProhibitedWords(content: string): boolean {
   return !scanContent(content).passed;
 }
 
+// 高风险引导词 - 可能导致AI生成违规内容
+const HIGH_RISK_WORDS = [
+  '夸张', '夸大', '极致', '不设上限', '无限', '超级', '爆炸', '炸裂',
+  '超低价', '亏本', '白送', '免费送', '无底洞', '逆天', '逆天改命',
+  '吊打', '碾压', '秒杀', '完爆', '暴打', '超越', '突破极限', 
+  '史上最强', '空前绝后', '绝无仅有', '无可比拟', '登峰造极',
+  '极致到', '夸张点', '放大了说', '往死里夸', '疯狂吹', '超级吹',
+  '吹上天', '吹到爆', '极致吹', '爆炸性', '史诗级'
+];
+
+/**
+ * 提示词诊断结果接口
+ */
+export interface PromptDiagnosisResult {
+  hasProblem: boolean;
+  problemType: 'prohibited' | 'high_risk' | 'unknown' | 'none';
+  prohibitedWords: Array<{
+    word: string;
+    category: string;
+    position: number;
+    context: string;
+  }>;
+  highRiskWords: Array<{
+    word: string;
+    position: number;
+    context: string;
+  }>;
+  suggestions: string[];
+  report: string;
+}
+
+/**
+ * 诊断用户提示词
+ * @param prompt 用户输入的提示词
+ * @param finalViolationWords 最终仍未通过的违禁词列表（可选）
+ * @returns 诊断结果
+ */
+export function diagnosePrompt(
+  prompt: string,
+  finalViolationWords?: string[]
+): PromptDiagnosisResult {
+  const result: PromptDiagnosisResult = {
+    hasProblem: false,
+    problemType: 'none',
+    prohibitedWords: [],
+    highRiskWords: [],
+    suggestions: [],
+    report: ''
+  };
+
+  if (!prompt || prompt.trim() === '') {
+    result.report = '提示词为空，无法诊断';
+    return result;
+  }
+
+  const lowerPrompt = prompt.toLowerCase();
+
+  // 1. 检测明确违禁词
+  const foundProhibited: Array<{ word: string; category: string; position: number; context: string }> = [];
+  for (const word of ALL_PROHIBITED_WORDS) {
+    const lowerWord = word.toLowerCase();
+    let position = 0;
+    while ((position = lowerPrompt.indexOf(lowerWord, position)) !== -1) {
+      const start = Math.max(0, position - 10);
+      const end = Math.min(prompt.length, position + word.length + 10);
+      foundProhibited.push({
+        word: word,
+        category: getCategoryLabel(word),
+        position: position,
+        context: '...' + prompt.slice(start, end) + '...'
+      });
+      position += 1;
+    }
+  }
+
+  if (foundProhibited.length > 0) {
+    result.hasProblem = true;
+    result.problemType = 'prohibited';
+    result.prohibitedWords = foundProhibited;
+    
+    // 生成替换建议
+    const suggestions: string[] = [];
+    const replacements: Record<string, string> = {
+      '最': '非常/特别',
+      '第一': '领先/前列',
+      '最好': '优质推荐',
+      '最优': '出色表现',
+      '顶级': '高端/优质',
+      '国家级': '知名/专业',
+      '独家': '特别推出',
+      '唯一': '独特/精选',
+      '首选': '推荐选择',
+      '绝对': '非常/十分',
+      '极佳': '表现出色',
+      '完美': '出色/优秀',
+      '极致': '出色/优质',
+      '根治': '有效改善',
+      '包治百病': '有助于调理',
+      '无效退款': '不满意可联系我们',
+      '稳赚不赔': '值得关注',
+      '100%': '很高/优秀',
+      '永久': '长期',
+      '终身': '长期/持续'
+    };
+
+    for (const item of foundProhibited) {
+      if (replacements[item.word]) {
+        suggestions.push(`将"${item.word}"替换为"${replacements[item.word]}"`);
+      } else {
+        suggestions.push(`将"${item.word}"替换为合规表述`);
+      }
+    }
+    result.suggestions = suggestions;
+
+    // 生成报告
+    const words = foundProhibited.map(v => v.word).join('、');
+    result.report = `⚠️ 文章生成失败，原因：您的提示词包含了违规词汇。
+
+提示词中存在以下问题：
+- 违禁词：${words}
+- 相关片段：${foundProhibited.map(v => `\n  "${v.context}"`).join('')}
+
+修改建议：
+${suggestions.map(s => `• ${s}`).join('\n')}
+
+修改后请重新生成文章。`;
+
+    return result;
+  }
+
+  // 2. 检测高风险引导词
+  const foundHighRisk: Array<{ word: string; position: number; context: string }> = [];
+  for (const word of HIGH_RISK_WORDS) {
+    const lowerWord = word.toLowerCase();
+    let position = 0;
+    while ((position = lowerPrompt.indexOf(lowerWord, position)) !== -1) {
+      const start = Math.max(0, position - 15);
+      const end = Math.min(prompt.length, position + word.length + 15);
+      foundHighRisk.push({
+        word: word,
+        position: position,
+        context: '...' + prompt.slice(start, end) + '...'
+      });
+      position += 1;
+    }
+  }
+
+  if (foundHighRisk.length > 0) {
+    result.hasProblem = true;
+    result.problemType = 'high_risk';
+    result.highRiskWords = foundHighRisk;
+
+    result.suggestions = [
+      '避免使用诱导AI进行夸大承诺的词汇',
+      '适当收敛表达，避免绝对化表述',
+      '使用客观、理性的描述方式',
+      '避免使用"夸张"、"极致"等强化词'
+    ];
+
+    result.report = `⚠️ 文章生成失败，原因：您的提示词中存在高风险引导语。
+
+问题描述：以下提示词内容可能导致AI生成违规文章：
+${foundHighRisk.map(v => `• "${v.context}"`).join('\n')}
+
+修改建议：
+${result.suggestions.map(s => `• ${s}`).join('\n')}
+
+适当调整表达后重新生成。`;
+
+    return result;
+  }
+
+  // 3. 如果有最终未通过的违禁词但提示词无明显问题
+  if (finalViolationWords && finalViolationWords.length > 0) {
+    result.problemType = 'unknown';
+    result.report = `⚠️ 文章生成失败，原因：AI多次尝试修复后仍未通过审核。
+
+最终未通过的违禁词：${finalViolationWords.join('、')}
+
+建议：
+• 尝试更换提示词中的部分表述方式后重新生成
+• 避免使用可能触发审核的敏感话题
+• 如需帮助，请在会员中心提交反馈，由人工核查`;
+
+    return result;
+  }
+
+  // 4. 无明显问题
+  result.problemType = 'none';
+  result.report = `⚠️ 文章生成失败，原因：AI多次尝试修复后仍未通过审核。
+
+建议：
+• 请尝试更换提示词中的部分表述方式后重新生成
+• 或联系我们进行人工排查`;
+
+  return result;
+}
+
 /**
  * 获取违禁词库统计
  */
@@ -185,6 +383,7 @@ export function getProhibitedWordsStats() {
     vulgar: PROHIBITED_WORDS.vulgar.length,
     medical: PROHIBITED_WORDS.medical.length,
     financial: PROHIBITED_WORDS.financial.length,
+    highRisk: HIGH_RISK_WORDS.length,
     total: ALL_PROHIBITED_WORDS.size
   };
 }
