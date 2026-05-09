@@ -35,6 +35,37 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// 生成状态标签组件
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'generating' || status === 'pending' || status === 'processing') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium bg-[#e6f7ff] text-[#1890ff] border border-[#91d5ff]">
+        <span className="animate-spin">⟳</span>
+        生成中
+      </span>
+    );
+  }
+  if (status === 'generated' || status === 'done') {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-[#f6ffed] text-[#52c41a] border border-[#b7eb8f]">
+        已生成
+      </span>
+    );
+  }
+  if (status === 'failed' || status === 'review_failed') {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-[#fff2f0] text-[#ff4d4f] border border-[#ffccc7]">
+        生成失败
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
+      {status}
+    </span>
+  );
+}
+
 // 文章类型定义
 type GenerateProgress = 'idle' | 'title' | 'content' | 'images' | 'done' | 'failed';
 
@@ -690,29 +721,6 @@ export default function SmartWritingPage() {
       console.error('删除失败:', error);
       alert('删除失败，请稍后重试');
     }
-  };
-
-  // 获取状态标签
-  const getStatusBadge = (article: Article) => {
-    // 生成中只显示徽章，不显示额外文字
-    if (article.status === 'generating') {
-      return <Badge className="bg-blue-500 text-white"><Loader2 className="h-3 w-3 mr-1 animate-spin" />生成中</Badge>;
-    }
-    if (article.status === 'failed') {
-      return <Badge className="bg-red-500 text-white"><AlertCircle className="h-3 w-3 mr-1" />失败</Badge>;
-    }
-    // 审核未通过
-    if (article.status === 'review_failed' || article.review_status === 'failed') {
-      return <Badge className="bg-red-600 text-white"><AlertCircle className="h-3 w-3 mr-1" />审核未通过</Badge>;
-    }
-    // 审核服务故障
-    if (article.review_status === 'pending') {
-      return <Badge className="bg-yellow-500 text-white"><Clock className="h-3 w-3 mr-1" />审核中</Badge>;
-    }
-    if (article.push_status === 'success') {
-      return <Badge className="bg-green-500 text-white"><Check className="h-3 w-3 mr-1" />已推送</Badge>;
-    }
-    return <Badge className="bg-gray-500 text-white"><Clock className="h-3 w-3 mr-1" />未推送</Badge>;
   };
 
   // 处理文章内容：过滤Markdown图片格式，返回纯文本和图片URL数组
@@ -1381,15 +1389,16 @@ export default function SmartWritingPage() {
                     </div>
                     {/* 生成状态 */}
                     <div className="col-span-1 flex justify-center">
-                      {getStatusBadge(article)}
+                      <StatusBadge status={article.status} />
                     </div>
                     {/* 推送状态 */}
                     <div className="col-span-1 flex justify-center items-center">
-                      <span className={`w-2.5 h-2.5 rounded-full ${
-                        article.push_status === 'success' ? 'bg-green-500' :
-                        article.push_status === 'failed' ? 'bg-red-500' :
-                        'bg-gray-300'
-                      }`} />
+                      <span 
+                        className={`w-2 h-2 rounded-full ${
+                          article.push_status === 'success' ? 'bg-[#52c41a]' : 'bg-[#d9d9d9]'
+                        }`}
+                        title={article.push_status === 'success' ? '已推送' : '未推送'}
+                      />
                     </div>
                     {/* 更新时间 */}
                     <div className="col-span-2 flex justify-center">
@@ -1831,7 +1840,7 @@ export default function SmartWritingPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span className="text-base font-semibold">{viewingArticle?.title}</span>
-              {viewingArticle && getStatusBadge(viewingArticle)}
+              {viewingArticle && <StatusBadge status={viewingArticle.status} />}
             </DialogTitle>
             {viewingArticle?.group_name && (
               <p className="text-sm text-gray-500 mt-1">
