@@ -98,7 +98,7 @@ export async function DELETE(request: NextRequest) {
 
     // 只删除属于当前用户的文章
     const result = await query(
-      `DELETE FROM articles WHERE id = $1 AND user_id = $2 RETURNING id`,
+      `DELETE FROM articles WHERE id = $1 AND created_by = $2 RETURNING id`,
       [id, userId]
     );
 
