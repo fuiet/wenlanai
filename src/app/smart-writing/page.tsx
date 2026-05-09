@@ -1308,7 +1308,7 @@ export default function SmartWritingPage() {
                   <div className="col-span-1 flex justify-center">生成状态</div>
                   <div className="col-span-1 flex justify-center">推送状态</div>
                   <div className="col-span-2 flex justify-center">更新时间</div>
-                  <div className="col-span-3 flex justify-center" style={{ textAlign: 'center !important' }}>操作</div>
+                  <div className="col-span-3 flex justify-center" style={{ textAlign: 'center', minWidth: '200px' }}>操作</div>
                 </div>
                 {/* 表格内容 */}
                 {filteredArticles.map(article => (
@@ -1363,7 +1363,7 @@ export default function SmartWritingPage() {
                       </span>
                     </div>
                     {/* 操作 */}
-                    <div className="col-span-3 flex items-center gap-2">
+                    <div className="col-span-3 flex items-center justify-center gap-2" style={{ minWidth: '200px' }}>
                       {/* 查看 */}
                       <button 
                         onClick={() => setViewingArticle(article)}
