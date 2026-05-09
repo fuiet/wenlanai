@@ -1308,7 +1308,9 @@ export default function SmartWritingPage() {
                   <div className="col-span-1 flex justify-center">生成状态</div>
                   <div className="col-span-1 flex justify-center">推送状态</div>
                   <div className="col-span-2 flex justify-center">更新时间</div>
-                  <div className="col-span-3 flex justify-center items-center">操作</div>
+                  <div className="col-span-3 flex items-center justify-center">
+                    <span className="text-gray-500 text-xs text-center">操作</span>
+                  </div>
                 </div>
                 {/* 表格内容 */}
                 {filteredArticles.map(article => (
