@@ -1300,14 +1300,14 @@ export default function SmartWritingPage() {
             ) : (
               <div className="border rounded-lg overflow-hidden">
                 {/* 表头 */}
-                <div className="bg-gray-50 border-b px-4 py-3 grid grid-cols-12 gap-4 items-center text-sm font-medium text-gray-600">
-                  <div className="col-span-1">选择</div>
-                  <div className="col-span-1">封面</div>
-                  <div className="col-span-2">文章标题</div>
-                  <div className="col-span-1">分组</div>
-                  <div className="col-span-1">生成状态</div>
-                  <div className="col-span-1">推送状态</div>
-                  <div className="col-span-2">更新时间</div>
+                <div className="bg-gray-50 border-b px-4 py-3 grid grid-cols-12 gap-4 items-center text-sm font-medium text-gray-600 text-center">
+                  <div className="col-span-1 flex justify-center">选择</div>
+                  <div className="col-span-1 flex justify-center">封面</div>
+                  <div className="col-span-2 flex justify-center">文章标题</div>
+                  <div className="col-span-1 flex justify-center">分组</div>
+                  <div className="col-span-1 flex justify-center">生成状态</div>
+                  <div className="col-span-1 flex justify-center">推送状态</div>
+                  <div className="col-span-2 flex justify-center">更新时间</div>
                   <div className="col-span-3 flex justify-center">操作</div>
                 </div>
                 {/* 表格内容 */}
@@ -1317,11 +1317,11 @@ export default function SmartWritingPage() {
                     className="border-b last:border-b-0 px-4 py-3 grid grid-cols-12 gap-4 items-center text-sm hover:bg-gray-50"
                   >
                     {/* 选择 */}
-                    <div className="col-span-1">
+                    <div className="col-span-1 flex justify-center">
                       <Checkbox checked={false} onCheckedChange={() => {}} />
                     </div>
                     {/* 封面 */}
-                    <div className="col-span-1">
+                    <div className="col-span-1 flex justify-center">
                       {Array.isArray(article.images) && article.images.length > 0 ? (
                         <img 
                           src={article.images[0]} 
@@ -1335,17 +1335,17 @@ export default function SmartWritingPage() {
                       )}
                     </div>
                     {/* 文章标题 */}
-                    <div className="col-span-2">
+                    <div className="col-span-2 flex justify-center">
                       <p className="font-medium text-gray-900 truncate">{article.title}</p>
                     </div>
                     {/* 分组 */}
-                    <div className="col-span-1">
+                    <div className="col-span-1 flex justify-center">
                       <span className="text-gray-600 text-xs">
                         {article.group_name || '-'}
                       </span>
                     </div>
                     {/* 生成状态 */}
-                    <div className="col-span-1">
+                    <div className="col-span-1 flex justify-center">
                       {getStatusBadge(article)}
                     </div>
                     {/* 推送状态 */}
@@ -1357,7 +1357,7 @@ export default function SmartWritingPage() {
                       }`} />
                     </div>
                     {/* 更新时间 */}
-                    <div className="col-span-2">
+                    <div className="col-span-2 flex justify-center">
                       <span className="text-gray-500 text-xs">
                         {new Date(article.updated_at).toLocaleDateString()} {new Date(article.updated_at).toLocaleTimeString()}
                       </span>
