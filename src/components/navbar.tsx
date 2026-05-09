@@ -56,13 +56,19 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo - 图片Logo */}
+          {/* Logo - 左图右文布局 */}
           <Link href="/" className="flex items-center gap-3 group">
+            {/* 图片Logo */}
             <img 
               src="/logo.png" 
-              alt="文澜智作" 
-              className="h-12 w-auto object-contain group-hover:scale-105 transition-transform duration-200"
+              alt="文" 
+              className="h-12 w-12 object-contain group-hover:scale-105 transition-transform duration-200 rounded-full"
             />
+            {/* 品牌文字 */}
+            <div className="flex flex-col leading-tight">
+              <span className="text-2xl font-bold text-slate-800 tracking-wide">文澜智作</span>
+              <span className="text-xs text-slate-500 -mt-0.5 tracking-wider">自媒体爆款内容智能创作平台</span>
+            </div>
           </Link>
 
           {/* Navigation Links - Logo右侧 */}
