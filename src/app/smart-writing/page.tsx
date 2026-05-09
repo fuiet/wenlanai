@@ -308,13 +308,6 @@ export default function SmartWritingPage() {
 
   // 开始创作
   const handleStartCreate = async () => {
-    // 检查登录状态
-    const stored = localStorage.getItem('user');
-    if (!stored) {
-      alert('请先登录');
-      return;
-    }
-    
     if (!articleTopic) {
       alert('请输入文章主题');
       return;

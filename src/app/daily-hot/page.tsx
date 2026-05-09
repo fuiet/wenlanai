@@ -125,13 +125,6 @@ export default function DailyHotPage() {
 
   // 手动刷新 - 从专业数据源获取
   const handleRefresh = useCallback(async () => {
-    // 检查登录状态
-    const stored = localStorage.getItem('user');
-    if (!stored) {
-      alert('请先登录');
-      return;
-    }
-    
     setIsRefreshing(true);
     setError('');
     try {

@@ -5,6 +5,7 @@ import Navbar from '@/components/navbar';
 import { ToastProvider } from '@/hooks/use-toast';
 import { AuthProvider } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import LoginInterceptor, { LoginRequiredDialog } from '@/components/LoginInterceptor';
 
 export const metadata: Metadata = {
   title: {
@@ -55,6 +56,8 @@ export default function RootLayout({
             <ProtectedRoute>
               {isDev && <Inspector />}
               <Navbar />
+              <LoginInterceptor />
+              <LoginRequiredDialog />
               <main className="min-h-screen">
                 {children}
               </main>
