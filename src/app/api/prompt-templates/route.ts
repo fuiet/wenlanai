@@ -102,3 +102,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: '创建失败' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const userId = await getUserIdFromCookie();
+    
+    if (!userId) {
+      return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
+    }
+    
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json({ success: false, error: '缺少ID参数' }, { status: 400 });
+    }
+    
+    await query(
+      `DELETE FROM prompt_templates WHERE id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('删除提示词失败:', error);
+    return NextResponse.json({ success: false, error: '删除失败' }, { status: 500 });
+  }
+}
