@@ -406,6 +406,10 @@ export default function PromptLibraryPage() {
   };
 
   const handleDelete = async (id: string) => {
+    // 弹出确认对话框
+    if (!window.confirm('确定要删除这条提示词吗？')) {
+      return;
+    }
     try {
       const res = await fetch(`/api/prompt-templates?id=${id}`, { 
         method: "DELETE",
