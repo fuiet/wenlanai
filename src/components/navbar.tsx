@@ -56,24 +56,13 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo - 左图右文布局 */}
+          {/* Logo - 图片Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            {/* 红色圆形图标 */}
-            <div className="relative w-12 h-12 flex-shrink-0">
-              {/* 红色圆形背景，带阴影 */}
-              <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-orange-500 rounded-full shadow-md group-hover:shadow-lg transition-shadow duration-300"></div>
-              {/* 高光效果 */}
-              <div className="absolute top-0.5 left-1 right-1 h-3 bg-white/20 rounded-t-full"></div>
-              {/* 白色"文"字 */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-white font-bold text-2xl" style={{ fontFamily: 'serif' }}>文</span>
-              </div>
-            </div>
-            {/* 品牌文字 */}
-            <div className="flex flex-col leading-tight">
-              <span className="text-2xl font-bold text-slate-800 tracking-wide">文澜智作</span>
-              <span className="text-xs text-slate-500 -mt-0.5 tracking-wider">自媒体爆款内容智能创作平台</span>
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="文澜智作" 
+              className="h-12 w-auto object-contain group-hover:scale-105 transition-transform duration-200"
+            />
           </Link>
 
           {/* Navigation Links - Logo右侧 */}
