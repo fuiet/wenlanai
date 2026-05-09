@@ -62,7 +62,7 @@ export default function Navbar() {
             <img 
               src="/logo.png" 
               alt="文" 
-              className="h-12 w-12 object-contain group-hover:scale-105 transition-transform duration-200 rounded-full"
+              className="h-14 w-14 object-contain group-hover:scale-105 transition-transform duration-200 rounded-full"
             />
             {/* 品牌文字 */}
             <div className="flex flex-col leading-tight">
