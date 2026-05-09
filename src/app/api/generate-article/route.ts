@@ -357,33 +357,109 @@ ${templateRules.join('\n')}`;
     // 生成摘要（用于审核）
     const summaryText = cleanedContent.substring(0, 200).replace(/[#*\n]/g, ' ').trim();
 
-    // ========== 内容安全审核 ==========
-    let reviewStatus = 'passed';
+    // ========== 内容安全审核与自动修复 ==========
+    // 定义自动修复函数
+    const autoFixArticle = async (
+      articleContent: string, 
+      forbiddenWords: string[]
+    ): Promise<string> => {
+      // 构造修复提示词
+      const fixPrompt = `[自动修复指令]
+以下文章包含违禁词：${forbiddenWords.join('、')}。
+
+请你在保持文章原意、风格、结构不变的前提下，自动替换或删除这些违禁词，输出一篇完全合规的文章。
+
+要求：
+1. 只修改违禁词相关内容，不要改动文章其他部分
+2. 替换后的内容必须自然流畅，不得生硬
+3. 不得添加原文中没有的内容
+4. 保持文章长度基本不变
+5. 直接输出修复后的文章内容，不要添加任何解释
+
+原文：
+${articleContent}`;
+
+      try {
+        const { LLMClient } = await import('coze-coding-dev-sdk');
+        const fixLlmClient = new LLMClient();
+        const fixResponse = await fixLlmClient.invoke([
+          { role: 'user', content: fixPrompt }
+        ], {
+          model: "deepseek-v3-2-251201"
+        });
+
+        const fixedContent = (fixResponse.content as string) || '';
+        
+        if (!fixedContent) {
+          throw new Error('修复接口返回为空');
+        }
+
+        return fixedContent;
+      } catch (error: any) {
+        console.error('自动修复失败:', error);
+        throw error;
+      }
+    };
+
+    // 执行审核-修复循环（最多3次）
+    let currentContent = cleanedContent;
+    let reviewStatus: 'passed' | 'failed' = 'failed';
     let reviewMessage = '';
-    let savedContent = cleanedContent; // 默认保存完整内容
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
 
     try {
-      const auditResult = auditArticle(generatedTitle || '未命名文章', cleanedContent, summaryText);
+      while (retryCount < MAX_RETRIES) {
+        // 审核当前内容
+        const auditResult = auditArticle(generatedTitle || '未命名文章', currentContent, currentContent.substring(0, 200));
+        
+        if (auditResult.passed) {
+          // 审核通过
+          reviewStatus = 'passed';
+          reviewMessage = '文章已通过审核';
+          break;
+        } else {
+          // 审核不通过，尝试自动修复
+          retryCount++;
+          const foundWords = auditResult.violations.map(v => v.word);
+          console.log(`[审核] 第${retryCount}次审核不通过，违禁词: ${foundWords.join(', ')}`);
+          
+          if (retryCount >= MAX_RETRIES) {
+            // 达到最大重试次数，标记失败
+            reviewStatus = 'failed';
+            reviewMessage = `自动修复${MAX_RETRIES}次仍未通过审核，违禁词：${foundWords.join('、')}`;
+            break;
+          }
 
-      if (!auditResult.passed) {
-        // 审核不通过
-        reviewStatus = 'failed';
-        reviewMessage = auditResult.summary;
-
-        // 不保存文章内容，只保存标题和审核失败信息
-        savedContent = '';
+          try {
+            // 自动修复
+            console.log(`[修复] 开始第${retryCount}次自动修复...`);
+            currentContent = await autoFixArticle(currentContent, foundWords);
+            console.log(`[修复] 第${retryCount}次修复完成，继续审核...`);
+          } catch (error: any) {
+            // 修复接口调用失败
+            console.error(`[修复] 第${retryCount}次修复失败:`, error);
+            if (retryCount >= MAX_RETRIES) {
+              reviewStatus = 'failed';
+              reviewMessage = `自动修复${MAX_RETRIES}次失败，请稍后重试`;
+            }
+            // 未达到最大次数，继续重试
+          }
+        }
       }
     } catch (auditError) {
-      // 审核服务故障时，标记为待审核状态
+      // 审核服务故障时，标记为失败状态
       console.error('内容审核失败:', auditError);
-      reviewStatus = 'pending';
+      reviewStatus = 'failed';
       reviewMessage = '审核服务暂不可用，请稍后重试';
-      savedContent = '';
     }
 
     // 根据审核结果设置最终状态
-    // 审核通过 -> 成功；审核不通过/故障 -> 失败
+    // 审核通过 -> 成功；审核不通过 -> 失败
     const finalStatus = reviewStatus === 'passed' ? 'completed' : 'failed';
+    
+    // 只有审核通过才保存完整内容
+    const savedContent = reviewStatus === 'passed' ? currentContent : '';
 
     // 保存文章到数据库（关联到当前用户）
     const { data: savedArticle, error: saveError } = await supabase
@@ -397,7 +473,7 @@ ${templateRules.join('\n')}`;
         status: finalStatus,  // 审核通过=已生成，审核不通过=生成失败
         push_status: 'none',
         images: imageUrls,
-        review_status: reviewStatus,
+        review_status: reviewStatus === 'passed' ? 'passed' : 'failed',
         review_message: reviewMessage || null
       })
       .select()
@@ -416,8 +492,9 @@ ${templateRules.join('\n')}`;
       error: reviewStatus !== 'passed' ? reviewMessage : null,
       data: savedArticle,
       review: {
-        status: reviewStatus,
-        message: reviewMessage
+        status: reviewStatus === 'passed' ? 'passed' : 'failed',
+        message: reviewMessage,
+        retries: retryCount
       }
     });
 
