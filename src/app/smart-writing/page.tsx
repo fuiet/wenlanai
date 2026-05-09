@@ -36,6 +36,7 @@ import {
 import { cn } from '@/lib/utils';
 
 // 生成状态标签组件
+// 简化状态：只有"生成中"和"已生成"两种状态，其他情况统一显示"待生成"
 function StatusBadge({ status }: { status: string }) {
   // 生成中：pending、processing、generating
   if (status === 'generating' || status === 'pending' || status === 'processing') {
@@ -54,17 +55,10 @@ function StatusBadge({ status }: { status: string }) {
       </span>
     );
   }
-  // 生成失败：failed、review_failed
-  if (status === 'failed' || status === 'review_failed') {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-[#fff2f0] text-[#ff4d4f] border border-[#ffccc7]">
-        生成失败
-      </span>
-    );
-  }
+  // 其他状态（包括失败）统一显示为待生成状态
   return (
     <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
-      {status}
+      待生成
     </span>
   );
 }
@@ -226,9 +220,6 @@ export default function SmartWritingPage() {
       case 'generated':
         // 已生成：completed、success、generated
         return article.status === 'completed' || article.status === 'success' || article.status === 'generated';
-      case 'failed':
-        // 生成失败：failed、review_failed
-        return article.status === 'failed' || article.status === 'review_failed';
       case 'draft':
         // 未推送：已生成但未推送的文章
         return (article.status === 'completed' || article.status === 'success' || article.status === 'generated') && article.push_status !== 'success';
@@ -438,10 +429,11 @@ export default function SmartWritingPage() {
             review_message: data.review?.message || ''
           };
 
-          // 如果审核不通过，给出提示
-          if (reviewStatus === 'failed') {
-            alert(data.review?.message || '内容审核不通过，请修改提示词或选题后重新生成');
+          // 只有提示词违规时才显示失败提示，其他情况后台自动消化
+          if (data.error_type === 'prompt_invalid') {
+            alert(data.message || '您的提示词包含违规词汇，请修改后重试');
           }
+          // 审核不通过时，后台会自动修复，不会返回给前端显示
 
           // 找到临时文章的位置并替换
           setArticles(prevArticles => {
@@ -1304,7 +1296,6 @@ export default function SmartWritingPage() {
                       { key: 'all', label: '全部' },
                       { key: 'generating', label: '生成中' },
                       { key: 'generated', label: '已生成' },
-                      { key: 'failed', label: '生成失败' },
                       { key: 'draft', label: '未推送' },
                       { key: 'published', label: '已推送' }
                     ].map(filter => (
@@ -1464,21 +1455,6 @@ export default function SmartWritingPage() {
                         <Send className="h-4 w-4" />
                         <span className="text-xs">{article.push_status === 'success' ? '已推送' : '推送'}</span>
                       </button>
-                      
-                      {/* 重新生成 - 仅生成失败的文章显示 */}
-                      {(article.status === 'failed' || article.status === 'review_failed') && (
-                        <button 
-                          onClick={() => {
-                            // 使用当前文章的选题重新生成
-                            setArticleTopic(article.title || '');
-                            setShowCreateDialog(true);
-                          }}
-                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-orange-100 hover:bg-orange-200 transition-colors"
-                        >
-                          <RefreshCw className="h-4 w-4 text-orange-600" />
-                          <span className="text-xs text-orange-700">重新生成</span>
-                        </button>
-                      )}
                       
                       {/* 删除 */}
                       <button 
@@ -1903,33 +1879,14 @@ export default function SmartWritingPage() {
                   <ArticleContentWithImages article={viewingArticle} />
                 ) : (
                   <div className="text-center text-gray-400 py-8">
-                    <p>内容暂不可见</p>
-                    <p className="text-sm mt-1">{
-                      (viewingArticle.status === 'failed' || viewingArticle.status === 'review_failed')
-                        ? '审核未通过，请重新生成'
-                        : '文章尚未生成完成'
-                    }</p>
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-gray-300" />
+                    <p>文章生成中，请稍候...</p>
                   </div>
                 )}
               </div>
 
               {/* 操作按钮 */}
               <div className="flex gap-3 pt-4 border-t">
-                {/* 重新生成按钮 - 生成失败时显示 */}
-                {(viewingArticle.status === 'failed' || viewingArticle.status === 'review_failed') && (
-                  <Button
-                    className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-                    onClick={() => {
-                      // 使用当前文章的标题作为选题重新生成
-                      setArticleTopic(viewingArticle.title || '');
-                      setShowCreateDialog(true);
-                      setViewingArticle(null);
-                    }}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    重新生成
-                  </Button>
-                )}
                 {/* 推送按钮 - 仅已生成且未推送才可推送 */}
                 {(viewingArticle.status === 'completed' || viewingArticle.status === 'success' || viewingArticle.status === 'generated') && (
                   <>
