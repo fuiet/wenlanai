@@ -254,7 +254,7 @@ function OfficialAccountContent() {
     // 检查登录状态
     const stored = localStorage.getItem('user');
     if (!stored) {
-      setStatusMessage({ type: 'error', message: '请先登录' });
+      alert('请先登录');
       return;
     }
     
@@ -306,7 +306,7 @@ function OfficialAccountContent() {
     // 检查登录状态
     const stored = localStorage.getItem('user');
     if (!stored) {
-      setStatusMessage({ type: 'error', message: '请先登录' });
+      alert('请先登录');
       return;
     }
     
