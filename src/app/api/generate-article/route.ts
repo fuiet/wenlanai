@@ -183,7 +183,9 @@ ${resultSummaries}`;
 
       const articleResponse = await llmClient.invoke([
         { role: 'user', content: articlePrompt }
-      ]);
+      ], {
+        model: "deepseek-v3-2-251201"
+      });
 
       if (articleResponse && articleResponse.content) {
         let rawContent = articleResponse.content as string;
