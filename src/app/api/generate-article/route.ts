@@ -43,7 +43,9 @@ export async function POST(request: NextRequest) {
       selectedGroupName,
       promptTemplateId, 
       promptTemplate, 
-      searchEnabled = false 
+      searchEnabled = false,
+      imageCount = 3,
+      imageSource = 'none'
     } = body;
 
     if (!topic || topic.trim().length === 0) {
@@ -151,15 +153,15 @@ export async function POST(request: NextRequest) {
 - 段落之间必须空一行
 
 三、图片排版规则（重要）
-- 文章总字数包含图片和图注
-- 每500字左右插入一张配图
+- 图片数量要求：${imageSource === 'ai' && imageCount > 0 ? `必须生成 ${imageCount} 张图片` : imageSource === 'upload' ? '预留图片位置，用户将上传图片' : '不生成图片，纯文字文章'}
+- ${imageSource === 'ai' && imageCount > 0 ? `严格生成 ${imageCount} 张图片，不得多也不得少` : ''}
 - 图片使用 Markdown 格式：![图：图片描述](图片URL)
 - 图片下方必须添加图注：14px，灰色，居中，格式为"图：xxx"
 - 图片上下各空一行
-- 如果需要多张图片并列，宽度设为48%，左右排列
+- 多图并列时宽度设为48%，左右排列
 
 四、内容要求
-1. 文章总字数控制在900-1100字
+1. 文章总字数控制在900-1100字（包含图注）
 2. 段落短小精炼，每段不超过3-4句话
 3. 重点内容单独成段
 4. 语言风格符合公众号调性
