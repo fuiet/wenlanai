@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient(configuredSupabaseUrl, configuredSupabaseKey);
 
-    // 获取提示词模板
-    let templatePrompt = '';
+    // 获取提示词模板（完整信息）
+    let templateInfo: Record<string, string> = {};
     if (templateId) {
       const { data: template } = await supabase
         .from('prompt_templates')
@@ -77,7 +77,37 @@ export async function POST(request: NextRequest) {
         .single();
       
       if (template) {
-        templatePrompt = template.prompt;
+        templateInfo = {
+          prompt: template.prompt || '',
+          personality: template.personality || '',
+          field: template.field || '',
+          targetAudience: template.target_audience || '',
+          wordCount: String(template.word_count || 1000),
+          // 从prompt中提取禁用词（格式：禁用词：XXX）
+          forbiddenWords: '',
+          // 从prompt中提取固定开头（格式：固定开头：XXX）
+          introTemplate: '',
+          // 从prompt中提取固定结尾（格式：固定结尾：XXX）
+          outroTemplate: ''
+        };
+        
+        // 提取禁用词
+        const forbiddenMatch = template.prompt?.match(/禁用[词词汇][[：:]\s]*(.+?)(?:\n|$)/i);
+        if (forbiddenMatch) {
+          templateInfo.forbiddenWords = forbiddenMatch[1].trim();
+        }
+        
+        // 提取固定开头
+        const introMatch = template.prompt?.match(/固定开头[[：:]\s]*(.+?)(?=固定结尾|$)/i);
+        if (introMatch) {
+          templateInfo.introTemplate = introMatch[1].trim();
+        }
+        
+        // 提取固定结尾
+        const outroMatch = template.prompt?.match(/固定结尾[[：:]\s]*(.+?)$/i);
+        if (outroMatch) {
+          templateInfo.outroTemplate = outroMatch[1].trim();
+        }
       }
     }
 
@@ -151,8 +181,8 @@ ${resultSummaries}`;
       if (searchResults) {
         articlePrompt += `【最新网络信息】（请务必结合以下最新信息进行创作）\n${searchResults}\n\n`;
       }
-      if (templatePrompt) {
-        articlePrompt += `【写作风格要求】\n${templatePrompt}\n\n`;
+      if (templateInfo.prompt) {
+        articlePrompt += `【写作风格要求】\n${templateInfo.prompt}\n\n`;
       }
       if (referenceContent) {
         articlePrompt += `【用户提供的参考素材】\n${referenceContent}\n\n`;
@@ -189,12 +219,45 @@ ${resultSummaries}`;
 2. 严禁使用emoji和特殊符号
 3. 文章内容要真实、有价值，符合公众号发布标准`;
 
+      // 构建系统指令 - 提示词作为最高优先级
+      const templateRules: string[] = [];
+
+      // 注入提示词规则（如果用户设置了）
+      if (templateInfo.personality || templateInfo.field || templateInfo.targetAudience) {
+        templateRules.push(`【你必须严格遵守以下规则，优先级高于一切】`);
+        if (templateInfo.personality) {
+          templateRules.push(`- 身份：${templateInfo.personality}`);
+        }
+        if (templateInfo.field) {
+          templateRules.push(`- 写作类型：${templateInfo.field}`);
+        }
+        if (templateInfo.targetAudience) {
+          templateRules.push(`- 目标受众：${templateInfo.targetAudience}`);
+        }
+        if (templateInfo.forbiddenWords) {
+          templateRules.push(`- 禁用词汇：${templateInfo.forbiddenWords}（绝对禁止使用！）`);
+        }
+        if (templateInfo.introTemplate) {
+          templateRules.push(`- 开头模板：${templateInfo.introTemplate}`);
+        }
+        if (templateInfo.outroTemplate) {
+          templateRules.push(`- 结尾模板：${templateInfo.outroTemplate}`);
+        }
+        if (topic) {
+          templateRules.push(`- 用户选题：${topic}`);
+        }
+        templateRules.push(`请严格按照上述设定完成本次写作，任何偏离都将导致不合格。`);
+        templateRules.push('');
+      }
+
       // 系统指令 - 每次调用独立，不混入历史会话
       const systemInstruction = `你是一个精通新媒体传播，擅长制造爆款的公众号主笔，你深刻了解公众号平台的调性逻辑和读者心理。
 
 对文章的文案进行优化，目标是大幅度提升打开率，阅读完成率和互动率(点赞，评论，收藏）。
 
-文章前100字，必须包含一个强有力的"钩子"，可以是惊人的事实，直击痛点的问题，引起强烈的共鸣，确保读者无法划走。`;
+文章前100字，必须包含一个强有力的"钩子"，可以是惊人的事实，直击痛点的问题，引起强烈的共鸣，确保读者无法划走。
+
+${templateRules.join('\n')}`;
 
       const articleResponse = await llmClient.invoke([
         { role: 'system', content: systemInstruction },
