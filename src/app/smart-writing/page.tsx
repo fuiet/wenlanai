@@ -455,17 +455,22 @@ export default function SmartWritingPage() {
             return [finalArticle, ...prevArticles];
           });
         } else {
-          // 生成失败，更新状态
+          // 生成失败，更新状态，保存失败原因
           setArticles(prevArticles => {
             const index = prevArticles.findIndex(a => a.id === tempArticle.id);
             if (index !== -1) {
               const newArticles = [...prevArticles];
-              newArticles[index] = { ...newArticles[index], status: 'failed' };
+              newArticles[index] = { 
+                ...newArticles[index], 
+                status: 'failed',
+                review_status: data.review?.status || 'failed',
+                review_message: data.review?.message || '生成失败，请稍后重试'
+              };
               return newArticles;
             }
             return prevArticles;
           });
-          alert('生成失败，请稍后重试');
+          alert(data.review?.message || '生成失败，请稍后重试');
         }
       } else {
         // 请求失败，更新状态
