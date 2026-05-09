@@ -23,13 +23,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const navItems = [
-  { href: '/daily-hot', label: '每日爆款', icon: Zap },
-  { href: '/prompt-library', label: '提示词库', icon: BookOpen },
-  { href: '/smart-writing', label: '智能生文', icon: PenTool },
-  { href: '/format-article', label: '一键排版', icon: LayoutTemplate },
-  { href: '/official-account', label: '公众号', icon: UserCheck },
-  { href: '/tutorial', label: '使用教程', icon: BookText },
-  { href: '/member', label: '会员中心', icon: Crown },
+  { href: '/daily-hot', label: '每日爆款', icon: Zap, requireLogin: true },
+  { href: '/prompt-library', label: '提示词库', icon: BookOpen, requireLogin: true },
+  { href: '/smart-writing', label: '智能生文', icon: PenTool, requireLogin: true },
+  { href: '/format-article', label: '一键排版', icon: LayoutTemplate, requireLogin: true },
+  { href: '/official-account', label: '公众号', icon: UserCheck, requireLogin: true },
+  { href: '/tutorial', label: '使用教程', icon: BookText, requireLogin: false },
+  { href: '/member', label: '会员中心', icon: Crown, requireLogin: true },
 ];
 
 const vipLevelMap: Record<number, string> = {
@@ -76,10 +76,19 @@ export default function Navbar() {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
+              
+              const handleNavClick = (e: React.MouseEvent) => {
+                if (item.requireLogin && !user) {
+                  e.preventDefault();
+                  router.push('/auth');
+                }
+              };
+              
               return (
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={handleNavClick}
                   className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-colors ${
                     isActive
                       ? 'text-blue-600 bg-blue-50'

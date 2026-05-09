@@ -307,6 +307,13 @@ function FormatArticleContent() {
 
   // 推送到微信草稿箱
   const handlePushToWechat = async () => {
+    // 检查登录状态
+    const stored = localStorage.getItem('user');
+    if (!stored) {
+      alert('请先登录');
+      return;
+    }
+    
     if (!title || title === '点击这里设置标题') {
       alert('请先设置文章标题');
       return;

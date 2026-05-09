@@ -251,6 +251,13 @@ function OfficialAccountContent() {
 
   // AppID/AppSecret绑定
   const handleBindAccount = async () => {
+    // 检查登录状态
+    const stored = localStorage.getItem('user');
+    if (!stored) {
+      setStatusMessage({ type: 'error', message: '请先登录' });
+      return;
+    }
+    
     if (!bindAppId.trim() || !bindAppSecret.trim()) {
       setStatusMessage({ type: 'error', message: '请输入AppID和AppSecret' });
       return;
@@ -296,6 +303,13 @@ function OfficialAccountContent() {
 
   // 解绑公众号
   const handleDeleteAccount = async (appId: string) => {
+    // 检查登录状态
+    const stored = localStorage.getItem('user');
+    if (!stored) {
+      setStatusMessage({ type: 'error', message: '请先登录' });
+      return;
+    }
+    
     if (!confirm('确定要解绑该公众号吗？')) {
       return;
     }
@@ -383,6 +397,13 @@ function OfficialAccountContent() {
   };
 
   const handleBatchSend = async () => {
+    // 检查登录状态
+    const stored = localStorage.getItem('user');
+    if (!stored) {
+      alert('请先登录');
+      return;
+    }
+    
     if (!authInfo?.accessToken) {
       alert('请先授权公众号并获取access_token');
       return;

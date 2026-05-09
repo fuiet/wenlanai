@@ -29,10 +29,20 @@ export function getActionMessage(action: string): string {
 
 // 登录检查 Hook - 用于在组件中使用
 export function useRequireLogin() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const { toast } = useToast();
 
+  const isAuthenticated = user !== null;
+
   const checkLogin = (action: string = 'default'): boolean => {
+    if (isLoading) {
+      toast({
+        title: '正在检查登录状态',
+        description: '请稍候...',
+        duration: 2000,
+      });
+      return false;
+    }
     if (!isAuthenticated) {
       toast({
         title: '请先登录',
