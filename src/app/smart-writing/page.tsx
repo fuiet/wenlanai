@@ -46,11 +46,14 @@ interface Article {
   images?: string[]; // 数据库 images 字段
   group_id: string | null;
   group_name?: string;
-  status: 'generating' | 'generated' | 'failed' | 'draft' | 'published';
+  status: 'generating' | 'generated' | 'failed' | 'draft' | 'published' | 'review_failed';
   push_status: 'pending' | 'success' | 'failed';
   created_at: string;
   updated_at: string;
   generate_progress?: GenerateProgress;
+  // 审核相关字段
+  review_status?: 'pending' | 'passed' | 'failed';
+  review_message?: string;
 }
 
 // 分组类型定义
@@ -376,7 +379,11 @@ export default function SmartWritingPage() {
           // API 已经保存了文章，直接使用返回的数据
           // 图片单独存储在 images 字段，不插入到 content 中
           const savedArticle = data.data;
-          
+
+          // 根据审核结果确定状态
+          const reviewStatus = data.review?.status || 'passed';
+          const articleStatus = reviewStatus === 'passed' ? 'generated' : 'review_failed';
+
           // 构建最终的文章对象（从API返回的数据）
           const finalArticle: Article = {
             id: savedArticle?.id || tempArticle.id,
@@ -386,13 +393,20 @@ export default function SmartWritingPage() {
             image_urls: savedArticle?.images || [],
             group_id: null,
             group_name: groups.find(g => g.id === selectedGroupId)?.name || savedArticle?.group_name || '默认分组',
-            status: 'generated',
+            status: articleStatus,
             push_status: 'pending',
             created_at: tempArticle.created_at,
             updated_at: new Date().toISOString(),
-            generate_progress: 'done'
+            generate_progress: 'done',
+            review_status: reviewStatus,
+            review_message: data.review?.message || ''
           };
-          
+
+          // 如果审核不通过，给出提示
+          if (reviewStatus === 'failed') {
+            alert(data.review?.message || '内容审核不通过，请修改提示词或选题后重新生成');
+          }
+
           // 找到临时文章的位置并替换
           setArticles(prevArticles => {
             const index = prevArticles.findIndex(a => a.id === tempArticle.id);
@@ -456,8 +470,21 @@ export default function SmartWritingPage() {
     setMaterialRequirements('');
   };
 
-  // 推送到微信草稿箱
+  // 推送到微信草稿箱 - 需审核通过
   const handlePushToWechat = async (article: Article) => {
+    // 检查审核状态
+    if (article.review_status === 'failed' || article.status === 'review_failed') {
+      alert('内容审核未通过，无法推送');
+      return;
+    }
+    if (article.review_status === 'pending') {
+      alert('审核服务暂不可用，请稍后重试');
+      return;
+    }
+    if (!article.content) {
+      alert('文章内容为空，无法推送');
+      return;
+    }
 
     try {
       const response = await fetch('/api/push-to-wechat', {
@@ -474,7 +501,7 @@ export default function SmartWritingPage() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setArticles(articles.map(a => 
+          setArticles(articles.map(a =>
             a.id === article.id ? { ...a, push_status: 'success' } : a
           ));
           alert('推送成功！文章已发送到公众号草稿箱');
@@ -673,6 +700,14 @@ export default function SmartWritingPage() {
     }
     if (article.status === 'failed') {
       return <Badge className="bg-red-500 text-white"><AlertCircle className="h-3 w-3 mr-1" />失败</Badge>;
+    }
+    // 审核未通过
+    if (article.status === 'review_failed' || article.review_status === 'failed') {
+      return <Badge className="bg-red-600 text-white"><AlertCircle className="h-3 w-3 mr-1" />审核未通过</Badge>;
+    }
+    // 审核服务故障
+    if (article.review_status === 'pending') {
+      return <Badge className="bg-yellow-500 text-white"><Clock className="h-3 w-3 mr-1" />审核中</Badge>;
     }
     if (article.push_status === 'success') {
       return <Badge className="bg-green-500 text-white"><Check className="h-3 w-3 mr-1" />已推送</Badge>;
@@ -1382,13 +1417,28 @@ export default function SmartWritingPage() {
                         <span className="text-xs text-gray-700">编辑</span>
                       </button>
                       
-                      {/* 推送 */}
-                      <button 
-                        onClick={() => handlePushToWechat(article)}
-                        className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                      {/* 推送 - 仅审核通过才可推送 */}
+                      <button
+                        onClick={() => {
+                          if (article.review_status === 'failed' || article.status === 'review_failed') {
+                            alert('内容审核未通过，无法推送');
+                            return;
+                          }
+                          if (article.review_status === 'pending') {
+                            alert('审核服务暂不可用，请稍后重试');
+                            return;
+                          }
+                          handlePushToWechat(article);
+                        }}
+                        disabled={article.push_status === 'success'}
+                        className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+                          article.push_status === 'success' || article.review_status === 'failed' || article.status === 'review_failed'
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'hover:bg-gray-100 text-gray-700'
+                        }`}
                       >
-                        <Send className="h-4 w-4 text-gray-700" />
-                        <span className="text-xs text-gray-700">推送</span>
+                        <Send className="h-4 w-4" />
+                        <span className="text-xs">推送</span>
                       </button>
                       
                       {/* 删除 */}
@@ -1793,19 +1843,47 @@ export default function SmartWritingPage() {
           
           {viewingArticle && (
             <div className="space-y-4">
-              {/* 文章内容（精美排版） */}
+              {/* 审核状态提示 */}
+              {viewingArticle.status === 'review_failed' && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+                  <p className="font-medium flex items-center">
+                    <span className="mr-2">⚠️</span>
+                    内容审核不通过
+                  </p>
+                  <p className="text-sm mt-1">{viewingArticle.review_message || '文章包含违规内容，请修改提示词或选题后重新生成'}</p>
+                </div>
+              )}
+              {viewingArticle.review_status === 'pending' && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-700">
+                  <p className="font-medium flex items-center">
+                    <span className="mr-2">⏳</span>
+                    审核服务暂不可用
+                  </p>
+                  <p className="text-sm mt-1">审核服务暂不可用，请稍后重试</p>
+                </div>
+              )}
+
+              {/* 文章内容（精美排版）- 仅审核通过才显示 */}
               <div className="bg-gray-50 rounded-lg p-6">
-                {viewingArticle.content || viewingArticle.images?.length ? (
+                {viewingArticle.status === 'review_failed' || viewingArticle.review_status === 'pending' ? (
+                  <div className="text-center text-gray-400 py-8">
+                    <p>内容暂不可见</p>
+                  </div>
+                ) : viewingArticle.content || viewingArticle.images?.length ? (
                   <ArticleContentWithImages article={viewingArticle} />
                 ) : (
                   <SimpleArticleContent content={viewingArticle.content || '暂无内容'} />
                 )}
               </div>
-              
+
               {/* 操作按钮 */}
               <div className="flex gap-3 pt-4 border-t">
-                {viewingArticle.status === 'generated' && viewingArticle.push_status !== 'success' && (
-                  <Button 
+                {/* 仅审核通过的文章才显示推送按钮 */}
+                {viewingArticle.status === 'generated' &&
+                 viewingArticle.review_status !== 'failed' &&
+                 viewingArticle.review_status !== 'pending' &&
+                 viewingArticle.push_status !== 'success' && (
+                  <Button
                     className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
                     onClick={() => {
                       handlePushToWechat(viewingArticle);
@@ -1814,6 +1892,13 @@ export default function SmartWritingPage() {
                   >
                     <SendHorizontal className="h-4 w-4 mr-2" />
                     推送到公众号草稿箱
+                  </Button>
+                )}
+                {/* 审核未通过或审核中 - 推送按钮置灰 */}
+                {(viewingArticle.status === 'review_failed' || viewingArticle.review_status === 'failed' || viewingArticle.review_status === 'pending') && (
+                  <Button className="flex-1" disabled>
+                    <SendHorizontal className="h-4 w-4 mr-2" />
+                    推送（需审核通过）
                   </Button>
                 )}
                 {viewingArticle.push_status === 'success' && (

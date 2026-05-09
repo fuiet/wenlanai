@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { query } from '@/lib/db';
+import { auditArticle } from '@/lib/content-audit';
 
 interface GenerateRequest {
   title?: string;
@@ -353,18 +354,47 @@ ${templateRules.join('\n')}`;
     }).join('\n');
     cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n').trim();
 
+    // 生成摘要（用于审核）
+    const summaryText = cleanedContent.substring(0, 200).replace(/[#*\n]/g, ' ').trim();
+
+    // ========== 内容安全审核 ==========
+    let reviewStatus = 'passed';
+    let reviewMessage = '';
+    let savedContent = cleanedContent; // 默认保存完整内容
+
+    try {
+      const auditResult = auditArticle(generatedTitle || '未命名文章', cleanedContent, summaryText);
+
+      if (!auditResult.passed) {
+        // 审核不通过
+        reviewStatus = 'failed';
+        reviewMessage = auditResult.summary;
+
+        // 不保存文章内容，只保存标题和审核失败信息
+        savedContent = '';
+      }
+    } catch (auditError) {
+      // 审核服务故障时，标记为待审核状态
+      console.error('内容审核失败:', auditError);
+      reviewStatus = 'pending';
+      reviewMessage = '审核服务暂不可用，请稍后重试';
+      savedContent = '';
+    }
+
     // 保存文章到数据库（关联到当前用户）
     const { data: savedArticle, error: saveError } = await supabase
       .from('articles')
       .insert({
         created_by: userId,  // 关联当前用户
         title: generatedTitle || '未命名文章',
-        content: cleanedContent,
+        content: savedContent,  // 审核通过才保存内容
         author: groupName || '未知',
         group_name: groupName || null,
-        status: 'completed',
+        status: reviewStatus === 'passed' ? 'completed' : 'review_failed',
         push_status: 'none',
-        images: imageUrls
+        images: imageUrls,
+        review_status: reviewStatus,
+        review_message: reviewMessage || null
       })
       .select()
       .single();
@@ -376,8 +406,12 @@ ${templateRules.join('\n')}`;
 
     return NextResponse.json({
       success: true,
-      message: '文章生成成功',
-      data: savedArticle
+      message: reviewStatus === 'passed' ? '文章生成成功' : reviewMessage,
+      data: savedArticle,
+      review: {
+        status: reviewStatus,
+        message: reviewMessage
+      }
     });
 
   } catch (error: any) {
