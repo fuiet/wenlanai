@@ -1460,6 +1460,7 @@ export default function SmartWritingPage() {
                       <button 
                         onClick={() => handleDeleteArticle(String(article.id))}
                         className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        data-action="delete"
                       >
                         <Trash2 className="h-4 w-4 text-gray-700" />
                         <span className="text-xs text-gray-700">删除</span>

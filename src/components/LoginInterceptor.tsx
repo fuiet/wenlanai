@@ -31,8 +31,11 @@ export default function LoginInterceptor() {
   const { user } = useAuth();
 
   useEffect(() => {
+    // 检查用户是否已登录（优先使用user状态，也检查localStorage作为后备）
+    const isLoggedIn = user || localStorage.getItem('session_token');
+    
     // 已登录用户不需要拦截
-    if (user) return;
+    if (isLoggedIn) return;
 
     const handleClick = (e: MouseEvent) => {
       // 如果对话框已经打开，不再拦截
@@ -55,6 +58,10 @@ export default function LoginInterceptor() {
       // 排除Toast提示
       const toast = target.closest('[class*="toast"], [class*="Toaster"]');
       if (toast) return;
+
+      // 排除删除等操作按钮
+      const actionBtn = target.closest('[data-action]');
+      if (actionBtn) return;
 
       // 检查是否点击了可交互元素
       const interactiveElement = target.closest(
