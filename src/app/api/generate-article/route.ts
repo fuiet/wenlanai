@@ -381,6 +381,10 @@ ${templateRules.join('\n')}`;
       savedContent = '';
     }
 
+    // 根据审核结果设置最终状态
+    // 审核通过 -> 成功；审核不通过/故障 -> 失败
+    const finalStatus = reviewStatus === 'passed' ? 'completed' : 'failed';
+
     // 保存文章到数据库（关联到当前用户）
     const { data: savedArticle, error: saveError } = await supabase
       .from('articles')
@@ -390,7 +394,7 @@ ${templateRules.join('\n')}`;
         content: savedContent,  // 审核通过才保存内容
         author: groupName || '未知',
         group_name: groupName || null,
-        status: reviewStatus === 'passed' ? 'completed' : 'review_failed',
+        status: finalStatus,  // 审核通过=已生成，审核不通过=生成失败
         push_status: 'none',
         images: imageUrls,
         review_status: reviewStatus,
@@ -405,8 +409,11 @@ ${templateRules.join('\n')}`;
     }
 
     return NextResponse.json({
-      success: true,
-      message: reviewStatus === 'passed' ? '文章生成成功' : reviewMessage,
+      success: reviewStatus === 'passed',
+      message: reviewStatus === 'passed' 
+        ? '文章生成成功' 
+        : `生成失败：${reviewMessage}`,
+      error: reviewStatus !== 'passed' ? reviewMessage : null,
       data: savedArticle,
       review: {
         status: reviewStatus,
