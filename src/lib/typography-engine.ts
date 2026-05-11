@@ -96,38 +96,82 @@ function cleanExistingFormat(text: string): string {
 /**
  * 拆分过长段落
  * 在句号处断段，确保每段不超过指定行数
+ * 核心逻辑：按字符数估算行数，每段约4行（100字）即拆分
  */
 function splitLongParagraphs(text: string, maxLines: number): string {
-  // 估算：中文每行约20-30字
-  const avgCharsPerLine = 25;
-  const maxCharsPerParagraph = maxLines * avgCharsPerLine;
+  // 估算：中文每行约25字，每段最多4行=100字
+  const maxCharsPerParagraph = maxLines * 25;
   
-  const lines = text.split('\n');
+  // 先按段落分割（段落之间有空行）
+  const paragraphs = text.split(/\n\s*\n/);
   const result: string[] = [];
   
-  for (const line of lines) {
-    // 如果是非空行
-    if (line.trim()) {
-      // 如果行太长，在句号处断开
-      if (line.length > maxCharsPerParagraph) {
-        const sentences = splitAtSentence(line);
-        for (const sentence of sentences) {
-          if (sentence.trim()) {
-            result.push(sentence.trim());
+  for (let i = 0; i < paragraphs.length; i++) {
+    const para = paragraphs[i].trim();
+    if (!para) continue;
+    
+    // 如果段落为空行，保留一个空行作为分隔
+    if (para === '') {
+      result.push('');
+      continue;
+    }
+    
+    // 处理非空段落
+    const lines = para.split('\n');
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
+      
+      // 如果单行已经超过限制，在句号处拆分
+      if (trimmedLine.length > maxCharsPerParagraph) {
+        // 按句号拆分
+        const sentences = trimmedLine.split(/([。.!?！]+)/);
+        let currentChunk = '';
+        
+        for (let j = 0; j < sentences.length; j++) {
+          const part = sentences[j];
+          currentChunk += part;
+          
+          // 如果遇到句末标点，检查当前累积内容
+          if (part.match(/[。.!?！]+/) && currentChunk.trim()) {
+            result.push(currentChunk.trim());
+            currentChunk = '';
           }
         }
+        
+        // 处理剩余内容
+        if (currentChunk.trim()) {
+          result.push(currentChunk.trim());
+        }
       } else {
-        result.push(line);
+        // 行长度正常，直接保留
+        result.push(trimmedLine);
       }
-    } else {
-      // 空行保留，但限制连续空行
-      if (result[result.length - 1] !== '') {
-        result.push('');
-      }
+    }
+    
+    // 段落之间加空行分隔
+    if (i < paragraphs.length - 1 && result[result.length - 1] !== '') {
+      result.push('');
     }
   }
   
-  return result.join('\n');
+  // 清理连续空行
+  const final: string[] = [];
+  let lastEmpty = false;
+  for (const line of result) {
+    if (line === '') {
+      if (!lastEmpty) {
+        final.push('');
+        lastEmpty = true;
+      }
+    } else {
+      final.push(line);
+      lastEmpty = false;
+    }
+  }
+  
+  return final.join('\n');
 }
 
 /**
