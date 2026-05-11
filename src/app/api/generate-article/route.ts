@@ -2,6 +2,108 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { typographyEngine } from '@/lib/typography-engine';
 
+// ========== 安全创作机制 ==========
+
+// 一级违规词（涉政、色情、暴力等）- 发现直接删除句子
+const level1ForbiddenPatterns = [
+  /涉及[政党政权领导人敏感]*(?:敏感内容|违规)/gi,
+  /(?:色情|低俗|涉黄)[内容描写]*/gi,
+  /(?:暴力|恐怖|血腥)[内容场景]*/gi,
+  /(?:赌博|博彩|彩票)[网站平台玩法]*/gi,
+  /(?:毒品|吸毒|贩毒)/gi,
+  /(?:诈骗|骗子|骗局)/gi,
+  /不转不是中国人/gi,
+  /转发后[一人生平安]/gi,
+  /转疯了/gi,
+  /银行卡号[:：]?\s*[\dX]+/gi,
+  /支付宝账号[:：]?\s*[\w@.]+/gi,
+  /汇款指令/gi,
+];
+
+// 广告极限词 - 替换为安全表达
+const extremeWordReplacements: Record<string, string> = {
+  '国家级': '高品质',
+  '最高级': '高品质',
+  '最佳': '优质',
+  '第一品牌': '知名品牌',
+  '顶级': '高端',
+  '极品': '优质',
+  '唯一': '独到',
+  '全网第一': '广受欢迎',
+  '全国第一': '行业领先',
+  '最好': '值得推荐',
+  '最棒': '很棒',
+  '最优秀': '优秀',
+  '最便宜': '实惠',
+  '最超值': '超值',
+  '最好用': '好用',
+  '最实用': '实用',
+};
+
+// 诱导分享句式 - 直接删除
+const shareInducingPatterns = [
+  /不转不是中国人[，。！]/gi,
+  /转发后一生平安[，。！]/gi,
+  /转疯了[，。！]/gi,
+  /赶紧转发[吧呀]?/gi,
+  /转发即送/gi,
+  /转发分享/gi,
+  /群发[好友朋友]/gi,
+];
+
+/**
+ * 安全扫描：快速检查并处理违规内容
+ */
+function safeScan(content: string): { cleaned: string; foundIssues: string[] } {
+  let cleaned = content;
+  const foundIssues: string[] = [];
+
+  // 1. 检测一级违规词
+  for (const pattern of level1ForbiddenPatterns) {
+    const matches = cleaned.match(pattern);
+    if (matches) {
+      foundIssues.push(...matches);
+      // 删除包含违规词的整个句子
+      cleaned = cleaned.split(/[。！？.!?]/).filter(sentence => {
+        for (const match of matches) {
+          if (sentence.includes(match)) return false;
+        }
+        return true;
+      }).join('。');
+    }
+  }
+
+  // 2. 替换广告极限词
+  for (const [word, replacement] of Object.entries(extremeWordReplacements)) {
+    const regex = new RegExp(word, 'gi');
+    if (regex.test(cleaned)) {
+      foundIssues.push(word);
+      cleaned = cleaned.replace(regex, replacement);
+    }
+  }
+
+  // 3. 删除诱导分享句式
+  for (const pattern of shareInducingPatterns) {
+    const matches = cleaned.match(pattern);
+    if (matches) {
+      foundIssues.push(...matches.map(m => `[诱导分享]${m}`));
+      cleaned = cleaned.replace(pattern, '');
+    }
+  }
+
+  // 清理多余空白
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+
+  // 如果内容被删减太多，添加安全结语
+  if (cleaned.length < 100 && content.length > 200) {
+    cleaned = `感谢阅读，以上是关于"${content.match(/[#\u4e00-\u9fa5]{2,10}/)?.[0] || '本话题'}"的分享，希望对您有所帮助。`;
+  }
+
+  return { cleaned, foundIssues };
+}
+
+// ========== 主逻辑 ==========
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -67,14 +169,28 @@ export async function POST(request: NextRequest) {
     const { LLMClient } = await import('coze-coding-dev-sdk');
     const llmClient = new LLMClient();
 
-    // 构建系统指令
+    // 构建系统指令（包含安全创作规则）
     const systemInstruction = `你是一个精通新媒体传播，擅长制造爆款的公众号主笔，你深刻了解公众号平台的调性逻辑和读者心理。
 
 对文章的文案进行优化，目标是大幅度提升打开率，阅读完成率和互动率(点赞，评论，收藏）。
 
 文章前100字，必须包含一个强有力的"钩子"，可以是惊人数据、痛点问题、颠覆认知的观点，让读者无法划走。
 
-【你必须严格遵守以下规则，优先级高于一切】
+【安全红线 - 绝对禁止】
+1. 绝对禁止生成以下内容：
+   - 涉政敏感话题
+   - 色情低俗描写
+   - 暴力恐怖内容
+   - 赌博、毒品、诈骗相关的任何描述
+   - 诱导分享的话术（如"不转不是中国人"、"转发后一生平安"、"转疯了"）
+   - 银行卡号、支付宝账号、汇款指令等金融操作信息
+
+2. 禁止使用广告极限词做主观吹嘘：
+   - 禁用：国家级、最高级、最佳、第一品牌、顶级、极品、唯一、全网第一、全国第一
+   - 客观陈述可以用"最"（如"世界上最高的山峰"），但不用"最"做主观吹嘘
+   - 不确定时，换一种说法（如"最好"改为"值得推荐"）
+
+【你必须严格遵守以下规则】
 - 用户选题：${topic}
 - 请严格按照上述设定完成本次写作，任何偏离都将导致不合格。`;
 
@@ -168,6 +284,17 @@ ${imageSource === 'ai' && imageCount > 0 ? `
     }).join('\n');
     cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n').trim();
 
+    // ========== 安全扫描 ==========
+    console.log('[安全] 开始安全扫描...');
+    const safeScanResult = safeScan(cleanedContent);
+    cleanedContent = safeScanResult.cleaned;
+    if (safeScanResult.foundIssues.length > 0) {
+      console.log('[安全] 发现并处理了以下问题:', safeScanResult.foundIssues);
+    } else {
+      console.log('[安全] 安全扫描通过，无违规内容');
+    }
+    cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n').trim();
+
     // ========== 原子化随机排版 ==========
     let finalContent = cleanedContent;
     let typographyResult = null;
@@ -251,7 +378,12 @@ ${imageSource === 'ai' && imageCount > 0 ? `
       typography: typographyResult ? {
         dimensions: typographyResult.dimensions,
         rules: typographyResult.rules
-      } : null
+      } : null,
+      safety: {
+        scanned: true,
+        issuesFound: safeScanResult.foundIssues.length,
+        issues: safeScanResult.foundIssues
+      }
     });
 
   } catch (error: any) {
