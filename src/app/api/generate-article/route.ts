@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auditArticle, hasProhibitedWords, diagnosePrompt } from '@/lib/content-audit';
+import { typographyEngine, dimensionDescriptions } from '@/lib/typography-engine';
 
 // 暴力清洗函数：直接删除包含违禁词的句子
 function violentClean(content: string, forbiddenWords: string[]): string {
@@ -413,9 +414,27 @@ ${articleContent}`;
       ? '文章生成成功' 
       : '服务繁忙，请稍后重试';
 
+    // ========== 原子化随机排版 ==========
+    // 审核通过后，应用原子化随机排版引擎
+    let finalContent = savedContent;
+    let typographyResult = null;
+    
+    if (reviewPassed && savedContent) {
+      try {
+        // 生成随机排版
+        typographyResult = typographyEngine(savedContent, '#1890ff');
+        finalContent = typographyResult.content;
+        console.log('[排版] 原子化随机排版完成');
+        console.log('[排版] 维度组合:', JSON.stringify(typographyResult.dimensions));
+      } catch (typographyError) {
+        console.error('[排版] 排版引擎执行失败，使用原始内容:', typographyError);
+        finalContent = savedContent;
+      }
+    }
+
     // 生成配图 - 根据imageCount生成对应数量
     let imageUrls: string[] = [];
-    let finalContent = savedContent;
+    // finalContent 已在排版步骤定义
     const targetImageCount = Math.max(0, Math.min(imageCount || 0, 10)); // 限制0-10张
     if (targetImageCount > 0 && reviewPassed) {
       try {
@@ -481,7 +500,11 @@ ${articleContent}`;
       review: {
         status: reviewPassed ? 'passed' : 'failed',
         retries: retryCount
-      }
+      },
+      typography: typographyResult ? {
+        dimensions: typographyResult.dimensions,
+        rules: typographyResult.rules
+      } : null
     });
 
   } catch (error: any) {
