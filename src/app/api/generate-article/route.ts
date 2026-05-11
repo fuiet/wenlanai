@@ -507,6 +507,31 @@ ${grammarFeedback}
       }
     }
 
+    // ========== 最终清理：确保无乱码 ==========
+    console.log('[清理] 执行最终清理...');
+    
+    // 清理所有可能的图注和图片描述文字
+    finalContent = finalContent
+      // 清理各种图注格式
+      .replace(/（[^）]*图[^）]*）/g, '')  // （图片描述）
+      .replace(/\([^)]*图[^)]*\)/g, '')    // (图片描述)
+      .replace(/图\d+[：:：]?\s*/g, '')      // 图1：、图2：
+      .replace(/图[：:：]\s*/g, '')           // 图：
+      .replace(/配图\d+/g, '')               // 配图1
+      .replace(/图片序号\d+/g, '')           // 图片序号1
+      .replace(/图序[^，。\n]*/g, '')        // 图序1
+      .replace(/图[^，。\n\d]{1,10}/g, '')   // 图+文字
+      // 清理连续空行
+      .replace(/\n{3,}/g, '\n\n')
+      // 清理行首行尾空白
+      .replace(/^\s+|\s+$/gm, '')
+      // 清理残留的代码符号
+      .replace(/[<>{}]/g, '')
+      // 清理乱码装饰符号
+      .replace(/[✦✧◆◇○●◉◐◑▪▫■□▲△▼▽▎▍▌▂▃▅▆▇▶▷◀◁━━━┅┆┇┊┋]+/g, '')
+      // 清理连续标点
+      .replace(/[，。、；：]{3,}/g, '，');
+
     // ========== 保存文章 ==========
     const { data: savedArticle, error: saveError } = await supabase
       .from('articles')
