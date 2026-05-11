@@ -394,6 +394,80 @@ ${imageSource === 'ai' && imageCount > 0 ? `
       }
     }
 
+    // ========== 语法检查与修复 ==========
+    console.log('开始语法检查...');
+    try {
+      // 调用LLM进行语法检查
+      const grammarCheckPrompt = `你是一个专业的文章编辑，请检查以下文章的语法、通顺度和语义连贯性。
+
+检查要求：
+1. 识别语义断裂、不通顺的句子
+2. 检查段落之间的逻辑衔接
+3. 确保文章语义连贯、可读性强
+
+文章内容：
+${finalContent.replace(/<[^>]+>/g, '')}
+
+请输出：
+- 如果文章通顺：输出"[语法检查通过]"
+- 如果有问题：输出"[语法问题]" + 具体问题描述 + 修复建议
+
+重要：只输出检查结果，不要修改文章内容。`;
+
+      const grammarCheckResult = await llmClient.chat({
+        model: 'deepseek-v3-2-251201',
+        messages: [{ role: 'user', content: grammarCheckPrompt }]
+      });
+
+      const grammarFeedback = grammarCheckResult.choices?.[0]?.message?.content || '';
+
+      // 如果发现问题，进行修复
+      if (grammarFeedback.includes('[语法问题]')) {
+        console.log('发现语法问题，进行自动修复...');
+
+        const fixPrompt = `你是一个专业的新媒体编辑，以下是一篇文章存在语法或语义问题，请根据反馈进行修复。
+
+原文：
+${finalContent.replace(/<[^>]+>/g, '')}
+
+问题反馈：
+${grammarFeedback}
+
+修复要求：
+1. 保持文章原意和结构不变
+2. 修复语义断裂和不通顺的句子
+3. 确保段落之间逻辑衔接自然
+4. 不要添加或删除实质性内容
+5. 保持与文章主题相关
+6. 保持原有格式（标题层级、段落结构）
+
+请直接输出修复后的完整文章，不要添加任何说明。`;
+
+        const fixResult = await llmClient.chat({
+          model: 'deepseek-v3-2-251201',
+          messages: [{ role: 'user', content: fixPrompt }]
+        });
+
+        const fixedContent = fixResult.choices?.[0]?.message?.content || '';
+
+        // 只有修复内容有效且长度合理时才替换
+        if (fixedContent && fixedContent.length > finalContent.length * 0.5) {
+          // 将修复的内容重新应用HTML格式
+          finalContent = finalContent.replace(/<img[^>]+>/g, '<<<IMAGE>>>');
+          const textOnly = finalContent.replace(/<[^>]+>/g, '');
+          finalContent = fixedContent.replace(/<<<IMAGE>>>/g, () => {
+            const imgs = textOnly.match(/<img[^>]+>/g) || [];
+            return imgs.shift() || '';
+          });
+          console.log('语法修复完成');
+        }
+      } else {
+        console.log('语法检查通过');
+      }
+    } catch (grammarError) {
+      console.log('语法检查异常，继续保存:', grammarError);
+    }
+
     // ========== 保存文章 ==========
     const { data: savedArticle, error: saveError } = await supabase
       .from('articles')
