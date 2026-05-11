@@ -108,7 +108,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { 
-      topic, 
+      title: userTitle,  // 用户输入的标题（可选）
+      topic,              // 文章主题（当没有标题时作为主题，有标题时作为内容方向）
       selectedGroupId, 
       selectedGroupName,
       promptTemplateId, 
@@ -118,12 +119,19 @@ export async function POST(request: NextRequest) {
       imageSource = 'none'
     } = body;
 
-    if (!topic || topic.trim().length === 0) {
+    // 验证：标题和主题至少要有一个
+    const hasTitle = userTitle && userTitle.trim().length > 0;
+    const hasTopic = topic && topic.trim().length > 0;
+    
+    if (!hasTitle && !hasTopic) {
       return NextResponse.json(
-        { success: false, error: '请输入文章选题' },
+        { success: false, error: '请输入文章主题或文章标题' },
         { status: 400 }
       );
     }
+
+    // 如果只有标题没有主题，使用标题作为主题
+    const effectiveTopic = hasTopic ? topic.trim() : userTitle.trim();
 
     // 获取当前用户ID
     const sessionToken = request.cookies.get('session_token')?.value;
@@ -214,7 +222,8 @@ export async function POST(request: NextRequest) {
 4. 至少1段"个人经验感"描述
 
 【你必须严格遵守以下规则】
-- 用户选题：${topic}
+- 用户选题：${effectiveTopic}
+${hasTitle ? `- 文章标题已指定：${userTitle.trim()}，生成文章时必须使用此标题` : ''}
 - 请严格按照上述设定完成本次写作，任何偏离都将导致不合格。
 
 【社交分享金句 - 必须提取】
@@ -241,8 +250,11 @@ export async function POST(request: NextRequest) {
 
     // 构建用户提示词
     let userPrompt = promptTemplate || '';
-    if (topic && !userPrompt.includes(topic)) {
-      userPrompt = `选题：${topic}\n\n${userPrompt}`;
+    if (effectiveTopic && !userPrompt.includes(effectiveTopic)) {
+      userPrompt = `选题：${effectiveTopic}\n\n${userPrompt}`;
+    }
+    if (hasTitle) {
+      userPrompt += `\n\n【重要】文章标题已指定为："${userTitle.trim()}"，请直接使用此标题生成文章，不要自行拟定标题。`;
     }
 
     // 添加写作要求和排版规则
@@ -388,7 +400,7 @@ ${imageSource === 'ai' && imageCount > 0 ? `
               imagePrompt = `插画风格配图，${relatedText}，现代简约，扁平化设计，无文字无水印，适合公众号文章`;
             } else {
               // 用文章主题生成图片
-              imagePrompt = `${topic}主题插画风格配图，现代简约，扁平化设计，无文字无水印`;
+              imagePrompt = `${effectiveTopic}主题插画风格配图，现代简约，扁平化设计，无文字无水印`;
             }
             
             const imageResult = await imageClient.generate({

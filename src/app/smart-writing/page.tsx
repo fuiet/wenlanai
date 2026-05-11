@@ -370,8 +370,9 @@ export default function SmartWritingPage() {
 
   // 开始创作
   const handleStartCreate = async () => {
-    if (!articleTopic) {
-      alert('请输入文章主题');
+    // 验证逻辑：如果没有输入标题，则必须输入主题
+    if (!articleTitle && !articleTopic) {
+      alert('请输入文章主题或文章标题');
       return;
     }
 
@@ -1649,22 +1650,6 @@ export default function SmartWritingPage() {
 
           {/* 表单 */}
           <div className="space-y-4">
-            {/* 文章主题 */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Label className="text-sm font-medium flex items-center gap-1">
-                  <Sparkles className="h-4 w-4 text-orange-500" />
-                  文章主题 <span className="text-red-500">*</span>
-                </Label>
-              </div>
-              <p className="text-[10px] text-gray-500 mb-2">输入你想创作的文章主题</p>
-              <Input
-                placeholder="输入你想创作的文章主题"
-                value={articleTopic}
-                onChange={(e) => setArticleTopic(e.target.value)}
-              />
-            </div>
-
             {/* 文章标题 */}
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -1672,12 +1657,29 @@ export default function SmartWritingPage() {
                   <FileText className="h-4 w-4 text-yellow-500" />
                   文章标题
                 </Label>
-                <span className="text-xs text-gray-500">（选填，不填AI自动生成爆款标题）</span>
+                <span className="text-xs text-gray-500">（选填，不填则根据主题自动生成）</span>
               </div>
               <Input
                 placeholder="输入你想创作的文章标题"
                 value={articleTitle}
                 onChange={(e) => setArticleTitle(e.target.value)}
+              />
+            </div>
+
+            {/* 文章主题 */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Label className="text-sm font-medium flex items-center gap-1">
+                  <Sparkles className="h-4 w-4 text-orange-500" />
+                  文章主题
+                </Label>
+                <span className="text-xs text-gray-500">（{articleTitle ? '选填' : '必填'}，用于生成{articleTitle ? '文章内容' : '标题和内容'}）</span>
+              </div>
+              <p className="text-[10px] text-gray-500 mb-2">{articleTitle ? '输入你想创作的文章主题，系统将围绕主题生成内容' : '输入你想创作的文章主题，AI将生成匹配的标题'}</p>
+              <Input
+                placeholder={articleTitle ? "输入文章主题（选填）" : "输入你想创作的文章主题"}
+                value={articleTopic}
+                onChange={(e) => setArticleTopic(e.target.value)}
               />
             </div>
 
