@@ -359,11 +359,11 @@ ${imageSource === 'ai' && imageCount > 0 ? `
     let typographyResult = null;
     
     try {
-      // 生成随机排版
-      typographyResult = typographyEngine(cleanedContent, '#1890ff');
+      // 生成随机排版 - 简洁留白风格
+      typographyResult = typographyEngine(cleanedContent, { themeColor: '#1890ff' });
       finalContent = typographyResult.content;
-      console.log('[排版] 原子化随机排版完成');
-      console.log('[排版] 维度组合:', JSON.stringify(typographyResult.dimensions));
+      console.log('[排版] 简洁留白排版完成');
+      console.log('[排版] 段落数:', typographyResult.stats.paragraphCount);
     } catch (typographyError) {
       console.error('[排版] 排版引擎执行失败，使用原始内容:', typographyError);
       finalContent = cleanedContent;
@@ -613,8 +613,8 @@ ${finalContent.replace(/<[^>]+>/g, '')}
       message: '文章生成成功',
       data: savedArticle,
       typography: typographyResult ? {
-        dimensions: typographyResult.dimensions,
-        rules: typographyResult.dimensions
+        config: typographyResult.config,
+        stats: typographyResult.stats
       } : null,
       safety: {
         scanned: true,

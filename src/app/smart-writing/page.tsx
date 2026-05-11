@@ -995,12 +995,9 @@ export default function SmartWritingPage() {
     () => <div className="mt-8 p-4 bg-gray-50 rounded-lg text-center"><span className="text-xs text-gray-500">— 完结 —</span></div>,
   ];
 
-  // 多种段落样式
+  // 简洁段落样式 - 呼吸感留白
   const paragraphStyles = [
-    'text-gray-700 leading-relaxed text-base',
-    'text-gray-600 leading-loose text-base',
-    'text-gray-700 leading-7 text-base',
-    'text-gray-700 leading-relaxed text-[15px]',
+    'text-gray-700 leading-7 text-[15px]', // 适中行高
   ];
 
   // 渲染文章内容组件（精美排版）
@@ -1229,40 +1226,39 @@ export default function SmartWritingPage() {
             );
           }
         } else if (section.type === 'key-point') {
-          // 核心金句：上下多空一行，突出显示
+          // 核心金句：上下多空一行，简洁左边框
           const processedContent = section.content
-            .replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.accent} font-semibold">$1</strong>`);
+            .replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.accent}">$1</strong>`);
           element.push(
-            <div key={`keypoint-${idx}`} className="my-6 py-4 px-5 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
-              <p className={`${theme.accent} font-medium text-base leading-relaxed`}>
+            <div key={`keypoint-${idx}`} className="my-6 pl-4 border-l-2 border-red-400">
+              <p className="text-gray-700 text-[15px] leading-7">
                 <span dangerouslySetInnerHTML={{ __html: processedContent }} />
               </p>
             </div>
           );
         } else if (section.type === 'quote') {
-          // 引用句：特殊样式
+          // 引用句：简洁灰色左边框
           const processedContent = section.content
-            .replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.accent} font-semibold">$1</strong>`);
+            .replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.accent}">$1</strong>`);
           element.push(
-            <div key={`quote-${idx}`} className="my-4 py-3 px-4 bg-gray-50 border-l-4 border-gray-300 italic text-gray-600 rounded-r">
+            <div key={`quote-${idx}`} className="my-5 pl-4 border-l-2 border-gray-300 italic text-gray-600 text-[15px] leading-7">
               <span dangerouslySetInnerHTML={{ __html: processedContent }} />
             </div>
           );
         } else if (section.type === 'paragraph') {
           // 处理段落中的强调文字
           const processedContent = section.content
-            .replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.accent} font-semibold">$1</strong>`)
-            .replace(/__(.*?)__/g, `<strong class="${theme.accent} font-semibold">$1</strong>`);
+            .replace(/\*\*(.*?)\*\*/g, `<strong class="text-red-500">$1</strong>`)
+            .replace(/__(.*?)__/g, `<strong class="text-red-500 underline decoration-blue-400">$1</strong>`);
           
-          const paraStyle = paragraphStyles[(idx + Math.abs(String(article.id).charCodeAt(0) || 0)) % paragraphStyles.length];
           element.push(
-            <p key={`para-${idx}`} className={paraStyle}>
+            <p key={`para-${idx}`} className="text-gray-700 text-[15px] leading-7 text-left mb-5">
               <span dangerouslySetInnerHTML={{ __html: processedContent }} />
             </p>
           );
         }
         
-        return <div key={`section-${idx}`} className="mb-4">{element}</div>;
+        return <div key={`section-${idx}`}>{element}</div>;
       })}
       
       {/* 在结尾插入剩余图片 */}
@@ -1275,12 +1271,6 @@ export default function SmartWritingPage() {
           />
         </div>
       ))}
-      
-      {/* 底部装饰 - 使用多种结尾样式 */}
-      {(() => {
-        const EndComponent = endStyles[Math.abs(String(article.id).charCodeAt(String(article.id).length - 1) || 0) % endStyles.length];
-        return <EndComponent />;
-      })()}
     </div>
   );
   };
