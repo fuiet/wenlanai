@@ -378,7 +378,7 @@ ${imageSource === 'ai' && imageCount > 0 ? `
     console.log('[排版] 开始原子化随机排版...');
     
     // 调用排版引擎（包含段落拆分规则和14个随机维度）
-    const { content: formattedContent, dimensions } = applyTypography(finalContent);
+    const { content: formattedContent, dimensions } = typographyEngine(finalContent);
     finalContent = formattedContent;
     console.log('[排版] 随机维度:', dimensions);
     console.log('[排版] 原子化随机排版完成');
