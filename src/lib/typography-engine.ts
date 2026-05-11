@@ -418,27 +418,11 @@ function applyListStyle(content: string, style: ListStyle): string {
 }
 
 /**
- * 结尾金句样式处理
+ * 结尾样式处理（已禁用：文章结尾不添加任何特殊标记）
  */
 function applyEndStyle(content: string, style: EndStyle, themeColor: string = '#1890ff'): string {
-  const lines = content.split('\n\n');
-  if (lines.length === 0) return content;
-
-  const lastLine = lines[lines.length - 1];
-  
-  switch (style) {
-    case 'A': // 加粗居中
-      lines[lines.length - 1] = `<p style="text-align:center;font-weight:bold;color:${themeColor}">${lastLine}</p>`;
-      break;
-    case 'B': // 加粗左对齐，上下各空两行
-      lines[lines.length - 1] = `<div style="margin:30px 0"><p style="font-weight:bold">${lastLine}</p></div>`;
-      break;
-    case 'C': // 加引号+斜体
-      lines[lines.length - 1] = `<p style="font-style:italic">"${lastLine}"</p>`;
-      break;
-  }
-
-  return lines.join('\n\n');
+  // 不对结尾做任何特殊处理，保留原文结尾
+  return content;
 }
 
 // ==================== 主排版引擎 ====================
