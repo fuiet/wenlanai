@@ -1025,10 +1025,22 @@ export default function SmartWritingPage() {
     const themeIndex = Math.abs(idHash) % themes.length;
     const theme = themes[themeIndex] || themes[0]; // 兜底确保有主题
     
-    // 解析文章内容，提取标题和段落
+    // 解析文章内容，提取标题和段落，同时处理排版引擎标记
     const parseContent = (content: string) => {
-      const lines = content.split('\n');
-      const sections: { type: 'title' | 'paragraph' | 'separator'; content: string; level?: number }[] = [];
+      // 先处理排版引擎的标记（核心金句等）
+      let processedContent = content;
+      
+      // 处理核心金句标记 - 替换为特殊标记
+      processedContent = processedContent.replace(/§§KEY_POINT§§([\s\S]*?)§§\/KEY_POINT§§/g, '\n\n[[[KEY_POINT]]]$1[[[/KEY_POINT]]]\n\n');
+      
+      // 处理引用句标记
+      processedContent = processedContent.replace(/§§QUOTE§§([\s\S]*?)§§\/QUOTE§§/g, '\n\n[[[QUOTE]]]$1[[[/QUOTE]]]\n\n');
+      
+      // 处理分隔符标记
+      processedContent = processedContent.replace(/§§SEPARATOR§§/g, '\n\n---SEPARATOR---\n\n');
+      
+      const lines = processedContent.split('\n');
+      const sections: { type: 'title' | 'paragraph' | 'separator' | 'key-point' | 'quote'; content: string; level?: number }[] = [];
       let currentParagraph = '';
       
       lines.forEach((line, idx) => {
@@ -1043,12 +1055,34 @@ export default function SmartWritingPage() {
         }
         
         // 检测分隔线
-        if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
+        if (trimmed === '---' || trimmed === '***' || trimmed === '___' || trimmed === '---SEPARATOR---') {
           if (currentParagraph.trim()) {
             sections.push({ type: 'paragraph', content: currentParagraph.trim() });
             currentParagraph = '';
           }
           sections.push({ type: 'separator', content: '' });
+          return;
+        }
+        
+        // 检测核心金句标记
+        if (trimmed.includes('[[[KEY_POINT]]]')) {
+          if (currentParagraph.trim()) {
+            sections.push({ type: 'paragraph', content: currentParagraph.trim() });
+            currentParagraph = '';
+          }
+          const keyContent = trimmed.replace('[[[KEY_POINT]]]', '').replace('[[[/KEY_POINT]]]', '');
+          sections.push({ type: 'key-point', content: keyContent });
+          return;
+        }
+        
+        // 检测引用句标记
+        if (trimmed.includes('[[[QUOTE]]]')) {
+          if (currentParagraph.trim()) {
+            sections.push({ type: 'paragraph', content: currentParagraph.trim() });
+            currentParagraph = '';
+          }
+          const quoteContent = trimmed.replace('[[[QUOTE]]]', '').replace('[[[/QUOTE]]]', '');
+          sections.push({ type: 'quote', content: quoteContent });
           return;
         }
         
@@ -1194,6 +1228,26 @@ export default function SmartWritingPage() {
               </div>
             );
           }
+        } else if (section.type === 'key-point') {
+          // 核心金句：上下多空一行，突出显示
+          const processedContent = section.content
+            .replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.accent} font-semibold">$1</strong>`);
+          element.push(
+            <div key={`keypoint-${idx}`} className="my-6 py-4 px-5 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
+              <p className={`${theme.accent} font-medium text-base leading-relaxed`}>
+                <span dangerouslySetInnerHTML={{ __html: processedContent }} />
+              </p>
+            </div>
+          );
+        } else if (section.type === 'quote') {
+          // 引用句：特殊样式
+          const processedContent = section.content
+            .replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.accent} font-semibold">$1</strong>`);
+          element.push(
+            <div key={`quote-${idx}`} className="my-4 py-3 px-4 bg-gray-50 border-l-4 border-gray-300 italic text-gray-600 rounded-r">
+              <span dangerouslySetInnerHTML={{ __html: processedContent }} />
+            </div>
+          );
         } else if (section.type === 'paragraph') {
           // 处理段落中的强调文字
           const processedContent = section.content
@@ -1208,7 +1262,7 @@ export default function SmartWritingPage() {
           );
         }
         
-        return <div key={`section-${idx}`}>{element}</div>;
+        return <div key={`section-${idx}`} className="mb-4">{element}</div>;
       })}
       
       {/* 在结尾插入剩余图片 */}
