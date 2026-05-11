@@ -13,8 +13,15 @@ function splitLongParagraphs(content: string): string {
   const maxCharsPerParagraph = 30; // 每段不超过30字
   const minSentences = 2; // 拆分后每段至少2句
 
-  // 先清理现有格式
-  let cleanContent = content
+  // 先保护图片占位符
+  const placeholders: string[] = [];
+  let cleanContent = content.replace(/\{\{IMAGE_\d+\}\}/g, (match) => {
+    placeholders.push(match);
+    return `<<<PLACEHOLDER_${placeholders.length - 1}>>>`;
+  });
+
+  // 清理现有格式时保留占位符
+  cleanContent = cleanContent
     .replace(/<[^>]+>/g, '') // 移除HTML标签
     .replace(/\*\*/g, ''); // 移除Markdown加粗
 
@@ -59,7 +66,13 @@ function splitLongParagraphs(content: string): string {
     }
   }
 
-  return processedParagraphs.join('\n\n');
+  // 还原占位符
+  let result = processedParagraphs.join('\n\n');
+  placeholders.forEach((placeholder, index) => {
+    result = result.replace(`<<<PLACEHOLDER_${index}>>>`, placeholder);
+  });
+
+  return result;
 }
 
 /**
