@@ -305,12 +305,13 @@ ${imageSource === 'ai' && imageCount > 0 ? `
     }
     cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n').trim();
 
-    // ========== 原子化随机排版 ==========
+    // ========== 原子化随机排版引擎 ==========
+    // 排版引擎执行：段落拆分 + 序列词处理 + 14维随机样式
+    console.log('[排版] 开始原子化随机排版...');
     let finalContent = cleanedContent;
     let typographyResult = null;
     
     try {
-      // 生成随机排版
       typographyResult = typographyEngine(cleanedContent, '#1890ff');
       finalContent = typographyResult.content;
       console.log('[排版] 原子化随机排版完成');
@@ -319,7 +320,9 @@ ${imageSource === 'ai' && imageCount > 0 ? `
       console.error('[排版] 排版引擎执行失败，使用原始内容:', typographyError);
       finalContent = cleanedContent;
     }
-
+    
+    console.log('[排版] 排版处理完成，字符数:', finalContent.length);
+    
     // ========== 生成配图 ==========
     let imageUrls: string[] = [];
     const targetImageCount = Math.max(0, Math.min(imageCount || 0, 10)); // 限制0-10张
@@ -371,168 +374,14 @@ ${imageSource === 'ai' && imageCount > 0 ? `
       }
     }
     
-    // ========== 强制HTML过滤 ==========
-    console.log('[过滤] 开始全面HTML/代码过滤...');
+    // ========== 原子化随机排版引擎 ==========
+    console.log('[排版] 开始原子化随机排版...');
     
-    // 第一步：过滤所有HTML标签
-    finalContent = finalContent.replace(/<[^>]*>/g, '');
-    
-    // 第二步：过滤所有代码符号
-    finalContent = finalContent.replace(/[<>{}]/g, '');
-    
-    // 第三步：检查反斜杠和引号配对异常
-    finalContent = finalContent.replace(/\\+/g, '');
-    // 修复引号配对问题
-    finalContent = finalContent.replace(/["""]/g, '"');
-    finalContent = finalContent.replace(/['']/g, "'");
-    
-    // 第四步：清理残留的技术符号
-    finalContent = finalContent.replace(/style\s*=\s*"[^"]*"/gi, '');
-    finalContent = finalContent.replace(/class\s*=\s*"[^"]*"/gi, '');
-    finalContent = finalContent.replace(/id\s*=\s*"[^"]*"/gi, '');
-    
-    // 第五步：清理所有可能的乱码
-    finalContent = finalContent
-      .replace(/图1[：:：]?/g, '')
-      .replace(/图2[：:：]?/g, '')
-      .replace(/图3[：:：]?/g, '')
-      .replace(/图4[：:：]?/g, '')
-      .replace(/图5[：:：]?/g, '')
-      .replace(/图\d[：:：]?/g, '')
-      .replace(/配图\d[：:：]?/g, '')
-      .replace(/图序[^，,。.\n]*/g, '')
-      .replace(/图片\d+/g, '')
-      .replace(/序号[^\s\n]*/g, '')
-      .replace(/[✦✧◆◇○●◉◐◑▪▫■□▲△▼▽▎▍▌▂▃▅▆▇▶▷◀◁━━━┅┆┇┊┋]/g, '')
-      .replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s\n，。、！？；：""''（）【】《》—…·.,!?;:'"()——]/g, '');
-    
-    // 第六步：清理连续换行
-    finalContent = finalContent.replace(/\n{3,}/g, '\n\n');
-    
-    // 第七步：合并过短段落（少于5个字的段落与前一段合并）
-    const shortParagraphMerge = (text: string): string => {
-      const lines = text.split('\n');
-      const result: string[] = [];
-      let i = 0;
-      while (i < lines.length) {
-        const current = lines[i].trim();
-        // 如果当前段落少于5个字，且前面有段落，则合并
-        if (current.length > 0 && current.length < 5 && result.length > 0) {
-          result[result.length - 1] = result[result.length - 1] + ' ' + current;
-        } else {
-          result.push(current);
-        }
-        i++;
-      }
-      return result.join('\n\n');
-    };
-    finalContent = shortParagraphMerge(finalContent);
-    
-    console.log('[过滤] HTML/代码过滤完成');
-
-    // ========== 强制段落拆分规则 ==========
-    // 【必须执行】每段不超过4行、段间空行、序列词独立加粗
-    console.log('[排版] 开始强制段落拆分...');
-    
-    // 第一步：清理多余的空行，确保段间只有一行空行
-    let cleaned = finalContent
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .join('\n\n');
-    
-    // 第二步：识别序列词并独立加粗（使用**加粗**）
-    const sequencePatterns = [
-      /(^|[^a-zA-Z0-9])((一|二|三|四|五|六|七|八|九|十|十一|十二|十三|十四|十五)[.、:：](?=[^:：]*[，。]?))/gm,
-      /(^|[^a-zA-Z0-9])((首先|其次|再次|最后|总之|关键是|记住)[，,](?=[^,，]*[，。]?))/gm,
-      /(^|[^a-zA-Z0-9])(误区[一二三四五][：:](?=[^:：]*[，。]?))/gm,
-      /(^|[^a-zA-Z0-9])(([0-9]+[.、][\u4e00-\u9fa5]))/gm,
-      /(^|[^a-zA-Z0-9])((第[一二三四五六七八九十]+[点章节节])[^，。]*[，,])/gm,
-    ];
-    
-    for (const pattern of sequencePatterns) {
-      cleaned = cleaned.replace(pattern, (match, prefix, content) => {
-        // 提取序列词部分并加粗
-        return prefix + '**' + content.trim() + '**';
-      });
-    }
-    
-    // 第三步：拆分超长段落（每段不超过180字，约4行）
-    const maxChars = 180;
-    const splitLongParagraphs = (text: string): string => {
-      const paragraphs = text.split(/\n\n+/);
-      const result: string[] = [];
-      
-      for (const para of paragraphs) {
-        if (para.trim().length === 0) continue;
-        
-        // 检查是否包含已加粗的序列词
-        if (para.includes('**')) {
-          // 有加粗序列词，保持原样
-          result.push(para);
-          continue;
-        }
-        
-        // 如果段落超过最大字数，进行拆分
-        const plainText = para.replace(/\*\*/g, '');
-        if (plainText.length > maxChars) {
-          // 在句号、逗号处拆分
-          const sentences = para.split(/(?<=[。！？；])/);
-          let currentChunk = '';
-          let chunkCount = 0;
-          
-          for (const sentence of sentences) {
-            if (sentence.trim().length === 0) continue;
-            
-            // 检查当前块加这句话后是否超过限制
-            if (currentChunk.length + sentence.length > maxChars && currentChunk.length > 0) {
-              // 保存当前块
-              result.push(currentChunk.trim());
-              currentChunk = sentence;
-              chunkCount++;
-            } else {
-              currentChunk += sentence;
-            }
-          }
-          
-          // 保存最后一块
-          if (currentChunk.trim().length > 0) {
-            result.push(currentChunk.trim());
-          }
-        } else {
-          result.push(para);
-        }
-      }
-      
-      return result.join('\n\n');
-    };
-    
-    finalContent = splitLongParagraphs(cleaned);
-    
-    // 第四步：合并过短段落（少于10字的段落与前一段合并）
-    const mergeShortParagraphs = (text: string): string => {
-      const paragraphs = text.split(/\n\n+/);
-      const result: string[] = [];
-      
-      for (const para of paragraphs) {
-        const clean = para.replace(/\*\*/g, '').trim();
-        // 如果段落少于10个字，且前面有段落，则合并
-        if (clean.length > 0 && clean.length < 10 && result.length > 0) {
-          result[result.length - 1] = result[result.length - 1] + ' ' + clean;
-        } else if (clean.length > 0) {
-          result.push(para);
-        }
-      }
-      
-      return result.join('\n\n');
-    };
-    
-    finalContent = mergeShortParagraphs(finalContent);
-    
-    // 第五步：确保没有连续超过3个换行
-    finalContent = finalContent.replace(/\n{3,}/g, '\n\n');
-    
-    console.log('[排版] 强制段落拆分完成');
+    // 调用排版引擎（包含段落拆分规则和14个随机维度）
+    const { content: formattedContent, dimensions } = applyTypography(finalContent);
+    finalContent = formattedContent;
+    console.log('[排版] 随机维度:', dimensions);
+    console.log('[排版] 原子化随机排版完成');
 
     // ========== 语法检查与修复 ==========
     console.log('[语法] 开始语法检查...');
