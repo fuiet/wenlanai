@@ -9,10 +9,10 @@ import { createClient } from '@supabase/supabase-js';
 
 /**
  * 基础规则1：段落长度控制
- * 每段不超过4行（150-200字），超过则在句号处拆分
+ * 每段不超过30字，超过则在句号处拆分
  */
 function splitLongParagraphs(content: string): string {
-  const maxCharsPerParagraph = 180; // 约4行
+  const maxCharsPerParagraph = 30; // 每段不超过30字
   const minSentences = 2; // 拆分后每段至少2句
 
   const paragraphs = content.split(/\n\n+/);
