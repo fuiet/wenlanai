@@ -215,7 +215,29 @@ export async function POST(request: NextRequest) {
 
 【你必须严格遵守以下规则】
 - 用户选题：${topic}
-- 请严格按照上述设定完成本次写作，任何偏离都将导致不合格。`;
+- 请严格按照上述设定完成本次写作，任何偏离都将导致不合格。
+
+【社交分享金句 - 必须提取】
+文章生成后，必须从文中提炼1-2句适合分享的金句：
+1. 字数控制在10-30字之间
+2. 要有传播性，让人看完想转发
+3. 可以是触动情感、引发共鸣、或戳中痛点的句子
+4. 格式示例：
+   "你以为的努力，不过是别人眼中的笑话"
+   "成年人的崩溃，往往只在一瞬间"
+
+【SEO关键词埋点 - 必须执行】
+从文章中自动提取3个核心关键词，并确保：
+1. 关键词自然穿插在：标题、正文前200字、至少1个小标题、结尾段落
+2. 关键词密度控制在2-3%（全文约1000字，每个关键词出现2-3次）
+3. 避免关键词堆砌，保持文章可读性
+
+【文末互动钩子 - 强制生成】
+文章结尾必须生成一个多选式提问：
+1. 格式："你觉得是A、B还是C？评论区聊聊。"
+2. 禁止开放式提问（如"你怎么看？"、"你有什么想法？"）
+3. 必须给出2-4个具体选项
+4. 选项要与文章主题相关，引发读者思考和讨论`;
 
     // 构建用户提示词
     let userPrompt = promptTemplate || '';
@@ -518,6 +540,62 @@ ${grammarFeedback}
       throw saveError;
     }
 
+    // ========== 提取金句、SEO关键词、互动钩子 ==========
+    let shareQuote: string[] = [];
+    let seoKeywords: string[] = [];
+    let interactionHook: string = '';
+
+    try {
+      console.log('[提取] 开始提取金句、SEO关键词和互动钩子...');
+
+      const extractPrompt = `你是一个专业的新媒体运营专家，请从以下文章中提取三个元素：
+
+文章标题：${generatedTitle || topic}
+文章内容：
+${finalContent.replace(/<[^>]+>/g, '')}
+
+请按照以下格式输出（严格JSON格式，不要有任何其他内容）：
+
+{
+  "shareQuote": ["金句1（10-30字）", "金句2（10-30字）"],
+  "seoKeywords": ["关键词1", "关键词2", "关键词3"],
+  "interactionHook": "多选式提问，如：你觉得是A、B还是C？评论区聊聊。"
+}
+
+要求：
+1. shareQuote：1-2句适合朋友圈分享的金句，要有传播性，10-30字
+2. seoKeywords：3个文章核心关键词，用于SEO优化
+3. interactionHook：必须是多选式提问，给出具体选项，禁止开放式提问`;
+
+      const extractResult = await llmClient.invoke([
+        { role: 'user', content: extractPrompt }
+      ], {
+        model: 'deepseek-v3-2-251201',
+        temperature: 0.3
+      });
+
+      const extractContent = extractResult.content || '';
+
+      // 解析JSON结果
+      try {
+        // 提取JSON部分
+        const jsonMatch = extractContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          shareQuote = parsed.shareQuote || [];
+          seoKeywords = parsed.seoKeywords || [];
+          interactionHook = parsed.interactionHook || '';
+          console.log('[提取] 金句:', shareQuote);
+          console.log('[提取] SEO关键词:', seoKeywords);
+          console.log('[提取] 互动钩子:', interactionHook);
+        }
+      } catch (parseError) {
+        console.error('[提取] JSON解析失败:', parseError);
+      }
+    } catch (extractError) {
+      console.error('[提取] 提取失败:', extractError);
+    }
+
     return NextResponse.json({
       success: true,
       message: '文章生成成功',
@@ -530,6 +608,11 @@ ${grammarFeedback}
         scanned: true,
         issuesFound: safeScanResult.foundIssues.length,
         issues: safeScanResult.foundIssues
+      },
+      extraction: {
+        shareQuote,
+        seoKeywords,
+        interactionHook
       }
     });
 

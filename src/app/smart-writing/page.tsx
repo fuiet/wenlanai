@@ -31,7 +31,10 @@ import {
   Clock,
   AlertCircle,
   Lightbulb,
-  Send
+  Send,
+  Star,
+  Search,
+  MessageCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -84,6 +87,10 @@ interface Article {
   // 审核相关字段
   review_status?: 'pending' | 'passed' | 'failed';
   review_message?: string;
+  // 金句、SEO关键词、互动钩子
+  share_quote?: string[];
+  seo_keywords?: string[];
+  interaction_hook?: string;
 }
 
 // 分组类型定义
@@ -455,7 +462,11 @@ export default function SmartWritingPage() {
             updated_at: new Date().toISOString(),
             generate_progress: 'done',
             review_status: reviewStatus,
-            review_message: data.review?.message || ''
+            review_message: data.review?.message || '',
+            // 金句、SEO关键词、互动钩子
+            share_quote: data.extraction?.shareQuote || [],
+            seo_keywords: data.extraction?.seoKeywords || [],
+            interaction_hook: data.extraction?.interactionHook || ''
           };
 
           // 只有提示词违规时才显示失败提示，其他情况后台自动消化
@@ -1929,6 +1940,79 @@ export default function SmartWritingPage() {
                   </div>
                 )}
               </div>
+
+              {/* 金句展示 */}
+              {viewingArticle?.share_quote && viewingArticle.share_quote.length > 0 && (
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-4 border border-amber-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Star className="h-4 w-4 text-amber-500" />
+                    <span className="font-medium text-amber-700">社交分享金句</span>
+                    <Badge variant="secondary" className="text-xs">点击复制</Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {viewingArticle.share_quote.map((quote, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          navigator.clipboard.writeText(quote);
+                          alert('金句已复制到剪贴板');
+                        }}
+                        className="w-full text-left p-3 bg-white rounded-lg hover:bg-amber-50 transition-colors border border-amber-100 text-gray-700 italic"
+                      >
+                        "{quote}"
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* SEO关键词展示 */}
+              {viewingArticle?.seo_keywords && viewingArticle.seo_keywords.length > 0 && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Search className="h-4 w-4 text-green-600" />
+                    <span className="font-medium text-green-700">SEO关键词</span>
+                    <Badge variant="secondary" className="text-xs">已埋点2-3%密度</Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingArticle.seo_keywords.map((keyword, idx) => (
+                      <Badge 
+                        key={idx} 
+                        className="bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer"
+                        onClick={() => {
+                          navigator.clipboard.writeText(keyword);
+                          alert('关键词已复制');
+                        }}
+                      >
+                        #{keyword}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 互动钩子展示 */}
+              {viewingArticle?.interaction_hook && (
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MessageCircle className="h-4 w-4 text-purple-600" />
+                    <span className="font-medium text-purple-700">文末互动钩子</span>
+                    <Badge variant="secondary" className="text-xs">引导评论</Badge>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(viewingArticle.interaction_hook || '');
+                      alert('互动钩子已复制');
+                    }}
+                    className="w-full text-left p-3 bg-white rounded-lg hover:bg-purple-50 transition-colors border border-purple-100"
+                  >
+                    <p className="text-gray-700 font-medium">
+                      {viewingArticle.interaction_hook}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">点击复制到文章结尾</p>
+                  </button>
+                </div>
+              )}
 
               {/* 操作按钮 */}
               <div className="flex gap-3 pt-4 border-t">
