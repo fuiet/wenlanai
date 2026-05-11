@@ -320,19 +320,34 @@ ${imageSource === 'ai' && imageCount > 0 ? `
         const { ImageGenerationClient } = await import('coze-coding-dev-sdk');
         const imageClient = new ImageGenerationClient();
         
-        // 生成多张不同的图片
+        // 根据文章内容生成关联图片
+        // 1. 提取文章关键段落作为图片内容参考
+        const paragraphs = finalContent.split(/\n+/).filter(p => p.trim().length > 20);
+        const keyParagraphs = paragraphs.slice(0, Math.min(targetImageCount, paragraphs.length));
+        
         for (let i = 0; i < targetImageCount; i++) {
           try {
-            // 每次使用不同的提示词变体，确保图片内容不同
-            const promptVariants = [
-              `高质量原创配图，适合公众号文章风格，${topic}主题相关`,
-              `唯美插画风格，${topic}主题，简洁干净的画面`,
-              `现代简约风格配图，${topic}相关内容，无文字无水印`
-            ];
-            const prompt = promptVariants[i % promptVariants.length];
+            // 根据文章内容和位置生成关联图片
+            let imagePrompt = '';
+            
+            if (i < keyParagraphs.length) {
+              // 提取该位置对应的段落，去除HTML标签和特殊字符
+              const relatedText = keyParagraphs[i]
+                .replace(/<[^>]+>/g, '')
+                .replace(/[#*_`]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .substring(0, 100);
+              
+              // 根据文章内容生成描述性图片
+              imagePrompt = `插画风格配图，${relatedText}，现代简约，扁平化设计，无文字无水印，适合公众号文章`;
+            } else {
+              // 用文章主题生成图片
+              imagePrompt = `${topic}主题插画风格配图，现代简约，扁平化设计，无文字无水印`;
+            }
             
             const imageResult = await imageClient.generate({
-              prompt: prompt,
+              prompt: imagePrompt,
               size: '1024x1024'
             });
             if (imageResult.data?.[0]?.url) {
