@@ -238,17 +238,29 @@ function formatSectionTitles(content: string): string {
 }
 
 /**
- * 基础规则3：识别总结引导词并单独成段
+ * 基础规则：核心金句或观点独立成段，上下各多空一行
  */
-function formatSummarySentences(content: string): string {
-  const summaryKeywords = ['总之', '记住', '关键是', '最重要的是', '最后总结', '总的来说', '总而言之', '一句话', '说到底'];
+function emphasizeKeyPoints(content: string): string {
+  // 识别核心观点句并增强留白
+  const keyPatterns = [
+    // 总结引导词
+    /(\n\n)(总之|记住|关键是|最重要的是|最后总结|总的来说|总而言之|说到底)[^。！？\n]+[。！？]/g,
+    // 强调句式
+    /(\n\n)(重要|关键|核心|本质|真相|秘密|秘诀)[：:][^。！？\n]+[。！？]/g,
+    // 金句模式（带引号或特殊标记）
+    /(「[^」\n]+」[^。！？\n]*[。！？])/g,
+    // 独立观点句（短句+感叹号或问号结尾）
+    /^([^。！？\n]{5,30}[。！？])$/gm,
+  ];
+
+  let result = content;
   
-  for (const keyword of summaryKeywords) {
-    const regex = new RegExp(`(，${keyword}|。${keyword})([^。！？\n]+[。！？])`, 'g');
-    content = content.replace(regex, '\n\n**$1$2**\n\n');
+  // 为核心观点句添加特殊标记，用于CSS渲染时增加上下间距
+  for (const pattern of keyPatterns) {
+    result = result.replace(pattern, '\n\n§§KEY_POINT§§$1§§/KEY_POINT§§\n\n');
   }
 
-  return content;
+  return result;
 }
 
 /**
@@ -258,23 +270,24 @@ function formatSummarySentences(content: string): string {
 function applyParagraphBreath(content: string, style: 'A' | 'B' | 'C' | 'D'): string {
   const paragraphs = content.split(/\n\n+/);
   
-  if (style === 'A') {
-    // A：紧凑（段间空1行）- 不变，保持 \n\n
+  // 用户要求：段落之间必须空一行，呼吸感留白
+  // 统一使用宽松间距模式
+  if (style === 'A' || style === 'B') {
+    // A/B：标准/紧凑模式 - 统一保证段间空一行
     return paragraphs.join('\n\n');
-  } else if (style === 'B') {
-    // B：标准（段间空1.5行）- 用特殊标记
-    return paragraphs.join('\n\n§§BREAK_1.5§§\n\n');
   } else if (style === 'C') {
-    // C：松弛（段间空2行）
+    // C：松弛（段间空2行）- 额外宽松
     return paragraphs.join('\n\n\n\n');
   } else {
-    // D：混合（前段紧凑，后段渐松）
-    return paragraphs.map((p, i) => {
+    // D：混合（前段紧凑，后段渐松）- 模拟真人越往后排越放松
+    const processed = paragraphs.map((p, i) => {
       const progress = i / paragraphs.length;
-      const spacing = progress < 0.5 ? 1 : progress < 0.8 ? 1.5 : 2;
-      const breaks = '§§BREAK_' + spacing + '§§';
+      // 前40%紧凑，之后渐松
+      const spacing = progress < 0.4 ? 1 : progress < 0.7 ? 1.5 : 2;
+      const breaks = '\n\n'.repeat(spacing);
       return p + (i < paragraphs.length - 1 ? breaks : '');
-    }).join('\n');
+    });
+    return processed.join('');
   }
 }
 
@@ -769,7 +782,7 @@ export function typographyEngine(
   // 1. 基础规则（强制执行）
   let result = splitLongParagraphs(content);
   result = formatSectionTitles(result);
-  result = formatSummarySentences(result);
+  result = emphasizeKeyPoints(result); // 核心金句独立成段，上下多空一行
 
   // 2. 第一层：结构骨架随机
   result = applyParagraphBreath(result, dimensions.layer1.paragraphBreath);
