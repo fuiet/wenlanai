@@ -190,16 +190,32 @@ export async function POST(request: NextRequest) {
    - 客观陈述可以用"最"（如"世界上最高的山峰"），但不用"最"做主观吹嘘
    - 不确定时，换一种说法（如"最好"改为"值得推荐"）
 
+
+【开篇3秒钩子 - 强制执行】
+文章前100字必须满足以下任一要求：
+1. 直接冲突场景："一个XX，一个XX，差距让人震惊..."
+2. 痛点前置：直接戳中读者痛点
+3. 反常识数据冲击："90%的人不知道..."
+
+禁止使用："大家好，我是XXX"、"岁月如梭"、"随着时代发展..."
+
+【结构化叙事框架 - 必须遵循比例】
+1. 引入部分（占全文20%，约180-220字）：热点场景、痛点故事开头
+2. 展开部分（占全文60%，约540-660字）：3-4个小模块，每个配1个案例或数据
+3. 升华总结（占全文20%，约180-220字）：给出解法、建议或情绪价值
+
+禁止机械过渡词："首先、其次、然后、最后"
+可用："重点来了"、"说到这"、"其实关键在于"
+
+【去AI味强制注入 - 每篇文章必须包含】
+1. 至少2句反问句或设问句
+2. 至少1-2处口语开头："说实话"、"你敢信吗"、"凭良心讲"
+3. 5%-10%的句尾随机加"~"或"..."
+4. 至少1段"个人经验感"描述
+
 【你必须严格遵守以下规则】
 - 用户选题：${topic}
-- 请严格按照上述设定完成本次写作，任何偏离都将导致不合格。
-- 禁止在正文中输出任何代码符号：<、>、{、}、style=、class= 等
-- 只输出纯文本内容，不要输出任何HTML、CSS或代码片段
-
-【输出要求】
-- 只输出纯文章内容，禁止使用任何Markdown符号（#、##、> 等）
-- 禁止输出任何HTML标签
-- 不要输出任何代码标签或格式标记
+- 请严格按照上述设定完成本次写作，任何偏离都将导致不合格。`;
 
     // 构建用户提示词
     let userPrompt = promptTemplate || '';
@@ -211,17 +227,17 @@ export async function POST(request: NextRequest) {
     const writingRequirements = `
 【排版规则】
 一、基础格式
-- 主标题：加粗，居中（不使用任何格式符号，直接输出标题文字）
-- 一级标题：加粗（不使用任何格式符号）
-- 二级标题：加粗（不使用任何格式符号）
-- 正文：普通段落
-- 引用/注释：普通段落，不使用任何标记
+- 主标题：20px，加粗，居中（使用 # 标记，如 # 主标题内容）
+- 一级标题：18px，加粗（使用 ## 标记）
+- 二级标题：16px，加粗（使用 ### 标记）
+- 正文：16px（使用普通段落）
+- 引用/注释：14px，灰色（使用 > 引用标记）
 - 行间距：1.75倍
 - 段间距：段落之间空一行
 - 页边距：左右各15px
 
 二、段落规则
-- 每个段落不超过30个字
+- 每个段落不超过5行（移动端标准）
 - 段落首行不缩进
 - 重要句子可以单独成段并加粗（使用 **加粗**）
 - 段落之间必须空一行
@@ -255,74 +271,13 @@ ${imageSource === 'ai' && imageCount > 0 ? `
 
     const fullPrompt = `${userPrompt}\n\n${writingRequirements}`;
 
-    // ========== 第一步：生成标题 ==========
-    console.log('[生成] 开始生成标题...');
-    
-    const titleGenerationRules = `
-【标题生成规则 - 必须严格遵守】
-
-一、标题三要素（每次生成必须至少包含其中两项）
-1. 具体数字：如"3个方法"、"95%的人"、"第2个"
-2. 疑问句式：如"为什么…？"、"怎么…？"、"…是什么体验？"
-3. 强情绪词：从以下词库选择（必须包含至少1个）
-   - 跪了、破防、炸了、疯传、真相、反转、翻车、杀疯了、绷不住了、曝光、揭秘、千万别、后悔
-
-二、标题结构公式（每次随机选一种）
-
-公式1：数字 + 效果承诺
-例："3个被验证的效率提升法，第2个当天见效"
-
-公式2：反问 + 痛点
-例："为什么你总是很忙，却什么都没做成？"
-
-公式3：反常识数据 + 真正价值
-例："95%的职场人都在无效努力：真正值钱的是这种能力"
-
-公式4：人群标签 + 解决方案
-例："30岁后，工资不再是唯一收入：这3个副业方向选对了"
-
-公式5：悬念 + 信息缺口
-例："做了120篇没火，第121篇却冲到13万+，差别只有这一点"
-
-三、标题强制校验
-1. 长度：15-25字（必须严格控制在这个范围内）
-2. 前15字内必须出现核心冲突、痛点或数据
-3. 感叹号/问号最多1个，禁止连续多个
-4. 禁止使用：第一品牌、国家级、唯一、顶级、全网第一、全国第一、极品、独家
-5. 禁止使用诱导分享句式：不转不是中国人、转疯了、转发后一生平安
-
-请根据选题 "${topic}"，生成一个符合上述所有规则的标题。
-只输出标题，不要任何解释或其他内容。`;
-
-    const titleResponse = await llmClient.invoke([
-      { role: 'user', content: titleGenerationRules }
-    ], {
-      model: "deepseek-v3-2-251201",
-      temperature: 0.5  // 稍高温度增加创意
-    });
-
-    let generatedTitle = (titleResponse.content as string || '').trim();
-    
-    // 标题后处理：移除可能的引号、前缀等
-    generatedTitle = generatedTitle.replace(/^["'"'""《》【】]+|["'"'""《》【】]+$/g, '').trim();
-    
-    // 标题校验：如果长度超过25字，裁减到25字
-    if (generatedTitle.length > 25) {
-      generatedTitle = generatedTitle.substring(0, 25);
-      console.log('[标题] 已裁减标题长度:', generatedTitle.length, '字');
-    }
-    
-    console.log('[生成] 标题生成完成:', generatedTitle, '(', generatedTitle.length, '字)');
-
-    // ========== 第二步：生成文章 ==========
     console.log('[生成] 开始调用DeepSeek生成文章...');
     console.log('[生成] 选题:', topic);
 
     const articleResponse = await llmClient.invoke([
       { role: 'user', content: fullPrompt }
     ], {
-      model: "deepseek-v3-2-251201",
-      temperature: 0.3  // 低温度参数，提高输出稳定性
+      model: "deepseek-v3-2-251201"
     });
 
     const generatedContent = (articleResponse.content as string) || '';
@@ -335,9 +290,17 @@ ${imageSource === 'ai' && imageCount > 0 ? `
       }, { status: 500 });
     }
 
-    // 使用已生成的标题，不从内容中提取
+    // 提取标题和内容
     let cleanedContent = generatedContent.trim();
+    let generatedTitle = '';
     
+    // 尝试从内容中提取标题（#开头的行或第一行）
+    const titleMatch = cleanedContent.match(/^#\s*(.+)$/m);
+    if (titleMatch) {
+      generatedTitle = titleMatch[1].trim();
+      cleanedContent = cleanedContent.replace(/^#\s*.+$/m, '').trim();
+    }
+
     // 清理Markdown格式的图片链接
     cleanedContent = cleanedContent.split('\n').filter(line => {
       if (/^!?\[.*?\]\(.*?\.(png|jpg|jpeg|gif|webp)/i.test(line.trim())) return false;
@@ -357,13 +320,12 @@ ${imageSource === 'ai' && imageCount > 0 ? `
     }
     cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n').trim();
 
-    // ========== 原子化随机排版引擎 ==========
-    // 排版引擎执行：段落拆分 + 序列词处理 + 14维随机样式
-    console.log('[排版] 开始原子化随机排版...');
+    // ========== 原子化随机排版 ==========
     let finalContent = cleanedContent;
     let typographyResult = null;
     
     try {
+      // 生成随机排版
       typographyResult = typographyEngine(cleanedContent, '#1890ff');
       finalContent = typographyResult.content;
       console.log('[排版] 原子化随机排版完成');
@@ -372,9 +334,7 @@ ${imageSource === 'ai' && imageCount > 0 ? `
       console.error('[排版] 排版引擎执行失败，使用原始内容:', typographyError);
       finalContent = cleanedContent;
     }
-    
-    console.log('[排版] 排版处理完成，字符数:', finalContent.length);
-    
+
     // ========== 生成配图 ==========
     let imageUrls: string[] = [];
     const targetImageCount = Math.max(0, Math.min(imageCount || 0, 10)); // 限制0-10张
@@ -421,84 +381,101 @@ ${imageSource === 'ai' && imageCount > 0 ? `
           }
         }
         console.log(`成功生成${imageUrls.length}张配图`);
+
+        // 将占位符替换为真实图片（不添加任何图注文字）
+        imageUrls.forEach((url, index) => {
+          const placeholder = `{{IMAGE_${index + 1}}}`;
+          // 直接用HTML格式插入图片，alt属性为空避免任何文字显示
+          const imageHtml = `<img src="${url}" alt="" style="width:100%;margin:15px 0" />`;
+          finalContent = finalContent.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), imageHtml);
+        });
+        
+        // 清理所有可能的乱码和图注文字
+        finalContent = finalContent.replace(/\{\{IMAGE_\d+\}\}/g, '');
+        finalContent = finalContent.replace(/图：[^<\n]+/g, '');
+        finalContent = finalContent.replace(/图\d+[：:]/g, '');
+        finalContent = finalContent.replace(/配图\d+/g, '');
+        // 清理所有图注/乱码文字（严格清理）
+        finalContent = finalContent
+          .replace(/图1[：:：]?/g, '')
+          .replace(/图2[：:：]?/g, '')
+          .replace(/图3[：:：]?/g, '')
+          .replace(/图4[：:：]?/g, '')
+          .replace(/图5[：:：]?/g, '')
+          .replace(/图\d[：:：]?/g, '')
+          .replace(/配图\d[：:：]?/g, '')
+          .replace(/图序[^，,。.\n]*/g, '')
+          .replace(/图片\d+/g, '')
+          .replace(/序号[^\s\n]*/g, '')
+        // 清理装饰符号和乱码
+        finalContent = finalContent
+          .replace(/[✦✧◆◇○●◉◐◑▪▫■□▲△▼▽▎▍▌▂▃▅▆▇▶▷◀◁━━━┅┆┇┊┋]/g, '')
+          .replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s\n，。、！？；：""''（）【】《》—…·.,!?;:'"()\[\]<>——]/g, '');
+        finalContent = finalContent.replace(/\n{3,}/g, '\n\n');
       } catch (imageError) {
-        console.log('生成配图失败');
+        console.log('生成配图失败，继续保存文章');
       }
     }
-    
-    // ========== 原子化随机排版引擎 ==========
-    console.log('[排版] 开始原子化随机排版...');
-    
-    // 调用排版引擎（包含段落拆分规则和14个随机维度）
-    const { content: formattedContent, dimensions } = typographyEngine(finalContent);
-    finalContent = formattedContent;
-    console.log('[排版] 随机维度:', dimensions);
-    console.log('[排版] 原子化随机排版完成');
 
     // ========== 语法检查与修复 ==========
-    console.log('[语法] 开始语法检查...');
+    console.log('开始语法检查...');
     try {
-      // 调用LLM进行语法检查和句子结构检查
-      const grammarCheckPrompt = `你是一个专业的文章编辑，请对以下文章进行全面检查：
+      // 调用LLM进行语法检查
+      const grammarCheckPrompt = `你是一个专业的文章编辑，请检查以下文章的语法、通顺度和语义连贯性。
 
-1. 检查句子完整性：是否具备"主语-谓语-宾语"结构
-2. 检查断裂句：缺主语、缺宾语的句子
-3. 检查不通顺结构："的"后面直接跟"的"或句号
-4. 检查段落衔接：段落之间逻辑是否连贯
-5. 检查整体通顺度
+检查要求：
+1. 识别语义断裂、不通顺的句子
+2. 检查段落之间的逻辑衔接
+3. 确保文章语义连贯、可读性强
 
 文章内容：
-${finalContent}
+${finalContent.replace(/<[^>]+>/g, '')}
 
 请输出：
-- 如果文章完全通顺：输出"[语法检查通过]"
-- 如果有问题：输出"[语法问题]" + 具体问题描述
+- 如果文章通顺：输出"[语法检查通过]"
+- 如果有问题：输出"[语法问题]" + 具体问题描述 + 修复建议
 
-问题格式：
-- 问题句子：[具体句子]
-- 问题类型：[缺主语/缺宾语/断裂句/不通顺/衔接不畅]
-- 位置：第X段
+重要：只输出检查结果，不要修改文章内容。`;
 
-请仔细检查，不要漏掉任何问题。`;
-
-      const grammarCheckResult = await llmClient.chat({
+      const grammarCheckResult = await llmClient.invoke([
+        { role: 'user', content: grammarCheckPrompt }
+      ], {
         model: 'deepseek-v3-2-251201',
-        messages: [{ role: 'user', content: grammarCheckPrompt }],
         temperature: 0.1
       });
 
-      const grammarFeedback = grammarCheckResult.choices?.[0]?.message?.content || '';
+      const grammarFeedback = grammarCheckResult.content || '';
 
       // 如果发现问题，进行修复
       if (grammarFeedback.includes('[语法问题]')) {
-        console.log('[语法] 发现语法问题，进行自动修复...');
+        console.log('发现语法问题，进行自动修复...');
 
-        const fixPrompt = `你是一个专业的新媒体编辑，以下是一篇文章存在语法问题，请根据反馈进行修复。
+        const fixPrompt = `你是一个专业的新媒体编辑，以下是一篇文章存在语法或语义问题，请根据反馈进行修复。
 
 原文：
-${finalContent}
+${finalContent.replace(/<[^>]+>/g, '')}
 
 问题反馈：
 ${grammarFeedback}
 
 修复要求：
-1. 修复断裂句：补全缺损的主语、谓语或宾语
-2. 修复不通顺结构："的"后面跟"的"或句号等
-3. 删除无法修复的完全断裂句
-4. 合并碎片句：少于5个字的短句与前一句合并
-5. 确保段落之间逻辑衔接自然
-6. 不要添加或删除实质性内容
-7. 保持原有格式和标题结构
-8. 确保每个完整句子都有主语和谓语
+1. 保持文章原意和结构不变
+2. 修复语义断裂和不通顺的句子
+3. 确保段落之间逻辑衔接自然
+4. 不要添加或删除实质性内容
+5. 保持与文章主题相关
+6. 保持原有格式（标题层级、段落结构）
 
 请直接输出修复后的完整文章，不要添加任何说明。`;
 
-        const fixResult = await llmClient.chat({
+        const fixResult = await llmClient.invoke([
+          { role: 'user', content: fixPrompt }
+        ], {
           model: 'deepseek-v3-2-251201',
-          messages: [{ role: 'user', content: fixPrompt }]
+          temperature: 0.1
         });
 
-        const fixedContent = fixResult.choices?.[0]?.message?.content || '';
+        const fixedContent = fixResult.content || '';
 
         // 只有修复内容有效且长度合理时才替换
         if (fixedContent && fixedContent.length > finalContent.length * 0.5) {
@@ -517,72 +494,6 @@ ${grammarFeedback}
     } catch (grammarError) {
       console.log('语法检查异常，继续保存:', grammarError);
     }
-
-    // ========== 强制图片插入 ==========
-    // HTML过滤和段落拆分完成后，最后插入图片
-    if (imageUrls && imageUrls.length > 0) {
-      console.log(`[图片] 开始插入${imageUrls.length}张图片...`);
-      try {
-        // 提取文章段落
-        const paragraphs = finalContent.split(/\n\n+/).filter(p => p.trim().length > 10);
-        
-        // 在关键段落位置插入图片
-        const insertPositions = [];
-        if (paragraphs.length > 0) {
-          // 计算图片插入位置（平均分布）
-          const gap = Math.max(1, Math.floor(paragraphs.length / (imageUrls.length + 1)));
-          for (let i = 1; i <= imageUrls.length; i++) {
-            insertPositions.push(Math.min(i * gap, paragraphs.length - 1));
-          }
-        }
-        
-        // 生成图片描述，确保每张图片内容不同且与文章相关
-        const imageDescs = imageUrls.map((url, index) => {
-          const relatedPara = paragraphs[insertPositions[index]] || paragraphs[0] || '';
-          const relatedText = relatedPara.replace(/[*#\n]/g, '').substring(0, 50);
-          return `配图：${relatedText}`;
-        });
-        
-        // 替换占位符或插入图片
-        imageUrls.forEach((url, index) => {
-          const placeholder = `{{IMAGE_${index + 1}}}`;
-          const imageHtml = `<img src="${url}" alt="" style="width:100%;margin:15px 0" />`;
-          
-          if (finalContent.includes(placeholder)) {
-            finalContent = finalContent.replace(placeholder, imageHtml);
-          }
-        });
-        
-        console.log(`[图片] 插入完成`);
-      } catch (imageError) {
-        console.log('[图片] 插入图片时出错:', imageError);
-      }
-    }
-
-    // ========== 最终清理：确保无乱码 ==========
-    console.log('[清理] 执行最终清理...');
-    
-    // 清理所有可能的图注和图片描述文字
-    finalContent = finalContent
-      // 清理各种图注格式
-      .replace(/（[^）]*图[^）]*）/g, '')  // （图片描述）
-      .replace(/\([^)]*图[^)]*\)/g, '')    // (图片描述)
-      .replace(/图\d+[：:：]?\s*/g, '')      // 图1：、图2：
-      .replace(/图[：:：]\s*/g, '')           // 图：
-      .replace(/配图\d+/g, '')               // 配图1
-      .replace(/图片序号\d+/g, '')           // 图片序号1
-      .replace(/图序[^，。\n]*/g, '')        // 图序1
-      .replace(/图[^，。\n\d]{1,10}/g, '')   // 图+文字
-      // 清理连续空行
-      .replace(/\n{3,}/g, '\n\n')
-      // 清理行首行尾空白
-      .replace(/^\s+|\s+$/gm, '')
-      // 清理残留的代码符号
-      .replace(/[<>{}]/g, '')
-      // 清理乱码装饰符号
-      .replace(/[✦✧◆◇○●◉◐◑▪▫■□▲△▼▽▎▍▌▂▃▅▆▇▶▷◀◁━━━┅┆┇┊┋]+/g, '')
-      // 清理连续标点
-      .replace(/[，。、；：]{3,}/g, '，');
 
     // ========== 保存文章 ==========
     const { data: savedArticle, error: saveError } = await supabase
@@ -613,7 +524,7 @@ ${grammarFeedback}
       data: savedArticle,
       typography: typographyResult ? {
         dimensions: typographyResult.dimensions,
-        rules: typographyResult.rules
+        rules: typographyResult.dimensions
       } : null,
       safety: {
         scanned: true,
@@ -624,30 +535,6 @@ ${grammarFeedback}
 
   } catch (error: any) {
     console.error('生成文章失败:', error);
-    
-    // 即使失败也保存记录，允许用户删除
-    try {
-      await supabase.from('articles').insert({
-        title: topic,
-        content: `【生成失败】${error.message || '服务繁忙，请稍后重试'}`,
-        user_id: userId,
-        created_by: userId,
-        group_id: groupId || null,
-        group_name: groupName || null,
-        prompt_template_id: promptTemplateId || null,
-        status: 'failed',
-        push_status: 'not_pushed',
-        generate_status: 'failed',
-        generate_error: error.message || '服务繁忙，请稍后重试',
-        task_status: 'completed',
-        images: [],
-        topic: topic,
-        image_count: imageCount || 0,
-      });
-    } catch (saveError) {
-      console.error('保存失败记录也出错:', saveError);
-    }
-    
     return NextResponse.json(
       { 
         success: false, 
