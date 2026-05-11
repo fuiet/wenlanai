@@ -343,13 +343,35 @@ function applyDecoration(content: string, decoration: Decoration, themeColor: st
 
 /**
  * 分隔方式处理
+ * 限制分隔线数量，最多2条，避免过于密集
  */
 function applyDividerStyle(content: string, divider: DividerStyle): string {
   switch (divider) {
     case 'A': // 空行分隔（默认）
       return content;
-    case 'B': // 细线分隔
-      return content.replace(/\n\n/g, '\n\n<hr style="border:none;border-top:1px solid #e8e8e8;margin:20px 0" />\n\n');
+    case 'B': // 细线分隔 - 最多2条，避免过于密集
+      // 计算段落数量，只有超过5段才加分隔线
+      const paragraphs = content.split(/\n\n/).filter(p => p.trim().length > 0);
+      if (paragraphs.length < 5) {
+        return content; // 段落太少，不加分隔线
+      }
+      // 只在最合适的2个位置加分隔线（1/3和2/3处）
+      const insertPositions = [Math.floor(paragraphs.length / 3), Math.floor(paragraphs.length * 2 / 3)];
+      let result = content;
+      let offset = 0;
+      let count = 0;
+      const parts = result.split(/\n\n/);
+      const newParts: string[] = [];
+      for (let i = 0; i < parts.length; i++) {
+        newParts.push(parts[i]);
+        if (insertPositions.includes(i) && count < 2) {
+          newParts.push('<hr style="border:none;border-top:1px solid #e8e8e8;margin:24px 0" />');
+          count++;
+        } else if (i < parts.length - 1) {
+          newParts.push('\n\n');
+        }
+      }
+      return newParts.join('');
     case 'C': // 自然留白
       return content.replace(/\n\n\n+/g, '\n\n');
     default:
@@ -484,7 +506,7 @@ export function typographyEngine(
       captionStyle: ['A', 'B', 'C'][Math.floor(seededRandom() * 3)] as CaptionStyle,
       letterSpacing: ['A', 'B', 'C'][Math.floor(seededRandom() * 3)] as LetterSpacing,
       decoration: ['A', 'B'][Math.floor(seededRandom() * 2)] as Decoration,
-      dividerStyle: ['A', 'B', 'C'][Math.floor(seededRandom() * 3)] as DividerStyle,
+      dividerStyle: ['A', 'A', 'A', 'B', 'C'][Math.floor(seededRandom() * 5)] as DividerStyle, // A(空行)概率更高，B(细线)概率较低
       emphasisColor: ['A', 'B', 'C', 'D'][Math.floor(seededRandom() * 4)] as EmphasisColor,
       listStyle: ['A', 'B', 'C'][Math.floor(seededRandom() * 3)] as ListStyle,
       endStyle: ['A', 'B', 'C'][Math.floor(seededRandom() * 3)] as EndStyle,
