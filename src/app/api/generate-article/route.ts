@@ -153,12 +153,22 @@ export async function POST(request: NextRequest) {
 - 段落之间必须空一行
 
 三、图片排版规则（重要）
-- 图片数量要求：${imageSource === 'ai' && imageCount > 0 ? `必须生成 ${imageCount} 张图片` : imageSource === 'upload' ? '预留图片位置，用户将上传图片' : '不生成图片，纯文字文章'}
-- ${imageSource === 'ai' && imageCount > 0 ? `严格生成 ${imageCount} 张图片，不得多也不得少` : ''}
-- 图片使用 Markdown 格式：![图：图片描述](图片URL)
-- 图片下方必须添加图注：14px，灰色，居中，格式为"图：xxx"
+${imageSource === 'ai' && imageCount > 0 ? `
+- 图片数量：必须严格生成 ${imageCount} 张图片，不得多也不得少
+- 在文章中用占位符 {{IMAGE_1}}、{{IMAGE_2}} ... {{IMAGE_${imageCount}}} 表示图片插入位置
+- 图片位置应该均匀分布在文章中（约每 ${Math.ceil(1000/imageCount)} 字一张）
 - 图片上下各空一行
-- 多图并列时宽度设为48%，左右排列
+- 图片下方添加图注：图：xxx
+- 示例格式：
+  
+  {{IMAGE_1}}
+  图：文章配图1
+  
+  [段落内容...]
+  
+  {{IMAGE_2}}
+  图：文章配图2
+` : imageSource === 'upload' ? `- 预留图片位置，用户将上传图片（用 {{IMAGE_PLACEHOLDER}} 表示）` : `- 不生成图片，纯文字文章`}
 
 四、内容要求
 1. 文章总字数控制在900-1100字（包含图注）
@@ -403,20 +413,43 @@ ${articleContent}`;
       ? '文章生成成功' 
       : '服务繁忙，请稍后重试';
 
-    // 生成配图
+    // 生成配图 - 根据imageCount生成对应数量
     let imageUrls: string[] = [];
-    try {
-      const { ImageGenerationClient } = await import('coze-coding-dev-sdk');
-      const imageClient = new ImageGenerationClient();
-      const imageResult = await imageClient.generate({
-        prompt: `生成一张与"${topic}"主题相关的公众号封面图，简洁大气，适合在新媒体平台使用`,
-        size: '1024x575'
-      });
-      if (imageResult.data?.[0]?.url) {
-        imageUrls = [imageResult.data[0].url];
+    let finalContent = savedContent;
+    const targetImageCount = Math.max(0, Math.min(imageCount || 0, 10)); // 限制0-10张
+    if (targetImageCount > 0 && reviewPassed) {
+      try {
+        const { ImageGenerationClient } = await import('coze-coding-dev-sdk');
+        const imageClient = new ImageGenerationClient();
+        
+        // 生成多张图片
+        for (let i = 0; i < targetImageCount; i++) {
+          try {
+            const imageResult = await imageClient.generate({
+              prompt: `生成一张与"${topic}"主题相关的配图，适合在公众号文章中使用，图片序号${i + 1}`,
+              size: '1024x1024'
+            });
+            if (imageResult.data?.[0]?.url) {
+              imageUrls.push(imageResult.data[0].url);
+            }
+          } catch (singleImageError) {
+            console.log(`生成第${i + 1}张图片失败`);
+          }
+        }
+        console.log(`成功生成${imageUrls.length}张配图`);
+
+        // 将占位符替换为真实图片
+        imageUrls.forEach((url, index) => {
+          const placeholder = `{{IMAGE_${index + 1}}}`;
+          const imageMarkdown = `![图：文章配图${index + 1}](${url})`;
+          finalContent = finalContent.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), imageMarkdown);
+        });
+        
+        // 清理未替换的占位符
+        finalContent = finalContent.replace(/\{\{IMAGE_\d+\}\}/g, '');
+      } catch (imageError) {
+        console.log('生成配图失败，继续保存文章');
       }
-    } catch (imageError) {
-      console.log('生成配图失败，继续保存文章');
     }
 
     const { data: savedArticle, error: saveError } = await supabase
@@ -424,7 +457,7 @@ ${articleContent}`;
       .insert({
         created_by: userId,
         title: generatedTitle || topic,
-        content: savedContent,
+        content: reviewPassed ? finalContent : savedContent,
         author: groupName,
         group_name: groupName,
         status: finalStatus,
