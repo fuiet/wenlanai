@@ -882,123 +882,18 @@ export default function SmartWritingPage() {
     },
   ];
 
-  // 多种标题组件样式
-  const titleStyles = [
-    // 样式1：左侧带装饰线
-    ({ content, idx, theme, iconStyle }: any) => (
-      <div className="flex items-center gap-3 mt-6 mb-4">
-        <div className={`${iconStyle.bg} ${iconStyle.shape} w-8 h-8 flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
-          {idx + 1}
-        </div>
-        <h3 className={`text-base font-semibold ${theme.accent}`}>{content}</h3>
-        <div className={`flex-1 h-px ${theme.title.color}`}></div>
+  // 标题组件样式：蓝色圆形序号图标 + 橙色标题文字
+  const TitleWithIcon = ({ content, idx }: { content: string; idx: number }) => (
+    <div className="flex items-center gap-3 mt-8 mb-5">
+      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-md">
+        {idx + 1}
       </div>
-    ),
-    // 样式2：居中带背景
-    ({ content, idx, theme, iconStyle }: any) => (
-      <div className="mt-6 mb-4 text-center">
-        <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-full ${theme.title.color} bg-opacity-10`}>
-          <span className={`${iconStyle.bg} ${iconStyle.shape} w-8 h-8 flex items-center justify-center text-white font-bold text-sm`}>
-            {idx + 1}
-          </span>
-          <h3 className={`text-base font-semibold ${theme.accent}`}>{content}</h3>
-        </div>
-      </div>
-    ),
-    // 样式3：左侧竖线
-    ({ content, idx, theme, iconStyle }: any) => (
-      <div className="flex items-start gap-3 mt-6 mb-4">
-        <div className={`w-1.5 h-8 ${iconStyle.bg} rounded-full flex-shrink-0 mt-0.5`}></div>
-        <div>
-          <span className={`text-xs font-medium ${theme.accent} opacity-60`}>PART {idx + 1}</span>
-          <h3 className={`text-base font-semibold ${theme.accent}`}>{content}</h3>
-        </div>
-      </div>
-    ),
-    // 样式4：卡片式
-    ({ content, idx, theme, iconStyle }: any) => (
-      <div className={`mt-6 mb-4 p-4 rounded-xl border-l-4 ${theme.title.color} ${theme.bg}`}>
-        <div className="flex items-center gap-3">
-          <div className={`${iconStyle.bg} ${iconStyle.shape} w-8 h-8 flex items-center justify-center text-white font-bold text-sm`}>
-            {idx + 1}
-          </div>
-          <h3 className={`text-base font-semibold ${theme.accent}`}>{content}</h3>
-        </div>
-      </div>
-    ),
-    // 样式5：下划线式
-    ({ content, idx, theme, iconStyle }: any) => (
-      <div className="mt-6 mb-4">
-        <div className="flex items-center gap-3 mb-2">
-          <span className={`${iconStyle.bg} ${iconStyle.shape} w-8 h-8 flex items-center justify-center text-white font-bold text-sm`}>
-            {idx + 1}
-          </span>
-          <h3 className={`text-base font-semibold ${theme.accent}`}>{content}</h3>
-        </div>
-        <div className={`h-0.5 w-full ${theme.title.color}`}></div>
-      </div>
-    ),
-    // 样式6：数字突出
-    ({ content, idx, theme, iconStyle }: any) => (
-      <div className="mt-6 mb-4 flex items-baseline gap-2">
-        <span className={`text-4xl font-bold ${theme.accent} opacity-30`}>{String(idx + 1).padStart(2, '0')}</span>
-        <h3 className={`text-base font-semibold ${theme.accent}`}>{content}</h3>
-      </div>
-    ),
-  ];
+      <h3 className="text-base font-semibold text-orange-500">{content}</h3>
+    </div>
+  );
 
-  // 多种图片展示样式
-  const imageStyles = [
-    'rounded-lg shadow-md hover:shadow-lg transition-shadow',
-    'rounded-xl shadow-lg',
-    'rounded-2xl shadow-sm border-2 border-white',
-    'rounded-lg shadow-blue-200 shadow-lg',
-    'rounded-xl shadow-orange-200 shadow-lg',
-    'rounded-full w-3/4 mx-auto shadow-lg',
-    'rounded-none shadow-md',
-    'rounded-lg shadow-lg border-l-4 border-r-4 border-blue-500',
-  ];
-
-  // 多种分隔线样式
-  const separatorStyles = [
-    ({ theme }: any) => <hr className="my-6 border-gray-200" />,
-    ({ theme }: any) => (
-      <div className="flex items-center justify-center my-6 gap-2">
-        <span className={`w-8 h-px ${theme.title.color}`}></span>
-        <span className={`w-2 h-2 ${theme.icon.bg} rounded-full`}></span>
-        <span className={`w-8 h-px ${theme.title.color}`}></span>
-      </div>
-    ),
-    ({ theme }: any) => (
-      <div className="my-6 text-center">
-        <span className={`${theme.accent} text-xs tracking-widest`}>◆ ◆ ◆</span>
-      </div>
-    ),
-    ({ theme }: any) => (
-      <div className="my-6 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-    ),
-    ({ theme }: any) => (
-      <div className="my-6 flex items-center gap-3">
-        <div className={`h-px flex-1 ${theme.title.color}`}></div>
-        <span className={`${theme.accent}`}>•</span>
-        <div className={`h-px flex-1 ${theme.title.color}`}></div>
-      </div>
-    ),
-  ];
-
-  // 多种结尾样式
-  const endStyles = [
-    () => <div className="mt-8 pt-4 border-t border-gray-200 text-center"><span className="text-xs text-gray-400">— END —</span></div>,
-    () => <div className="mt-8 pt-4 text-center"><span className="text-xs text-gray-400 tracking-widest">· 完 ·</span></div>,
-    () => <div className="mt-8 py-4 text-center"><span className="text-xs text-gray-400">感谢阅读</span></div>,
-    () => <div className="mt-8 pt-4 border-t border-gray-200 text-center"><span className="text-xs text-gray-400">~ ~ ~</span></div>,
-    () => <div className="mt-8 p-4 bg-gray-50 rounded-lg text-center"><span className="text-xs text-gray-500">— 完结 —</span></div>,
-  ];
-
-  // 简洁段落样式 - 呼吸感留白
-  const paragraphStyles = [
-    'text-gray-700 leading-7 text-[15px]', // 适中行高
-  ];
+  // 图片样式：圆角 + 阴影
+  const imageStyle = "rounded-xl shadow-lg hover:shadow-xl transition-shadow";
 
   // 渲染文章内容组件（精美排版）
   const ArticleContentWithImages = ({ article }: { article: Article }) => {
@@ -1149,32 +1044,6 @@ export default function SmartWritingPage() {
     const imageIndices = getImageInsertIndices(images.length, sections.length);
     let imageIdx = 0;
     
-    // 序号样式随机
-    const getIconStyle = (idx: number) => {
-      const styles = [
-        { bg: 'bg-blue-500', shape: 'rounded-full', size: 'w-8 h-8' },
-        { bg: 'bg-orange-500', shape: 'rounded-lg', size: 'w-10 h-10' },
-        { bg: 'bg-emerald-500', shape: 'rounded-full', size: 'w-7 h-7' },
-        { bg: 'bg-purple-500', shape: 'rounded-xl', size: 'w-9 h-9' },
-        { bg: 'bg-rose-500', shape: 'rounded-full', size: 'w-8 h-8' },
-      ];
-      const hash = String(article.id).split('').reduce((a, b) => a + b.charCodeAt(0), 0) + idx;
-      return styles[hash % styles.length];
-    };
-    
-    // 图片样式随机
-    const getImageStyle = (idx: number) => {
-      const styles = [
-        'rounded-lg shadow-md',
-        'rounded-xl shadow-lg',
-        'rounded-2xl shadow-sm',
-        'rounded-lg shadow-blue-200',
-        'rounded-xl shadow-orange-200',
-      ];
-      const hash = String(article.id).split('').reduce((a, b) => a + b.charCodeAt(0), 0) + idx * 2;
-      return styles[hash % styles.length];
-    };
-    
   // 渲染组件
   return (
     <div className="article-content">
@@ -1188,7 +1057,7 @@ export default function SmartWritingPage() {
               <img 
                 src={images[imageIdx]} 
                 alt={`配图${imageIdx + 1}`} 
-                className={`w-full ${imageStyles[(Math.abs(String(article.id).charCodeAt(imageIdx % 10) || 0) + imageIdx) % imageStyles.length]}`} 
+                className={`w-full ${imageStyle}`} 
               />
             </div>
           );
@@ -1196,50 +1065,46 @@ export default function SmartWritingPage() {
         }
         
         if (section.type === 'separator') {
-          const SepComponent = separatorStyles[(idx + Math.abs(String(article.id).charCodeAt(0) || 0)) % separatorStyles.length];
-          element.push(<SepComponent key={`sep-${idx}`} theme={theme} />);
+          element.push(<hr key={`sep-${idx}`} className="my-6 border-gray-200" />);
         } else if (section.type === 'title') {
           const level = section.level || 1;
           const isMainTitle = level === 1;
           
           if (isMainTitle) {
-            // 一级标题：使用多种标题样式
-            const TitleComponent = titleStyles[(idx + Math.abs(String(article.id).charCodeAt(0) || 0)) % titleStyles.length];
+            // 一级标题：蓝色圆形序号 + 橙色标题
             element.push(
-              <TitleComponent 
+              <TitleWithIcon 
                 key={`title-${idx}`} 
                 content={section.content} 
-                idx={idx} 
-                theme={theme} 
-                iconStyle={theme.icon}
+                idx={idx}
               />
             );
           } else {
             // 二级标题：简洁样式
             element.push(
               <div key={`title-${idx}`} className="flex items-center gap-2 mt-6 mb-3">
-                <span className={`w-1.5 h-6 ${theme.icon.bg} rounded-full`}></span>
-                <h3 className={`text-lg font-semibold ${theme.accent}`}>
+                <span className="w-1.5 h-6 bg-blue-500 rounded-full"></span>
+                <h3 className="text-lg font-semibold text-orange-500">
                   {section.content}
                 </h3>
               </div>
             );
           }
         } else if (section.type === 'key-point') {
-          // 核心金句：上下多空一行，简洁左边框
+          // 核心金句：上下多空一行，红色左边框
           const processedContent = section.content
-            .replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.accent}">$1</strong>`);
+            .replace(/\*\*(.*?)\*\*/g, `<strong class="text-red-500">$1</strong>`);
           element.push(
-            <div key={`keypoint-${idx}`} className="my-6 pl-4 border-l-2 border-red-400">
-              <p className="text-gray-700 text-[15px] leading-7">
+            <div key={`keypoint-${idx}`} className="my-6 pl-4 border-l-4 border-red-400">
+              <p className="text-gray-800 text-[15px] leading-7">
                 <span dangerouslySetInnerHTML={{ __html: processedContent }} />
               </p>
             </div>
           );
         } else if (section.type === 'quote') {
-          // 引用句：简洁灰色左边框
+          // 引用句：灰色左边框，斜体
           const processedContent = section.content
-            .replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.accent}">$1</strong>`);
+            .replace(/\*\*(.*?)\*\*/g, `<strong class="text-blue-500">$1</strong>`);
           element.push(
             <div key={`quote-${idx}`} className="my-5 pl-4 border-l-2 border-gray-300 italic text-gray-600 text-[15px] leading-7">
               <span dangerouslySetInnerHTML={{ __html: processedContent }} />
@@ -1267,7 +1132,7 @@ export default function SmartWritingPage() {
           <img 
             src={img} 
             alt={`配图${imageIdx + i + 1}`} 
-            className={`w-full ${imageStyles[(imageIdx + i) % imageStyles.length]}`} 
+            className={`w-full ${imageStyle}`} 
           />
         </div>
       ))}
