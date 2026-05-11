@@ -882,21 +882,23 @@ export default function SmartWritingPage() {
     },
   ];
 
-  // 标题组件样式：蓝色圆形序号图标 + 橙色标题文字
-  const TitleWithIcon = ({ content, idx }: { content: string; idx: number }) => (
-    <div className="flex items-center gap-3 mt-8 mb-5">
-      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-md">
-        {idx + 1}
-      </div>
-      <h3 className="text-base font-semibold text-orange-500">{content}</h3>
-    </div>
-  );
-
-  // 图片样式：圆角 + 阴影
-  const imageStyle = "rounded-xl shadow-lg hover:shadow-xl transition-shadow";
-
-  // 渲染文章内容组件（精美排版）
   const ArticleContentWithImages = ({ article }: { article: Article }) => {
+    // 图片样式
+    const imageStyle = {
+      container: 'rounded-xl shadow-lg overflow-hidden mb-6',
+      img: 'w-full h-auto',
+    };
+
+    // 标题样式组件
+    const TitleWithIcon = ({ title, idx }: { title: string; idx: number }) => (
+      <div className="flex items-center gap-3 mb-5 mt-6">
+        <span className={`w-7 h-7 ${theme.icon.bg} ${theme.icon.shape} flex items-center justify-center text-white font-bold text-sm shadow-sm`}>
+          {idx}
+        </span>
+        <h2 className={`text-lg font-bold ${theme.accent}`}>{title}</h2>
+      </div>
+    );
+
     // 10种精美排版主题（结构兼容 layoutThemes）
     const themes = [
       { bg: 'from-blue-50 to-blue-100', accent: 'text-blue-600', secondary: '#60a5fa', text: '#1e40af', light: '#dbeafe', icon: { bg: 'bg-blue-500', shape: 'rounded-full' }, title: { color: 'border-blue-300' }, name: '现代简约蓝' },
@@ -1075,7 +1077,7 @@ export default function SmartWritingPage() {
             element.push(
               <TitleWithIcon 
                 key={`title-${idx}`} 
-                content={section.content} 
+                title={section.content} 
                 idx={idx}
               />
             );
@@ -1138,23 +1140,6 @@ export default function SmartWritingPage() {
       ))}
     </div>
   );
-  };
-
-  // 简单的文本渲染（无图片时）
-  const SimpleArticleContent = ({ content }: { content: string }) => {
-    const sections = content.split(/\n\n+/).filter(p => p.trim());
-    
-    return (
-      <div className="space-y-4">
-        {sections.map((section, idx) => (
-          <p key={idx} className="text-gray-700 leading-relaxed">
-            {section}
-          </p>
-        ))}
-      </div>
-    );
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 页面头部 */}
@@ -1813,12 +1798,12 @@ export default function SmartWritingPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span className="text-base font-semibold">{viewingArticle?.title}</span>
-              {viewingArticle && <StatusBadge status={viewingArticle.status} />}
+              {viewingArticle && <StatusBadge status={viewingArticle!.status} />}
             </DialogTitle>
             {viewingArticle?.group_name && (
               <p className="text-sm text-gray-500 mt-1">
                 <FolderOpen className="h-3 w-3 inline mr-1" />
-                {viewingArticle.group_name}
+                {viewingArticle?.group_name}
               </p>
             )}
           </DialogHeader>
@@ -1826,15 +1811,15 @@ export default function SmartWritingPage() {
           {viewingArticle && (
             <div className="space-y-4">
               {/* 生成失败/审核未通过提示 */}
-              {(viewingArticle.status === 'failed' || viewingArticle.status === 'review_failed') && (
+              {(viewingArticle!.status === 'failed' || viewingArticle!.status === 'review_failed') && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
                   <p className="font-medium flex items-center">
                     <span className="mr-2">⚠️</span>
                     内容审核不通过
                   </p>
                   <p className="text-sm mt-1">
-                    {viewingArticle.review_message || viewingArticle.review_status === 'failed' 
-                      ? `文章包含违规内容：${viewingArticle.review_message || '请修改提示词或选题后重新生成'}`
+                    {viewingArticle?.review_message || viewingArticle?.review_status === 'failed' 
+                      ? `文章包含违规内容：${viewingArticle?.review_message || '请修改提示词或选题后重新生成'}`
                       : '生成失败，请修改提示词或选题后重新生成'}
                   </p>
                 </div>
@@ -1842,8 +1827,8 @@ export default function SmartWritingPage() {
 
               {/* 文章内容（精美排版）- 仅已生成才显示 */}
               <div className="bg-gray-50 rounded-lg p-6">
-                {(viewingArticle.status === 'completed' || viewingArticle.status === 'success' || viewingArticle.status === 'generated') && viewingArticle.content ? (
-                  <ArticleContentWithImages article={viewingArticle} />
+                {viewingArticle?.status === 'completed' || viewingArticle?.status === 'success' || viewingArticle?.status === 'generated' ? (
+                  <ArticleContentWithImages article={viewingArticle!} />
                 ) : (
                   <div className="text-center text-gray-400 py-8">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-gray-300" />
@@ -1853,7 +1838,7 @@ export default function SmartWritingPage() {
               </div>
 
               {/* 金句展示 */}
-              {viewingArticle?.share_quote && viewingArticle.share_quote.length > 0 && (
+              {!!viewingArticle?.share_quote?.length && (
                 <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-4 border border-amber-200">
                   <div className="flex items-center gap-2 mb-3">
                     <Star className="h-4 w-4 text-amber-500" />
@@ -1861,7 +1846,7 @@ export default function SmartWritingPage() {
                     <Badge variant="secondary" className="text-xs">点击复制</Badge>
                   </div>
                   <div className="space-y-2">
-                    {viewingArticle.share_quote.map((quote, idx) => (
+                    {viewingArticle?.share_quote!.map((quote, idx) => (
                       <button
                         key={idx}
                         onClick={() => {
@@ -1878,7 +1863,7 @@ export default function SmartWritingPage() {
               )}
 
               {/* SEO关键词展示 */}
-              {viewingArticle?.seo_keywords && viewingArticle.seo_keywords.length > 0 && (
+              {!!viewingArticle?.seo_keywords?.length && (
                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
                   <div className="flex items-center gap-2 mb-3">
                     <Search className="h-4 w-4 text-green-600" />
@@ -1886,7 +1871,7 @@ export default function SmartWritingPage() {
                     <Badge variant="secondary" className="text-xs">已埋点2-3%密度</Badge>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {viewingArticle.seo_keywords.map((keyword, idx) => (
+                    {viewingArticle?.seo_keywords!.map((keyword, idx) => (
                       <Badge 
                         key={idx} 
                         className="bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer"
@@ -1912,13 +1897,13 @@ export default function SmartWritingPage() {
                   </div>
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(viewingArticle.interaction_hook || '');
+                      navigator.clipboard.writeText(viewingArticle!.interaction_hook || '');
                       alert('互动钩子已复制');
                     }}
                     className="w-full text-left p-3 bg-white rounded-lg hover:bg-purple-50 transition-colors border border-purple-100"
                   >
                     <p className="text-gray-700 font-medium">
-                      {viewingArticle.interaction_hook}
+                      {viewingArticle!.interaction_hook}
                     </p>
                     <p className="text-xs text-gray-500 mt-2">点击复制到文章结尾</p>
                   </button>
@@ -1928,9 +1913,9 @@ export default function SmartWritingPage() {
               {/* 操作按钮 */}
               <div className="flex gap-3 pt-4 border-t">
                 {/* 推送按钮 - 仅已生成且未推送才可推送 */}
-                {(viewingArticle.status === 'completed' || viewingArticle.status === 'success' || viewingArticle.status === 'generated') && (
+                {(viewingArticle?.status === 'completed' || viewingArticle?.status === 'success' || viewingArticle?.status === 'generated') && (
                   <>
-                    {viewingArticle.push_status === 'success' ? (
+                    {viewingArticle?.push_status === 'success' ? (
                       <Button className="flex-1" disabled>
                         <Check className="h-4 w-4 mr-2" />
                         已推送到公众号
@@ -1939,8 +1924,10 @@ export default function SmartWritingPage() {
                       <Button
                         className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
                         onClick={() => {
-                          handlePushToWechat(viewingArticle);
-                          setViewingArticle(null);
+                          if (viewingArticle) {
+                            handlePushToWechat(viewingArticle);
+                            setViewingArticle(null);
+                          }
                         }}
                       >
                         <SendHorizontal className="h-4 w-4 mr-2" />
@@ -1956,4 +1943,5 @@ export default function SmartWritingPage() {
       </Dialog>
     </div>
   );
+}
 }
