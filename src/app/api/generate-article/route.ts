@@ -255,6 +255,66 @@ ${imageSource === 'ai' && imageCount > 0 ? `
 
     const fullPrompt = `${userPrompt}\n\n${writingRequirements}`;
 
+    // ========== 第一步：生成标题 ==========
+    console.log('[生成] 开始生成标题...');
+    
+    const titleGenerationRules = `
+【标题生成规则 - 必须严格遵守】
+
+一、标题三要素（每次生成必须至少包含其中两项）
+1. 具体数字：如"3个方法"、"95%的人"、"第2个"
+2. 疑问句式：如"为什么…？"、"怎么…？"、"…是什么体验？"
+3. 强情绪词：从以下词库选择（必须包含至少1个）
+   - 跪了、破防、炸了、疯传、真相、反转、翻车、杀疯了、绷不住了、曝光、揭秘、千万别、后悔
+
+二、标题结构公式（每次随机选一种）
+
+公式1：数字 + 效果承诺
+例："3个被验证的效率提升法，第2个当天见效"
+
+公式2：反问 + 痛点
+例："为什么你总是很忙，却什么都没做成？"
+
+公式3：反常识数据 + 真正价值
+例："95%的职场人都在无效努力：真正值钱的是这种能力"
+
+公式4：人群标签 + 解决方案
+例："30岁后，工资不再是唯一收入：这3个副业方向选对了"
+
+公式5：悬念 + 信息缺口
+例："做了120篇没火，第121篇却冲到13万+，差别只有这一点"
+
+三、标题强制校验
+1. 长度：15-25字（必须严格控制在这个范围内）
+2. 前15字内必须出现核心冲突、痛点或数据
+3. 感叹号/问号最多1个，禁止连续多个
+4. 禁止使用：第一品牌、国家级、唯一、顶级、全网第一、全国第一、极品、独家
+5. 禁止使用诱导分享句式：不转不是中国人、转疯了、转发后一生平安
+
+请根据选题 "${topic}"，生成一个符合上述所有规则的标题。
+只输出标题，不要任何解释或其他内容。`;
+
+    const titleResponse = await llmClient.invoke([
+      { role: 'user', content: titleGenerationRules }
+    ], {
+      model: "deepseek-v3-2-251201",
+      temperature: 0.5  // 稍高温度增加创意
+    });
+
+    let generatedTitle = (titleResponse.content as string || '').trim();
+    
+    // 标题后处理：移除可能的引号、前缀等
+    generatedTitle = generatedTitle.replace(/^["'"'""《》【】]+|["'"'""《》【】]+$/g, '').trim();
+    
+    // 标题校验：如果长度超过25字，裁减到25字
+    if (generatedTitle.length > 25) {
+      generatedTitle = generatedTitle.substring(0, 25);
+      console.log('[标题] 已裁减标题长度:', generatedTitle.length, '字');
+    }
+    
+    console.log('[生成] 标题生成完成:', generatedTitle, '(', generatedTitle.length, '字)');
+
+    // ========== 第二步：生成文章 ==========
     console.log('[生成] 开始调用DeepSeek生成文章...');
     console.log('[生成] 选题:', topic);
 
@@ -275,17 +335,9 @@ ${imageSource === 'ai' && imageCount > 0 ? `
       }, { status: 500 });
     }
 
-    // 提取标题和内容
+    // 使用已生成的标题，不从内容中提取
     let cleanedContent = generatedContent.trim();
-    let generatedTitle = '';
     
-    // 尝试从内容中提取标题（#开头的行或第一行）
-    const titleMatch = cleanedContent.match(/^#\s*(.+)$/m);
-    if (titleMatch) {
-      generatedTitle = titleMatch[1].trim();
-      cleanedContent = cleanedContent.replace(/^#\s*.+$/m, '').trim();
-    }
-
     // 清理Markdown格式的图片链接
     cleanedContent = cleanedContent.split('\n').filter(line => {
       if (/^!?\[.*?\]\(.*?\.(png|jpg|jpeg|gif|webp)/i.test(line.trim())) return false;
