@@ -214,9 +214,9 @@ function applyTitlePrefix(content: string, prefix: TitlePrefix): string {
         return `## ${counter}、 ${content.split('\n').find(l => l.includes(arguments[1]))?.replace(/^## /, '') || arguments[1]}`;
       }).replace(/^(\d+)、 (.+)$/, '## $1、 $2');
     case 'C': // 符号前缀
+      // 使用数字序号，不使用装饰符号
       return content
-        .replace(/^## (.+)$/gm, '## ▎ $1')
-        .replace(/^### (.+)$/gm, '### ▶ $1');
+        .replace(/^## (.+)$/gm, '## $1');
     case 'D': // 无前缀，但标题上方加空行
       return content
         .replace(/^## ([^▎▶])/gm, '\n## $1');
@@ -538,6 +538,21 @@ export function typographyEngine(
   
   // 应用结尾金句样式
   result = applyEndStyle(result, dimensions.endStyle, themeColor);
+
+  // ========== 最终清理：移除所有可能的装饰符号和乱码 ==========
+  result = result
+    // 清理装饰符号
+    .replace(/[✦✧◆◇○●◉◐◑▪▫■□▲△▼▽]/g, '')
+    .replace(/[▎▍▌▂▃▅▆▇]/g, '')
+    .replace(/[▶▷◀◁▼▽▲△]/g, '')
+    .replace(/[━━━┅┆┇┊┋]/g, '')
+    // 清理连续空白
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/ {2,}/g, ' ')
+    // 清理行首行尾空白
+    .split('\n')
+    .map(line => line.trim())
+    .join('\n');
 
   return {
     content: result,

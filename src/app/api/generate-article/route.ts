@@ -375,6 +375,10 @@ ${imageSource === 'ai' && imageCount > 0 ? `
         finalContent = finalContent.replace(/图序[^,\n]*/g, '');
         finalContent = finalContent.replace(/图片\d+/g, '');
         finalContent = finalContent.replace(/序号[^\s\n]*/g, '');
+        // 清理装饰符号和乱码
+        finalContent = finalContent
+          .replace(/[✦✧◆◇○●◉◐◑▪▫■□▲△▼▽▎▍▌▂▃▅▆▇▶▷◀◁━━━┅┆┇┊┋]/g, '')
+          .replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s\n，。、！？；：""''（）【】《》—…·.,!?;:'"()\[\]<>——]/g, '');
         finalContent = finalContent.replace(/\n{3,}/g, '\n\n');
       } catch (imageError) {
         console.log('生成配图失败，继续保存文章');
