@@ -192,7 +192,14 @@ export async function POST(request: NextRequest) {
 
 【你必须严格遵守以下规则】
 - 用户选题：${topic}
-- 请严格按照上述设定完成本次写作，任何偏离都将导致不合格。`;
+- 请严格按照上述设定完成本次写作，任何偏离都将导致不合格。
+- 禁止在正文中输出任何代码符号：<、>、{、}、style=、class= 等
+- 只输出纯文本内容，不要输出任何HTML、CSS或代码片段
+
+【输出要求】
+- 只输出纯文章内容
+- 使用Markdown格式标记标题和强调
+- 不要输出任何代码标签`;
 
     // 构建用户提示词
     let userPrompt = promptTemplate || '';
@@ -254,7 +261,8 @@ ${imageSource === 'ai' && imageCount > 0 ? `
     const articleResponse = await llmClient.invoke([
       { role: 'user', content: fullPrompt }
     ], {
-      model: "deepseek-v3-2-251201"
+      model: "deepseek-v3-2-251201",
+      temperature: 0.3  // 低温度参数，提高输出稳定性
     });
 
     const generatedContent = (articleResponse.content as string) || '';
@@ -394,52 +402,120 @@ ${imageSource === 'ai' && imageCount > 0 ? `
       }
     }
 
-    // ========== 语法检查与修复 ==========
-    console.log('开始语法检查...');
-    try {
-      // 调用LLM进行语法检查
-      const grammarCheckPrompt = `你是一个专业的文章编辑，请检查以下文章的语法、通顺度和语义连贯性。
+    // ========== 全面HTML/代码过滤 ==========
+    console.log('[过滤] 开始全面HTML/代码过滤...');
+    
+    // 第一步：过滤所有HTML标签
+    finalContent = finalContent.replace(/<[^>]*>/g, '');
+    
+    // 第二步：过滤所有代码符号
+    finalContent = finalContent.replace(/[<>{}]/g, '');
+    
+    // 第三步：检查反斜杠和引号配对异常
+    finalContent = finalContent.replace(/\\+/g, '');
+    // 修复引号配对问题
+    finalContent = finalContent.replace(/["""]/g, '"');
+    finalContent = finalContent.replace(/['']/g, "'");
+    
+    // 第四步：清理残留的技术符号
+    finalContent = finalContent.replace(/style\s*=\s*"[^"]*"/gi, '');
+    finalContent = finalContent.replace(/class\s*=\s*"[^"]*"/gi, '');
+    finalContent = finalContent.replace(/id\s*=\s*"[^"]*"/gi, '');
+    
+    // 第五步：清理所有可能的乱码
+    finalContent = finalContent
+      .replace(/图1[：:：]?/g, '')
+      .replace(/图2[：:：]?/g, '')
+      .replace(/图3[：:：]?/g, '')
+      .replace(/图4[：:：]?/g, '')
+      .replace(/图5[：:：]?/g, '')
+      .replace(/图\d[：:：]?/g, '')
+      .replace(/配图\d[：:：]?/g, '')
+      .replace(/图序[^，,。.\n]*/g, '')
+      .replace(/图片\d+/g, '')
+      .replace(/序号[^\s\n]*/g, '')
+      .replace(/[✦✧◆◇○●◉◐◑▪▫■□▲△▼▽▎▍▌▂▃▅▆▇▶▷◀◁━━━┅┆┇┊┋]/g, '')
+      .replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s\n，。、！？；：""''（）【】《》—…·.,!?;:'"()——]/g, '');
+    
+    // 第六步：清理连续换行
+    finalContent = finalContent.replace(/\n{3,}/g, '\n\n');
+    
+    // 第七步：合并过短段落（少于5个字的段落与前一段合并）
+    const shortParagraphMerge = (text: string): string => {
+      const lines = text.split('\n');
+      const result: string[] = [];
+      let i = 0;
+      while (i < lines.length) {
+        const current = lines[i].trim();
+        // 如果当前段落少于5个字，且前面有段落，则合并
+        if (current.length > 0 && current.length < 5 && result.length > 0) {
+          result[result.length - 1] = result[result.length - 1] + ' ' + current;
+        } else {
+          result.push(current);
+        }
+        i++;
+      }
+      return result.join('\n\n');
+    };
+    finalContent = shortParagraphMerge(finalContent);
+    
+    console.log('[过滤] HTML/代码过滤完成');
 
-检查要求：
-1. 识别语义断裂、不通顺的句子
-2. 检查段落之间的逻辑衔接
-3. 确保文章语义连贯、可读性强
+    // ========== 语法检查与修复 ==========
+    console.log('[语法] 开始语法检查...');
+    try {
+      // 调用LLM进行语法检查和句子结构检查
+      const grammarCheckPrompt = `你是一个专业的文章编辑，请对以下文章进行全面检查：
+
+1. 检查句子完整性：是否具备"主语-谓语-宾语"结构
+2. 检查断裂句：缺主语、缺宾语的句子
+3. 检查不通顺结构："的"后面直接跟"的"或句号
+4. 检查段落衔接：段落之间逻辑是否连贯
+5. 检查整体通顺度
 
 文章内容：
-${finalContent.replace(/<[^>]+>/g, '')}
+${finalContent}
 
 请输出：
-- 如果文章通顺：输出"[语法检查通过]"
-- 如果有问题：输出"[语法问题]" + 具体问题描述 + 修复建议
+- 如果文章完全通顺：输出"[语法检查通过]"
+- 如果有问题：输出"[语法问题]" + 具体问题描述
 
-重要：只输出检查结果，不要修改文章内容。`;
+问题格式：
+- 问题句子：[具体句子]
+- 问题类型：[缺主语/缺宾语/断裂句/不通顺/衔接不畅]
+- 位置：第X段
+
+请仔细检查，不要漏掉任何问题。`;
 
       const grammarCheckResult = await llmClient.chat({
         model: 'deepseek-v3-2-251201',
-        messages: [{ role: 'user', content: grammarCheckPrompt }]
+        messages: [{ role: 'user', content: grammarCheckPrompt }],
+        temperature: 0.1
       });
 
       const grammarFeedback = grammarCheckResult.choices?.[0]?.message?.content || '';
 
       // 如果发现问题，进行修复
       if (grammarFeedback.includes('[语法问题]')) {
-        console.log('发现语法问题，进行自动修复...');
+        console.log('[语法] 发现语法问题，进行自动修复...');
 
-        const fixPrompt = `你是一个专业的新媒体编辑，以下是一篇文章存在语法或语义问题，请根据反馈进行修复。
+        const fixPrompt = `你是一个专业的新媒体编辑，以下是一篇文章存在语法问题，请根据反馈进行修复。
 
 原文：
-${finalContent.replace(/<[^>]+>/g, '')}
+${finalContent}
 
 问题反馈：
 ${grammarFeedback}
 
 修复要求：
-1. 保持文章原意和结构不变
-2. 修复语义断裂和不通顺的句子
-3. 确保段落之间逻辑衔接自然
-4. 不要添加或删除实质性内容
-5. 保持与文章主题相关
-6. 保持原有格式（标题层级、段落结构）
+1. 修复断裂句：补全缺损的主语、谓语或宾语
+2. 修复不通顺结构："的"后面跟"的"或句号等
+3. 删除无法修复的完全断裂句
+4. 合并碎片句：少于5个字的短句与前一句合并
+5. 确保段落之间逻辑衔接自然
+6. 不要添加或删除实质性内容
+7. 保持原有格式和标题结构
+8. 确保每个完整句子都有主语和谓语
 
 请直接输出修复后的完整文章，不要添加任何说明。`;
 
