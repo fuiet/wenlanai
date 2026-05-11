@@ -572,6 +572,30 @@ ${grammarFeedback}
 
   } catch (error: any) {
     console.error('生成文章失败:', error);
+    
+    // 即使失败也保存记录，允许用户删除
+    try {
+      await supabase.from('articles').insert({
+        title: topic,
+        content: `【生成失败】${error.message || '服务繁忙，请稍后重试'}`,
+        user_id: userId,
+        created_by: userId,
+        group_id: groupId || null,
+        group_name: groupName || null,
+        prompt_template_id: promptTemplateId || null,
+        status: 'failed',
+        push_status: 'not_pushed',
+        generate_status: 'failed',
+        generate_error: error.message || '服务繁忙，请稍后重试',
+        task_status: 'completed',
+        images: [],
+        topic: topic,
+        image_count: imageCount || 0,
+      });
+    } catch (saveError) {
+      console.error('保存失败记录也出错:', saveError);
+    }
+    
     return NextResponse.json(
       { 
         success: false, 
