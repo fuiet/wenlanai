@@ -320,11 +320,19 @@ ${imageSource === 'ai' && imageCount > 0 ? `
         const { ImageGenerationClient } = await import('coze-coding-dev-sdk');
         const imageClient = new ImageGenerationClient();
         
-        // 生成多张图片
+        // 生成多张不同的图片
         for (let i = 0; i < targetImageCount; i++) {
           try {
+            // 每次使用不同的提示词变体，确保图片内容不同
+            const promptVariants = [
+              `高质量原创配图，适合公众号文章风格，${topic}主题相关`,
+              `唯美插画风格，${topic}主题，简洁干净的画面`,
+              `现代简约风格配图，${topic}相关内容，无文字无水印`
+            ];
+            const prompt = promptVariants[i % promptVariants.length];
+            
             const imageResult = await imageClient.generate({
-              prompt: `生成一张与"${topic}"主题相关的配图，适合在公众号文章中使用，图片序号${i + 1}`,
+              prompt: prompt,
               size: '1024x1024'
             });
             if (imageResult.data?.[0]?.url) {
@@ -339,16 +347,19 @@ ${imageSource === 'ai' && imageCount > 0 ? `
         // 将占位符替换为真实图片（不添加任何图注文字）
         imageUrls.forEach((url, index) => {
           const placeholder = `{{IMAGE_${index + 1}}}`;
-          // 直接用HTML格式插入图片，不显示任何图注
-          const imageHtml = `<img src="${url}" alt="配图${index + 1}" style="width:100%;margin:15px 0" />`;
+          // 直接用HTML格式插入图片，alt属性为空避免任何文字显示
+          const imageHtml = `<img src="${url}" alt="" style="width:100%;margin:15px 0" />`;
           finalContent = finalContent.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), imageHtml);
         });
         
-        // 清理所有图注相关文字
+        // 清理所有可能的乱码和图注文字
         finalContent = finalContent.replace(/\{\{IMAGE_\d+\}\}/g, '');
         finalContent = finalContent.replace(/图：[^<\n]+/g, '');
         finalContent = finalContent.replace(/图\d+[：:]/g, '');
         finalContent = finalContent.replace(/配图\d+/g, '');
+        finalContent = finalContent.replace(/图序[^,\n]*/g, '');
+        finalContent = finalContent.replace(/图片\d+/g, '');
+        finalContent = finalContent.replace(/序号[^\s\n]*/g, '');
         finalContent = finalContent.replace(/\n{3,}/g, '\n\n');
       } catch (imageError) {
         console.log('生成配图失败，继续保存文章');
