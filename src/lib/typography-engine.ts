@@ -541,6 +541,14 @@ export function typographyEngine(
 
   // ========== 最终清理：移除所有可能的装饰符号和乱码 ==========
   result = result
+    // 清理图注文字
+    .replace(/图1[：:：]?/g, '')
+    .replace(/图2[：:：]?/g, '')
+    .replace(/图3[：:：]?/g, '')
+    .replace(/图4[：:：]?/g, '')
+    .replace(/图5[：:：]?/g, '')
+    .replace(/图\d[：:：]?/g, '')
+    .replace(/配图\d[：:：]?/g, '')
     // 清理装饰符号
     .replace(/[✦✧◆◇○●◉◐◑▪▫■□▲△▼▽]/g, '')
     .replace(/[▎▍▌▂▃▅▆▇]/g, '')

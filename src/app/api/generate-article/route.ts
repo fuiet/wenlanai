@@ -372,9 +372,18 @@ ${imageSource === 'ai' && imageCount > 0 ? `
         finalContent = finalContent.replace(/图：[^<\n]+/g, '');
         finalContent = finalContent.replace(/图\d+[：:]/g, '');
         finalContent = finalContent.replace(/配图\d+/g, '');
-        finalContent = finalContent.replace(/图序[^,\n]*/g, '');
-        finalContent = finalContent.replace(/图片\d+/g, '');
-        finalContent = finalContent.replace(/序号[^\s\n]*/g, '');
+        // 清理所有图注/乱码文字（严格清理）
+        finalContent = finalContent
+          .replace(/图1[：:：]?/g, '')
+          .replace(/图2[：:：]?/g, '')
+          .replace(/图3[：:：]?/g, '')
+          .replace(/图4[：:：]?/g, '')
+          .replace(/图5[：:：]?/g, '')
+          .replace(/图\d[：:：]?/g, '')
+          .replace(/配图\d[：:：]?/g, '')
+          .replace(/图序[^，,。.\n]*/g, '')
+          .replace(/图片\d+/g, '')
+          .replace(/序号[^\s\n]*/g, '')
         // 清理装饰符号和乱码
         finalContent = finalContent
           .replace(/[✦✧◆◇○●◉◐◑▪▫■□▲△▼▽▎▍▌▂▃▅▆▇▶▷◀◁━━━┅┆┇┊┋]/g, '')
