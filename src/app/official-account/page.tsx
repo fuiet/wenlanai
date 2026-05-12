@@ -79,9 +79,6 @@ function OfficialAccountContent() {
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [bindAppId, setBindAppId] = useState('');
   const [bindAppSecret, setBindAppSecret] = useState('');
-  const [scanLoading, setScanLoading] = useState(false);
-  const [scanAuthUrl, setScanAuthUrl] = useState<string | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
 
   // 第三方平台配置相关状态
   const [componentAppId, setComponentAppId] = useState('');
@@ -230,9 +227,9 @@ function OfficialAccountContent() {
     loadConfigStatus();
   }, []);
 
-  // 生成微信扫码授权（调用宝塔后端）
-  const generateScanAuth = async () => {
-    setScanLoading(true);
+  // 绑定公众号 - 跳转到微信授权页面
+  const handleBindWechat = async () => {
+    setIsBinding(true);
     setStatusMessage(null);
     try {
       // 调用宝塔后端获取授权URL
@@ -242,24 +239,19 @@ function OfficialAccountContent() {
       const result = await response.json();
       
       if (result.auth_url) {
-        setScanAuthUrl(result.auth_url);
-        // 在新窗口打开授权页面
-        window.open(result.auth_url, '_blank', 'width=800,height=600');
-        setStatusMessage({ 
-          type: 'info', 
-          message: '已打开授权页面，请在弹出窗口中完成授权' 
-        });
+        // 使用当前页面跳转到微信授权页面
+        window.location.href = result.auth_url;
       } else {
         setStatusMessage({ 
           type: 'error', 
           message: result.message || result.error || '获取授权链接失败' 
         });
+        setIsBinding(false);
       }
     } catch (error) {
       console.error('获取授权链接失败:', error);
       setStatusMessage({ type: 'error', message: '连接后端服务失败，请检查服务状态' });
-    } finally {
-      setScanLoading(false);
+      setIsBinding(false);
     }
   };
 
@@ -330,25 +322,6 @@ function OfficialAccountContent() {
     } catch (error) {
       console.error('解绑公众号失败:', error);
       setStatusMessage({ type: 'error', message: '解绑失败，请稍后重试' });
-    }
-  };
-
-  // 复制授权链接
-  const copyAuthUrl = async () => {
-    if (!scanAuthUrl) return;
-    try {
-      await navigator.clipboard.writeText(scanAuthUrl);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch {
-      const textArea = document.createElement('textarea');
-      textArea.value = scanAuthUrl;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
     }
   };
 
@@ -686,68 +659,34 @@ function OfficialAccountContent() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <QrCode className="h-5 w-5 text-blue-500" />
-                  扫码授权
+                  绑定公众号
                 </CardTitle>
                 <CardDescription>
-                  使用微信公众号管理员扫码，快速完成授权绑定
+                  点击按钮跳转到微信授权页面，扫码授权绑定您的公众号
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Button 
-                  onClick={generateScanAuth}
-                  disabled={scanLoading}
-                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
+                  onClick={handleBindWechat}
+                  disabled={isBinding}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
                   size="lg"
                 >
-                  {scanLoading ? (
+                  {isBinding ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      正在生成授权链接...
+                      正在跳转...
                     </>
                   ) : (
                     <>
-                      <QrCode className="mr-2 h-4 w-4" />
-                      打开微信授权页面
+                      <UserCheck className="mr-2 h-4 w-4" />
+                      绑定公众号
                     </>
                   )}
                 </Button>
-
-                {scanAuthUrl && (
-                  <div className="space-y-3">
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                      <p className="text-sm text-green-700 mb-2">授权链接已生成</p>
-                      <div className="flex gap-2">
-                        <Button 
-                          onClick={copyAuthUrl}
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                        >
-                          {isCopied ? (
-                            <Check className="h-4 w-4 mr-1" />
-                          ) : (
-                            <Copy className="h-4 w-4 mr-1" />
-                          )}
-                          复制链接
-                        </Button>
-                        <Button 
-                          onClick={() => window.open(scanAuthUrl, '_blank')}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <p className="text-xs text-blue-700">
-                        1. 点击上方按钮打开微信授权页面<br/>
-                        2. 使用公众号管理员微信扫码确认<br/>
-                        3. 授权成功后自动完成绑定
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <p className="text-sm text-muted-foreground text-center">
+                  点击后将跳转到微信授权页面，请使用公众号管理员微信扫码授权
+                </p>
               </CardContent>
             </Card>
 
