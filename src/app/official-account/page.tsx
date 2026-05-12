@@ -232,19 +232,19 @@ function OfficialAccountContent() {
     setIsBinding(true);
     setStatusMessage(null);
     try {
-      // 调用宝塔后端获取授权URL
-      const response = await fetch('https://wenlanai.top/wechat/auth_url', {
+      // 调用本地API（代理到宝塔后端）
+      const response = await fetch('/api/wechat/auth-url', {
         method: 'GET',
       });
       const result = await response.json();
       
-      if (result.auth_url) {
+      if (result.success && result.data?.auth_url) {
         // 使用当前页面跳转到微信授权页面
-        window.location.href = result.auth_url;
+        window.location.href = result.data.auth_url;
       } else {
         setStatusMessage({ 
           type: 'error', 
-          message: result.message || result.error || '获取授权链接失败' 
+          message: result.error || result.data?.message || '获取授权链接失败' 
         });
         setIsBinding(false);
       }
