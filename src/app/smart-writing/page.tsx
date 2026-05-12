@@ -1,6 +1,34 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+
+// 安全访问 localStorage 的辅助函数
+const getStorageItem = (key: string): string | null => {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const setStorageItem = (key: string, value: string): boolean => {
+  try {
+    window.localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const removeStorageItem = (key: string): boolean => {
+  try {
+    window.localStorage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -200,7 +228,7 @@ export default function SmartWritingPage() {
   useEffect(() => {
     // 检查localStorage中是否有正在生成的任务
     try {
-      const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
+      const generatingTasks = JSON.parse(getStorageItem('generatingTasks') || '[]');
       if (generatingTasks.length > 0) {
         // 清除过期的任务（超过5分钟的视为已失败）
         const now = Date.now();
@@ -211,10 +239,10 @@ export default function SmartWritingPage() {
         
         if (validTasks.length === 0) {
           // 所有任务都已过期，清除localStorage
-          localStorage.removeItem('generatingTasks');
+          removeStorageItem('generatingTasks');
         } else if (validTasks.length < generatingTasks.length) {
           // 部分任务过期，更新localStorage
-          localStorage.setItem('generatingTasks', JSON.stringify(validTasks));
+          setStorageItem('generatingTasks', JSON.stringify(validTasks));
         }
       }
     } catch {
@@ -414,13 +442,13 @@ export default function SmartWritingPage() {
 
     // 保存正在生成的任务到localStorage，用于页面切换后恢复
     try {
-      const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
+      const generatingTasks = JSON.parse(getStorageItem('generatingTasks') || '[]');
       const taskInfo = {
         tempId: tempArticle.id,
         topic: articleTopic,
         startedAt: new Date().toISOString()
       };
-      localStorage.setItem('generatingTasks', JSON.stringify([...generatingTasks, taskInfo]));
+      setStorageItem('generatingTasks', JSON.stringify([...generatingTasks, taskInfo]));
     } catch {
       // localStorage 访问被拒绝时忽略
     }
@@ -488,9 +516,9 @@ export default function SmartWritingPage() {
           setArticles(prevArticles => {
             // 清除localStorage中的任务
             try {
-              const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
+              const generatingTasks = JSON.parse(getStorageItem('generatingTasks') || '[]');
               const updatedTasks = generatingTasks.filter((t: any) => t.tempId !== tempArticle.id);
-              localStorage.setItem('generatingTasks', JSON.stringify(updatedTasks));
+              setStorageItem('generatingTasks', JSON.stringify(updatedTasks));
             } catch {
               // localStorage 访问被拒绝时忽略
             }
@@ -509,9 +537,9 @@ export default function SmartWritingPage() {
           setArticles(prevArticles => {
             // 清除localStorage中的任务
             try {
-              const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
+              const generatingTasks = JSON.parse(getStorageItem('generatingTasks') || '[]');
               const updatedTasks = generatingTasks.filter((t: any) => t.tempId !== tempArticle.id);
-              localStorage.setItem('generatingTasks', JSON.stringify(updatedTasks));
+              setStorageItem('generatingTasks', JSON.stringify(updatedTasks));
             } catch {
               // localStorage 访问被拒绝时忽略
             }
@@ -536,9 +564,9 @@ export default function SmartWritingPage() {
         setArticles(prevArticles => {
           // 清除localStorage中的任务
           try {
-            const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
+            const generatingTasks = JSON.parse(getStorageItem('generatingTasks') || '[]');
             const updatedTasks = generatingTasks.filter((t: any) => t.tempId !== tempArticle.id);
-            localStorage.setItem('generatingTasks', JSON.stringify(updatedTasks));
+            setStorageItem('generatingTasks', JSON.stringify(updatedTasks));
           } catch {
             // localStorage 访问被拒绝时忽略
           }
