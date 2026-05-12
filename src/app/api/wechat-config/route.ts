@@ -31,7 +31,7 @@ const CONFIG_TABLE = 'wechat_config';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { appId, appSecret, redirectUri } = body;
+    const { appId, appSecret, token, encodingAESKey, redirectUri } = body;
 
     // 参数验证
     if (!appId || !appSecret) {
@@ -51,72 +51,51 @@ export async function POST(request: NextRequest) {
 
     const supabaseClient = createSupabaseClient();
     
-    // 先验证凭证是否有效
-    try {
-      const tokenUrl = 'https://api.weixin.qq.com/cgi-bin/component/api_component_token';
-      const tokenResponse = await fetch(tokenUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          component_appid: appId,
-          component_appsecret: appSecret,
-        }),
-      });
-      const tokenData = await tokenResponse.json();
+    // 构建配置对象
+    const configValue: Record<string, string> = { appId, appSecret };
+    if (token) configValue.token = token;
+    if (encodingAESKey) configValue.encodingAESKey = encodingAESKey;
+    if (redirectUri) configValue.redirectUri = redirectUri;
 
-      if (tokenData.errcode) {
-        return NextResponse.json({
-          success: false,
-          message: `验证失败：${tokenData.errmsg || '请检查AppID和AppSecret是否正确'}`,
-          error: tokenData,
-        });
-      }
+    // 保存到数据库
+    if (supabaseClient) {
+      // 检查是否已有配置
+      const { data: existingConfig } = await supabaseClient
+        .from(CONFIG_TABLE)
+        .select('*')
+        .eq('config_key', 'component')
+        .single();
 
-      // 凭证有效，保存到数据库
-      if (supabaseClient) {
-        // 检查是否已有配置
-        const { data: existingConfig } = await supabaseClient
+      if (existingConfig) {
+        // 更新配置
+        await supabaseClient
           .from(CONFIG_TABLE)
-          .select('*')
-          .eq('config_key', 'component')
-          .single();
-
-        if (existingConfig) {
-          // 更新配置
-          await supabaseClient
-            .from(CONFIG_TABLE)
-            .update({
-              config_value: JSON.stringify({ appId, appSecret, redirectUri }),
-              updated_at: new Date().toISOString(),
-            })
-            .eq('config_key', 'component');
-        } else {
-          // 插入新配置
-          await supabaseClient
-            .from(CONFIG_TABLE)
-            .insert({
-              config_key: 'component',
-              config_value: JSON.stringify({ appId, appSecret, redirectUri }),
-            });
-        }
+          .update({
+            config_value: JSON.stringify(configValue),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('config_key', 'component');
+      } else {
+        // 插入新配置
+        await supabaseClient
+          .from(CONFIG_TABLE)
+          .insert({
+            config_key: 'component',
+            config_value: JSON.stringify(configValue),
+          });
       }
-
-      return NextResponse.json({
-        success: true,
-        message: '第三方平台配置成功！',
-        data: {
-          appId,
-          redirectUri: redirectUri || `${process.env.COZE_PROJECT_DOMAIN_DEFAULT}/api/wechat-auth/callback`,
-        },
-      });
-
-    } catch (error) {
-      console.error('验证第三方平台配置失败:', error);
-      return NextResponse.json({
-        success: false,
-        message: '验证第三方平台配置失败，请检查网络连接',
-      });
     }
+
+    return NextResponse.json({
+      success: true,
+      message: '第三方平台配置保存成功！',
+      data: {
+        appId,
+        hasToken: !!token,
+        hasEncodingAESKey: !!encodingAESKey,
+        redirectUri: redirectUri || `${process.env.COZE_PROJECT_DOMAIN_DEFAULT}/api/wechat-auth/callback`,
+      },
+    });
 
   } catch (error) {
     console.error('保存配置异常:', error);

@@ -1,324 +1,278 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { 
-  CheckCircle, 
-  XCircle, 
-  Loader2,
-  Settings,
-  Key,
-  ArrowRight,
-  AlertCircle,
-  ExternalLink,
-  Copy,
-  Check
-} from 'lucide-react';
-
-interface ConfigStatus {
-  configured: boolean;
-  hasTicket: boolean;
-  config: {
-    appId: string;
-    hasSecret: boolean;
-  } | null;
-}
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertCircle, CheckCircle, Copy, ExternalLink } from 'lucide-react';
 
 export default function WechatSetupPage() {
-  const [status, setStatus] = useState<ConfigStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [appId, setAppId] = useState('');
-  const [appSecret, setAppSecret] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [config, setConfig] = useState({
+    appId: '',
+    appSecret: '',
+    token: '',
+    encodingAESKey: '',
+  });
+  const [savedConfig, setSavedConfig] = useState<Record<string, unknown> | null>(null);
+  const [ticket, setTicket] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // 当前域名
-  const domain = typeof window !== 'undefined' 
-    ? window.location.origin.replace('https://', '').replace('http://', '') 
-    : 'your-domain.com';
+  // 获取已保存的配置
+  useEffect(() => {
+    fetchConfig();
+  }, []);
 
-  // 回调URL
-  const urls = {
-    authEvent: `https://${domain}/api/wechat/auth-event`,
-    callback: `https://${domain}/api/wechat-auth/callback`,
-  };
-
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
-  };
-
-  // 加载配置状态
-  const loadStatus = async () => {
-    setLoading(true);
+  const fetchConfig = async () => {
     try {
-      const response = await fetch('/api/wechat-auth/scan');
-      const result = await response.json();
-      setStatus(result);
-      if (result.config?.appId) {
-        setAppId(result.config.appId);
+      const res = await fetch('/api/wechat-config');
+      const data = await res.json();
+      if (data.success && data.config) {
+        setSavedConfig(data.config);
+        if (data.config.appId) {
+          setConfig(prev => ({ ...prev, appId: data.config.appId }));
+        }
+      }
+      
+      // 获取ticket状态
+      const ticketRes = await fetch('/api/wechat-auth/ticket');
+      const ticketData = await ticketRes.json();
+      if (ticketData.success && ticketData.ticket) {
+        setTicket(ticketData.ticket);
       }
     } catch (error) {
-      console.error('加载状态失败:', error);
+      console.error('获取配置失败:', error);
+    }
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch('/api/wechat-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setMessage({ type: 'success', text: '配置保存成功！' });
+        fetchConfig();
+      } else {
+        setMessage({ type: 'error', text: data.message || '保存失败' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: '网络错误，请稍后重试' });
     } finally {
       setLoading(false);
     }
   };
 
-  // 保存配置
-  const saveConfig = async () => {
-    if (!appId.trim() || !appSecret.trim()) {
-      setMessage({ type: 'error', text: '请填写AppID和AppSecret' });
-      return;
-    }
-
-    if (!appId.startsWith('wx')) {
-      setMessage({ type: 'error', text: 'AppID格式不正确，应以wx开头' });
-      return;
-    }
-
-    setSaving(true);
-    setMessage(null);
-
-    try {
-      const response = await fetch('/api/wechat-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appId: appId.trim(),
-          appSecret: appSecret.trim(),
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setMessage({ type: 'success', text: '配置保存成功！' });
-        setAppSecret(''); // 清空密钥
-        loadStatus(); // 重新加载状态
-      } else {
-        setMessage({ type: 'error', text: result.message || '保存失败' });
-      }
-    } catch (error) {
-      console.error('保存配置失败:', error);
-      setMessage({ type: 'error', text: '保存失败，请稍后重试' });
-    } finally {
-      setSaving(false);
-    }
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setMessage({ type: 'success', text: '已复制到剪贴板' });
   };
 
-  useEffect(() => {
-    loadStatus();
-  }, []);
+  const callbackUrl = typeof window !== 'undefined' 
+    ? `${window.location.origin}/api/wechat/auth-event`
+    : '';
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const authCallbackUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/api/wechat-auth/callback`
+    : '';
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-3xl">
-      <h1 className="text-2xl font-bold mb-6">微信第三方平台配置</h1>
-
-      {/* 当前状态 */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-lg">配置状态</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-              <div className="flex items-center gap-3">
-                {status?.configured ? (
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                ) : (
-                  <XCircle className="w-5 h-5 text-red-500" />
-                )}
-                <span>第三方平台配置</span>
-              </div>
-              <Badge variant={status?.configured ? 'default' : 'secondary'}>
-                {status?.configured ? '已配置' : '未配置'}
-              </Badge>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-              <div className="flex items-center gap-3">
-                {status?.hasTicket ? (
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                ) : (
-                  <XCircle className="w-5 h-5 text-red-500" />
-                )}
-                <span>Component Verify Ticket</span>
-              </div>
-              <Badge variant={status?.hasTicket ? 'default' : 'secondary'}>
-                {status?.hasTicket ? '已接收' : '未接收'}
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 配置步骤 */}
-      {!status?.configured && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5" />
-              步骤1：配置第三方平台
-            </CardTitle>
-            <CardDescription>
-              在微信公众平台创建第三方平台后，填写以下配置
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* 需要配置的URL */}
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Badge variant="outline">必填</Badge>
-                  授权事件接收URL
-                </Label>
-                <div className="flex gap-2">
-                  <Input value={urls.authEvent} readOnly className="font-mono text-sm" />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => copyToClipboard(urls.authEvent, 'authEvent')}
-                  >
-                    {copied === 'authEvent' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Badge variant="outline">必填</Badge>
-                  授权回调URL
-                </Label>
-                <div className="flex gap-2">
-                  <Input value={urls.callback} readOnly className="font-mono text-sm" />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => copyToClipboard(urls.callback, 'callback')}
-                  >
-                    {copied === 'callback' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>配置说明</AlertTitle>
-              <AlertDescription>
-                请将以上URL填写到微信公众平台的第三方平台设置中。配置完成后，微信会每10分钟推送一次component_verify_ticket。
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 保存配置 */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="w-5 h-5" />
-            {status?.configured ? '已配置的AppID' : '步骤2：保存AppID和AppSecret'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>第三方平台AppID</Label>
-            <Input
-              placeholder="wx开头，如：wx1234567890abcdef"
-              value={appId}
-              onChange={(e) => setAppId(e.target.value)}
-              className="font-mono"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>第三方平台AppSecret</Label>
-            <Input
-              type="password"
-              placeholder="32位密钥"
-              value={appSecret}
-              onChange={(e) => setAppSecret(e.target.value)}
-              className="font-mono"
-            />
-          </div>
-
-          {message && (
-            <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
-              {message.type === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-              <AlertDescription>{message.text}</AlertDescription>
-            </Alert>
-          )}
-
-          <Button onClick={saveConfig} disabled={saving}>
-            {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {status?.configured ? '更新配置' : '保存配置'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* 下一步 */}
-      {status?.configured && (
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900">微信第三方平台配置</h1>
+        
+        {/* 配置步骤 */}
         <Card>
           <CardHeader>
-            <CardTitle>下一步</CardTitle>
+            <CardTitle>配置步骤</CardTitle>
+            <CardDescription>请按以下步骤完成微信第三方平台配置</CardDescription>
           </CardHeader>
-          <CardContent>
-            {status.hasTicket ? (
-              <div className="space-y-4">
-                <Alert className="border-green-500 bg-green-50">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <AlertTitle>配置完成</AlertTitle>
-                  <AlertDescription>
-                    已收到component_verify_ticket，可以进行扫码授权了
-                  </AlertDescription>
-                </Alert>
-                
-                <Button asChild>
-                  <a href="/official-account?tab=auth">
-                    前往绑定公众号
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </a>
-                </Button>
+          <CardContent className="space-y-4">
+            <div className="flex items-start gap-3">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-medium">1</span>
+              <div>
+                <p className="font-medium">在微信公众平台配置URL</p>
+                <p className="text-sm text-gray-500">登录 mp.weixin.qq.com → 设置与开发 → 基本配置 → 第三方平台</p>
               </div>
-            ) : (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>等待接收ticket</AlertTitle>
-                <AlertDescription>
-                  配置已保存，正在等待微信推送component_verify_ticket（每10分钟推送一次）。
-                  请确认授权事件接收URL配置正确。
-                </AlertDescription>
-              </Alert>
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-medium">2</span>
+              <div>
+                <p className="font-medium">填写以下URL到微信后台</p>
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600 w-28">授权事件URL:</span>
+                    <code className="text-sm bg-gray-100 px-2 py-1 rounded flex-1">{callbackUrl}</code>
+                    <Button variant="ghost" size="sm" onClick={() => copyToClipboard(callbackUrl)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600 w-28">授权回调URL:</span>
+                    <code className="text-sm bg-gray-100 px-2 py-1 rounded flex-1">{authCallbackUrl}</code>
+                    <Button variant="ghost" size="sm" onClick={() => copyToClipboard(authCallbackUrl)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-medium">3</span>
+              <div>
+                <p className="font-medium">生成Token和EncodingAESKey</p>
+                <p className="text-sm text-gray-500">在微信后台点击「随机生成」，然后复制到下方表单</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-medium">4</span>
+              <div>
+                <p className="font-medium">提交配置并等待验证</p>
+                <p className="text-sm text-gray-500">微信会向你的服务器发送验证请求</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 配置表单 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>填写配置信息</CardTitle>
+            <CardDescription>请填写微信第三方平台的配置信息</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">AppID</label>
+                <Input
+                  placeholder="wx开头"
+                  value={config.appId}
+                  onChange={e => setConfig(prev => ({ ...prev, appId: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">AppSecret</label>
+                <Input
+                  type="password"
+                  placeholder="32位密钥"
+                  value={config.appSecret}
+                  onChange={e => setConfig(prev => ({ ...prev, appSecret: e.target.value }))}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Token（消息校验）</label>
+                <Input
+                  placeholder="在微信后台生成"
+                  value={config.token}
+                  onChange={e => setConfig(prev => ({ ...prev, token: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">EncodingAESKey（消息加解密）</label>
+                <Input
+                  placeholder="43位密钥"
+                  value={config.encodingAESKey}
+                  onChange={e => setConfig(prev => ({ ...prev, encodingAESKey: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {message && (
+              <div className={`flex items-center gap-2 p-3 rounded ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                {message.type === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                {message.text}
+              </div>
+            )}
+
+            <Button onClick={handleSave} disabled={loading || !config.appId || !config.appSecret}>
+              {loading ? '保存中...' : '保存配置'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* 配置状态 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>配置状态</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-2">
+                {savedConfig?.appId ? (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-gray-400" />
+                )}
+                <span className="text-sm">AppID: {savedConfig?.appId || '未配置'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {savedConfig?.token ? (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-gray-400" />
+                )}
+                <span className="text-sm">Token: {savedConfig?.token ? '已配置' : '未配置'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {savedConfig?.encodingAESKey ? (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-gray-400" />
+                )}
+                <span className="text-sm">EncodingAESKey: {savedConfig?.encodingAESKey ? '已配置' : '未配置'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {ticket ? (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-gray-400" />
+                )}
+                <span className="text-sm">Ticket: {ticket ? '已接收' : '等待接收...'}</span>
+              </div>
+            </div>
+
+            {savedConfig?.appId && savedConfig?.encodingAESKey && ticket && (
+              <div className="mt-4 p-4 bg-green-50 rounded-lg">
+                <p className="text-green-700 font-medium">✓ 配置完成！</p>
+                <p className="text-sm text-green-600 mt-1">
+                  你现在可以前往 
+                  <a href="/official-account?tab=auth" className="underline mx-1">公众号管理</a> 
+                  扫码授权绑定公众号
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>
-      )}
 
-      {/* 帮助链接 */}
-      <div className="mt-6 text-center">
-        <Button variant="link" asChild>
-          <a href="https://developers.weixin.qq.com/doc/oplatform/Third-party_Platforms/Third_party_platform_appid.html" target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="w-4 h-4 mr-2" />
-            微信第三方平台开发文档
-          </a>
-        </Button>
+        {/* 帮助链接 */}
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <ExternalLink className="h-4 w-4" />
+              <a 
+                href="https://developers.weixin.qq.com/doc/oplatform/Third-party_Platforms/Third_party_platform_appid.html" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                微信第三方平台开发文档
+              </a>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
