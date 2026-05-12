@@ -82,9 +82,6 @@ function OfficialAccountContent() {
   
   // 授权链接模态框状态
   const [showAuthUrlModal, setShowAuthUrlModal] = useState(false);
-  const [authUrl, setAuthUrl] = useState('');
-  const [isCopied, setIsCopied] = useState(false);
-
   // 第三方平台配置相关状态
   const [componentAppId, setComponentAppId] = useState('');
   const [componentAppSecret, setComponentAppSecret] = useState('');
@@ -232,53 +229,9 @@ function OfficialAccountContent() {
     loadConfigStatus();
   }, []);
 
-  // 绑定公众号 - 复制链接到微信打开
-  const handleBindWechat = async () => {
-    setIsBinding(true);
-    setStatusMessage(null);
-    
-    try {
-      // 1. 发起GET请求获取授权URL
-      const response = await fetch('https://wenlanai.top/wechat/auth_url');
-      const result = await response.json();
-      
-      if (result.auth_url) {
-        // 2. 显示模态框，让用户复制链接到微信打开
-        setAuthUrl(result.auth_url);
-        setShowAuthUrlModal(true);
-        setIsCopied(false);
-      } else {
-        setStatusMessage({ 
-          type: 'error', 
-          message: result.message || '获取授权链接失败' 
-        });
-      }
-    } catch (error) {
-      console.error('获取授权链接失败:', error);
-      setStatusMessage({ type: 'error', message: '连接后端服务失败，请检查服务状态' });
-    } finally {
-      setIsBinding(false);
-    }
-  };
-
-  // 复制授权链接
-  const handleCopyAuthUrl = async () => {
-    try {
-      await navigator.clipboard.writeText(authUrl);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (error) {
-      console.error('复制失败:', error);
-      // 降级方案：使用 document.execCommand
-      const textArea = document.createElement('textarea');
-      textArea.value = authUrl;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    }
+  // 绑定公众号 - 直接跳转到授权页面
+  const handleBindWechat = () => {
+    window.location.href = 'https://wenlanai.top/wechat-auth.html';
   };
 
   // AppID/AppSecret绑定
