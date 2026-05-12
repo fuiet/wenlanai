@@ -61,6 +61,16 @@ export default function RootLayout({
               <main className="min-h-screen">
                 {children}
               </main>
+              <footer className="py-4 text-center text-sm text-gray-500 border-t bg-white">
+                <a
+                  href="https://beian.miit.gov.cn/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-gray-700 transition-colors"
+                >
+                  豫ICP备2026019163号-1
+                </a>
+              </footer>
             </ProtectedRoute>
           </AuthProvider>
         </ToastProvider>
