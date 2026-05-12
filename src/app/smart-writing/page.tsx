@@ -1188,6 +1188,8 @@ export default function SmartWritingPage() {
       ))}
     </div>
   );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 页面头部 */}
@@ -1991,4 +1993,4 @@ export default function SmartWritingPage() {
       </Dialog>
     </div>
   );
-}}
+}
