@@ -80,8 +80,6 @@ function OfficialAccountContent() {
   const [bindAppId, setBindAppId] = useState('');
   const [bindAppSecret, setBindAppSecret] = useState('');
   
-  // 授权链接模态框状态
-  const [showAuthUrlModal, setShowAuthUrlModal] = useState(false);
   // 第三方平台配置相关状态
   const [componentAppId, setComponentAppId] = useState('');
   const [componentAppSecret, setComponentAppSecret] = useState('');
@@ -1051,63 +1049,6 @@ function OfficialAccountContent() {
                 推送 {selectedArticles.length} 篇文章
               </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* 授权链接模态框 */}
-      <Dialog open={showAuthUrlModal} onOpenChange={setShowAuthUrlModal}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Link className="h-5 w-5 text-green-500" />
-              绑定公众号
-            </DialogTitle>
-            <DialogDescription>
-              请复制链接并在微信中打开，完成授权
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-blue-800 font-medium mb-2">
-                📱 操作步骤：
-              </p>
-              <ol className="text-blue-700 text-sm space-y-2 list-decimal list-inside">
-                <li>点击下方「复制链接」按钮</li>
-                <li>打开微信，将链接发送给「文件传输助手」</li>
-                <li>在微信中点击打开该链接</li>
-                <li>按照页面提示完成扫码授权</li>
-              </ol>
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">授权链接</Label>
-              <div className="bg-gray-50 border rounded-lg p-3 break-all text-sm text-gray-600 max-h-32 overflow-y-auto">
-                {authUrl}
-              </div>
-            </div>
-            
-            <Button 
-              onClick={handleCopyAuthUrl}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-              size="lg"
-            >
-              {isCopied ? (
-                <>
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  已复制！快去微信打开吧
-                </>
-              ) : (
-                <>
-                  <Copy className="mr-2 h-4 w-4" />
-                  复制链接
-                </>
-              )}
-            </Button>
-            
-            <p className="text-xs text-muted-foreground text-center">
-              授权成功后，请刷新页面查看已绑定的公众号
-            </p>
           </div>
         </DialogContent>
       </Dialog>
