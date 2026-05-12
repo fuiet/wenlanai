@@ -23,7 +23,8 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Trash2
+  Trash2,
+  Link
 } from 'lucide-react';
 
 
@@ -78,6 +79,11 @@ function OfficialAccountContent() {
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [bindAppId, setBindAppId] = useState('');
   const [bindAppSecret, setBindAppSecret] = useState('');
+  
+  // 授权链接模态框状态
+  const [showAuthUrlModal, setShowAuthUrlModal] = useState(false);
+  const [authUrl, setAuthUrl] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
 
   // 第三方平台配置相关状态
   const [componentAppId, setComponentAppId] = useState('');
@@ -226,7 +232,7 @@ function OfficialAccountContent() {
     loadConfigStatus();
   }, []);
 
-  // 绑定公众号 - 标准PC版扫码授权流程
+  // 绑定公众号 - 复制链接到微信打开
   const handleBindWechat = async () => {
     setIsBinding(true);
     setStatusMessage(null);
@@ -237,19 +243,10 @@ function OfficialAccountContent() {
       const result = await response.json();
       
       if (result.auth_url) {
-        // 2. 动态创建<a>标签，设置referrerPolicy='origin'
-        const authUrl = result.auth_url;
-        const a = document.createElement('a');
-        a.href = authUrl;
-        a.referrerPolicy = 'origin'; // 关键：让微信识别授权从wenlanai.top发起
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        
-        setStatusMessage({ 
-          type: 'info', 
-          message: '请在打开的页面中完成扫码授权' 
-        });
+        // 2. 显示模态框，让用户复制链接到微信打开
+        setAuthUrl(result.auth_url);
+        setShowAuthUrlModal(true);
+        setIsCopied(false);
       } else {
         setStatusMessage({ 
           type: 'error', 
@@ -261,6 +258,26 @@ function OfficialAccountContent() {
       setStatusMessage({ type: 'error', message: '连接后端服务失败，请检查服务状态' });
     } finally {
       setIsBinding(false);
+    }
+  };
+
+  // 复制授权链接
+  const handleCopyAuthUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(authUrl);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+      console.error('复制失败:', error);
+      // 降级方案：使用 document.execCommand
+      const textArea = document.createElement('textarea');
+      textArea.value = authUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
     }
   };
 
@@ -1081,6 +1098,63 @@ function OfficialAccountContent() {
                 推送 {selectedArticles.length} 篇文章
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 授权链接模态框 */}
+      <Dialog open={showAuthUrlModal} onOpenChange={setShowAuthUrlModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link className="h-5 w-5 text-green-500" />
+              绑定公众号
+            </DialogTitle>
+            <DialogDescription>
+              请复制链接并在微信中打开，完成授权
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-blue-800 font-medium mb-2">
+                📱 操作步骤：
+              </p>
+              <ol className="text-blue-700 text-sm space-y-2 list-decimal list-inside">
+                <li>点击下方「复制链接」按钮</li>
+                <li>打开微信，将链接发送给「文件传输助手」</li>
+                <li>在微信中点击打开该链接</li>
+                <li>按照页面提示完成扫码授权</li>
+              </ol>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">授权链接</Label>
+              <div className="bg-gray-50 border rounded-lg p-3 break-all text-sm text-gray-600 max-h-32 overflow-y-auto">
+                {authUrl}
+              </div>
+            </div>
+            
+            <Button 
+              onClick={handleCopyAuthUrl}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              size="lg"
+            >
+              {isCopied ? (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  已复制！快去微信打开吧
+                </>
+              ) : (
+                <>
+                  <Copy className="mr-2 h-4 w-4" />
+                  复制链接
+                </>
+              )}
+            </Button>
+            
+            <p className="text-xs text-muted-foreground text-center">
+              授权成功后，请刷新页面查看已绑定的公众号
+            </p>
           </div>
         </DialogContent>
       </Dialog>
