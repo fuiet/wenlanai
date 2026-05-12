@@ -667,21 +667,30 @@ export default function SmartWritingPage() {
     setShowAccountSelector(true);
   };
 
-  // 执行推送
+  // 执行推送 - 直接调用宝塔后端
   const doPush = async (article: Article, authorizerAppid: string) => {
     setShowAccountSelector(false);
     setPushingArticle(null);
 
     try {
-      const response = await fetch('/api/push-to-wechat', {
+      // 将Markdown内容转换为HTML格式
+      let htmlContent = article.content || '';
+      // 段落处理
+      htmlContent = htmlContent.split('\n\n').map(p => `<p>${p.trim()}</p>`).join('\n');
+      // 图片处理
+      if (article.images && article.images.length > 0) {
+        const imagesHtml = article.images.map(img => `<img src="${img}" style="max-width:100%;"/>`).join('\n');
+        htmlContent = htmlContent + '\n' + imagesHtml;
+      }
+
+      // 直接调用宝塔后端
+      const response = await fetch('https://wenlanai.top/api/push_draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           authorizer_appid: authorizerAppid,
           title: article.title,
-          content: article.content,
-          imageUrls: article.images
+          content: htmlContent
         })
       });
 
@@ -695,6 +704,10 @@ export default function SmartWritingPage() {
         } else {
           alert(data.message || '推送失败');
         }
+      } else {
+        const errorText = await response.text();
+        console.error('推送失败:', errorText);
+        alert('推送失败，请稍后重试');
       }
     } catch (error) {
       console.error('推送失败:', error);
