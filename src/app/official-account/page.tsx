@@ -230,20 +230,36 @@ function OfficialAccountContent() {
   const handleBindWechat = async () => {
     setIsBinding(true);
     setStatusMessage(null);
+    
     try {
-      // 不能直接从扣子域名跳转到微信授权页，需要先跳转到wenlanai.top
-      // 因为微信会检查referrer必须是授权方域名
+      // 1. 发起GET请求获取授权URL
+      const response = await fetch('https://wenlanai.top/wechat/auth_url');
+      const result = await response.json();
       
-      // 跳转到wenlanai.top的中间页面，由那里发起微信授权
-      // 这样referrer就是wenlanai.top，微信才能正确识别
-      const redirectUrl = encodeURIComponent(window.location.href);
-      const authRedirectUrl = `https://wenlanai.top/wechat/auth_redirect?redirect=${redirectUrl}`;
-      
-      // 直接跳转到wenlanai.top的中间页面
-      window.location.href = authRedirectUrl;
+      if (result.auth_url) {
+        // 2. 动态创建<a>标签，设置referrerPolicy='origin'
+        const authUrl = result.auth_url;
+        const a = document.createElement('a');
+        a.href = authUrl;
+        a.referrerPolicy = 'origin'; // 关键：让微信识别授权从wenlanai.top发起
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        setStatusMessage({ 
+          type: 'info', 
+          message: '请在打开的页面中完成扫码授权' 
+        });
+      } else {
+        setStatusMessage({ 
+          type: 'error', 
+          message: result.message || '获取授权链接失败' 
+        });
+      }
     } catch (error) {
-      console.error('授权跳转失败:', error);
-      setStatusMessage({ type: 'error', message: '授权跳转失败，请重试' });
+      console.error('获取授权链接失败:', error);
+      setStatusMessage({ type: 'error', message: '连接后端服务失败，请检查服务状态' });
+    } finally {
       setIsBinding(false);
     }
   };
