@@ -1,213 +1,92 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// 初始化Supabase客户端（延迟初始化）
-const createSupabaseClient = () => {
-  const supabaseUrl = process.env.COZE_SUPABASE_URL || '';
-  const supabaseServiceKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || '';
-  
-  if (!supabaseUrl || !supabaseServiceKey) {
-    return null;
-  }
-  
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createClient } = require('@supabase/supabase-js');
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
+// 宝塔后端地址
+const BACKEND_URL = process.env.WECHAT_BACKEND_URL || 'https://wenlanai.top';
 
 /**
- * 从数据库获取第三方平台配置
+ * 获取公众号授权二维码链接
+ * 通过调用宝塔后端接口实现
  */
-async function getComponentConfig() {
-  const supabaseClient = createSupabaseClient();
-  if (!supabaseClient) {
-    return null;
-  }
-  
+export async function GET(request: NextRequest) {
   try {
-    const { data } = await supabaseClient
-      .from('wechat_config')
-      .select('config_value')
-      .eq('config_key', 'component')
-      .single();
-    
-    if (data?.config_value) {
-      return JSON.parse(data.config_value);
+    // 获取重定向URL（可选）
+    const { searchParams } = new URL(request.url);
+    const redirectUri = searchParams.get('redirect_uri');
+
+    // 构建请求URL
+    let requestUrl = `${BACKEND_URL}/wechat/auth_url`;
+    if (redirectUri) {
+      requestUrl += `?redirect_uri=${encodeURIComponent(redirectUri)}`;
     }
-  } catch (error) {
-    console.error('获取第三方平台配置失败:', error);
-  }
-  
-  return null;
-}
 
-/**
- * 获取Component Access Token
- */
-async function getComponentAccessToken(config: { appId: string; appSecret: string }): Promise<{ token: string | null; expiresIn?: number }> {
-  try {
-    const tokenUrl = 'https://api.weixin.qq.com/cgi-bin/component/api_component_token';
-    const tokenResponse = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        component_appid: config.appId,
-        component_appsecret: config.appSecret,
-      }),
+    // 调用宝塔后端获取授权URL
+    const response = await fetch(requestUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
-    const tokenData = await tokenResponse.json();
 
-    if (tokenData.errcode) {
-      console.error('获取component_access_token失败:', tokenData);
-      return { token: null };
+    const result = await response.json();
+
+    if (response.ok && result.auth_url) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          authUrl: result.auth_url,
+          expiresIn: result.expires_in || 1800,
+        },
+      });
+    } else {
+      return NextResponse.json({
+        success: false,
+        message: result.message || '获取授权URL失败',
+        error: result.error,
+      }, { status: 500 });
     }
-
-    return { 
-      token: tokenData.component_access_token,
-      expiresIn: tokenData.expires_in 
-    };
   } catch (error) {
-    console.error('获取Component Access Token异常:', error);
-    return { token: null };
+    console.error('获取授权URL失败:', error);
+    return NextResponse.json({
+      success: false,
+      message: '无法连接到后端服务',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }, { status: 500 });
   }
 }
 
 /**
- * 获取预授权码
- */
-async function getPreAuthCode(config: { appId: string; appSecret: string }): Promise<string | null> {
-  const { token } = await getComponentAccessToken(config);
-  if (!token) {
-    return null;
-  }
-
-  try {
-    const preAuthUrl = `https://api.weixin.qq.com/cgi-bin/component/api_create_preauthcode?component_access_token=${token}`;
-    const preAuthResponse = await fetch(preAuthUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        component_appid: config.appId,
-      }),
-    });
-    const preAuthData = await preAuthResponse.json();
-
-    if (preAuthData.pre_auth_code) {
-      return preAuthData.pre_auth_code;
-    }
-
-    console.error('获取pre_auth_code失败:', preAuthData);
-    return null;
-  } catch (error) {
-    console.error('获取预授权码异常:', error);
-    return null;
-  }
-}
-
-/**
- * POST /api/wechat-auth/url
- * 生成授权URL
+ * 获取已授权公众号列表
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { redirectUri } = body;
+    const { action } = body;
 
-    // 从数据库获取配置
-    const config = await getComponentConfig();
-    
-    // 如果没有配置第三方平台，返回演示模式
-    if (!config?.appId || !config?.appSecret) {
-      console.log('微信第三方平台未配置，返回演示模式');
+    if (action === 'list') {
+      // 调用后端获取已授权账号列表
+      const response = await fetch(`${BACKEND_URL}/wechat/accounts`, {
+        method: 'GET',
+      });
+
+      const result = await response.json();
+
       return NextResponse.json({
         success: true,
-        demo: true,
-        message: '演示模式：第三方平台未配置，请先配置第三方平台',
-        data: {
-          authUrl: null,
-          preAuthCode: null,
-          expiresIn: 0,
-        },
+        accounts: result.accounts || [],
+        count: result.count || 0,
       });
     }
 
-    // 获取预授权码
-    const preAuthCode = await getPreAuthCode(config);
-    if (!preAuthCode) {
-      return NextResponse.json(
-        { success: false, message: '获取预授权码失败，请检查第三方平台配置是否正确' },
-        { status: 500 }
-      );
-    }
-
-    // 构建授权URL
-    const callbackUrl = redirectUri || `${process.env.COZE_PROJECT_DOMAIN_DEFAULT}/api/wechat-auth/callback`;
-    const authUrl = `https://mp.weixin.qq.com/cgi-bin/componentloginpage?component_appid=${config.appId}&pre_auth_code=${preAuthCode}&redirect_uri=${encodeURIComponent(callbackUrl)}&auth_type=1`;
-
     return NextResponse.json({
-      success: true,
-      authUrl,
-      data: {
-        authUrl,
-        preAuthCode,
-        expiresIn: 1800,
-      },
-    });
-
+      success: false,
+      message: '未知操作',
+    }, { status: 400 });
   } catch (error) {
-    console.error('生成授权URL异常:', error);
-    return NextResponse.json(
-      { success: false, message: '服务器异常' },
-      { status: 500 }
-    );
-  }
-}
-
-/**
- * GET /api/wechat-auth/url
- * 获取授权状态
- */
-export async function GET() {
-  try {
-    const supabaseClient = createSupabaseClient();
-    const config = await getComponentConfig();
-    
-    // 查询已授权的公众号
-    if (!supabaseClient) {
-      return NextResponse.json({
-        success: true,
-        configured: !!(config?.appId && config?.appSecret),
-        accounts: [],
-        count: 0,
-        demo: true,
-      });
-    }
-    
-    const { data: accounts, error } = await supabaseClient
-      .from('wechat_accounts')
-      .select('*')
-      .eq('is_authorized', true)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('查询公众号失败:', error);
-      return NextResponse.json(
-        { success: false, message: '查询失败' },
-        { status: 500 }
-      );
-    }
-
+    console.error('操作失败:', error);
     return NextResponse.json({
-      success: true,
-      configured: !!(config?.appId && config?.appSecret),
-      accounts: accounts || [],
-      count: accounts?.length || 0,
-    });
-
-  } catch (error) {
-    console.error('获取授权状态异常:', error);
-    return NextResponse.json(
-      { success: false, message: '服务器异常' },
-      { status: 500 }
-    );
+      success: false,
+      message: '操作失败',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }, { status: 500 });
   }
 }
