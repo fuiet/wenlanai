@@ -233,17 +233,40 @@ function OfficialAccountContent() {
   // 生成微信扫码授权
   const generateScanAuth = async () => {
     setScanLoading(true);
+    setStatusMessage(null);
     try {
       const response = await fetch('/api/wechat-auth/scan', {
         method: 'POST',
       });
       const result = await response.json();
+      
       if (result.success && result.data?.authUrl) {
         setScanAuthUrl(result.data.authUrl);
-        window.open(result.data.authUrl, '_blank');
+        // 在新窗口打开授权页面
+        window.open(result.data.authUrl, '_blank', 'width=800,height=600');
+        setStatusMessage({ 
+          type: 'info', 
+          message: '已打开授权页面，请在弹出窗口中完成授权' 
+        });
+      } else {
+        // 显示错误信息
+        setStatusMessage({ 
+          type: 'error', 
+          message: result.message || '生成授权链接失败' 
+        });
+        
+        // 如果需要配置，跳转到配置指南
+        if (result.needConfig || result.needTicket) {
+          setTimeout(() => {
+            if (result.helpUrl) {
+              window.open(result.helpUrl, '_blank');
+            }
+          }, 1500);
+        }
       }
     } catch (error) {
       console.error('生成授权链接失败:', error);
+      setStatusMessage({ type: 'error', message: '生成授权链接失败，请稍后重试' });
     } finally {
       setScanLoading(false);
     }
