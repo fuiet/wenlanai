@@ -199,22 +199,26 @@ export default function SmartWritingPage() {
   // 初始化加载
   useEffect(() => {
     // 检查localStorage中是否有正在生成的任务
-    const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
-    if (generatingTasks.length > 0) {
-      // 清除过期的任务（超过5分钟的视为已失败）
-      const now = Date.now();
-      const validTasks = generatingTasks.filter((task: any) => {
-        const taskAge = now - new Date(task.startedAt).getTime();
-        return taskAge < 5 * 60 * 1000; // 5分钟内
-      });
-      
-      if (validTasks.length === 0) {
-        // 所有任务都已过期，清除localStorage
-        localStorage.removeItem('generatingTasks');
-      } else if (validTasks.length < generatingTasks.length) {
-        // 部分任务过期，更新localStorage
-        localStorage.setItem('generatingTasks', JSON.stringify(validTasks));
+    try {
+      const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
+      if (generatingTasks.length > 0) {
+        // 清除过期的任务（超过5分钟的视为已失败）
+        const now = Date.now();
+        const validTasks = generatingTasks.filter((task: any) => {
+          const taskAge = now - new Date(task.startedAt).getTime();
+          return taskAge < 5 * 60 * 1000; // 5分钟内
+        });
+        
+        if (validTasks.length === 0) {
+          // 所有任务都已过期，清除localStorage
+          localStorage.removeItem('generatingTasks');
+        } else if (validTasks.length < generatingTasks.length) {
+          // 部分任务过期，更新localStorage
+          localStorage.setItem('generatingTasks', JSON.stringify(validTasks));
+        }
       }
+    } catch {
+      // localStorage 访问被拒绝时忽略
     }
     
     // 加载文章列表（会包含数据库中已生成的文章）
@@ -409,13 +413,17 @@ export default function SmartWritingPage() {
     setArticles(prev => [tempArticle, ...prev]);
 
     // 保存正在生成的任务到localStorage，用于页面切换后恢复
-    const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
-    const taskInfo = {
-      tempId: tempArticle.id,
-      topic: articleTopic,
-      startedAt: new Date().toISOString()
-    };
-    localStorage.setItem('generatingTasks', JSON.stringify([...generatingTasks, taskInfo]));
+    try {
+      const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
+      const taskInfo = {
+        tempId: tempArticle.id,
+        topic: articleTopic,
+        startedAt: new Date().toISOString()
+      };
+      localStorage.setItem('generatingTasks', JSON.stringify([...generatingTasks, taskInfo]));
+    } catch {
+      // localStorage 访问被拒绝时忽略
+    }
 
     // 后台异步生成文章
     try {
@@ -479,9 +487,13 @@ export default function SmartWritingPage() {
           // 找到临时文章的位置并替换，并清除localStorage
           setArticles(prevArticles => {
             // 清除localStorage中的任务
-            const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
-            const updatedTasks = generatingTasks.filter((t: any) => t.tempId !== tempArticle.id);
-            localStorage.setItem('generatingTasks', JSON.stringify(updatedTasks));
+            try {
+              const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
+              const updatedTasks = generatingTasks.filter((t: any) => t.tempId !== tempArticle.id);
+              localStorage.setItem('generatingTasks', JSON.stringify(updatedTasks));
+            } catch {
+              // localStorage 访问被拒绝时忽略
+            }
             
             const index = prevArticles.findIndex(a => a.id === tempArticle.id);
             if (index !== -1) {
@@ -496,9 +508,13 @@ export default function SmartWritingPage() {
           // 生成失败，更新状态，并清除localStorage
           setArticles(prevArticles => {
             // 清除localStorage中的任务
-            const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
-            const updatedTasks = generatingTasks.filter((t: any) => t.tempId !== tempArticle.id);
-            localStorage.setItem('generatingTasks', JSON.stringify(updatedTasks));
+            try {
+              const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
+              const updatedTasks = generatingTasks.filter((t: any) => t.tempId !== tempArticle.id);
+              localStorage.setItem('generatingTasks', JSON.stringify(updatedTasks));
+            } catch {
+              // localStorage 访问被拒绝时忽略
+            }
             
             const index = prevArticles.findIndex(a => a.id === tempArticle.id);
             if (index !== -1) {
@@ -519,9 +535,13 @@ export default function SmartWritingPage() {
         // 请求失败，更新状态，并清除localStorage
         setArticles(prevArticles => {
           // 清除localStorage中的任务
-          const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
-          const updatedTasks = generatingTasks.filter((t: any) => t.tempId !== tempArticle.id);
-          localStorage.setItem('generatingTasks', JSON.stringify(updatedTasks));
+          try {
+            const generatingTasks = JSON.parse(localStorage.getItem('generatingTasks') || '[]');
+            const updatedTasks = generatingTasks.filter((t: any) => t.tempId !== tempArticle.id);
+            localStorage.setItem('generatingTasks', JSON.stringify(updatedTasks));
+          } catch {
+            // localStorage 访问被拒绝时忽略
+          }
           
           const index = prevArticles.findIndex(a => a.id === tempArticle.id);
           if (index !== -1) {
@@ -1943,5 +1963,4 @@ export default function SmartWritingPage() {
       </Dialog>
     </div>
   );
-}
-}
+}}

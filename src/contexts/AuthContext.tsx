@@ -43,14 +43,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 初始化时从 localStorage 读取用户数据
   useEffect(() => {
-    const stored = localStorage.getItem('user');
-    if (stored) {
-      try {
-        const userData = JSON.parse(stored);
-        setUser(userData);
-      } catch (e) {
-        console.error('解析用户数据失败:', e);
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        try {
+          const userData = JSON.parse(stored);
+          setUser(userData);
+        } catch (e) {
+          console.error('解析用户数据失败:', e);
+        }
       }
+    } catch {
+      // localStorage 访问被拒绝时忽略
     }
     setIsHydrated(true);
   }, []);
@@ -73,11 +77,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: data.data.email
         };
         setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
+        try {
+          localStorage.setItem('user', JSON.stringify(userData));
+        } catch {
+          // localStorage 访问被拒绝时忽略
+        }
       } else {
         // API 返回失败，清除本地数据
         setUser(null);
-        localStorage.removeItem('user');
+        try {
+          localStorage.removeItem('user');
+        } catch {
+          // localStorage 访问被拒绝时忽略
+        }
       }
     } catch (err) {
       console.error('检查登录状态失败:', err);
@@ -102,7 +114,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       vipLevel: userData.vipLevel || 1
     };
     setUser(userInfo);
-    localStorage.setItem('user', JSON.stringify(userInfo));
+    try {
+      localStorage.setItem('user', JSON.stringify(userInfo));
+    } catch {
+      // localStorage 访问被拒绝时忽略
+    }
   };
 
   // 退出登录
@@ -117,7 +133,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setUser(null);
       setProfile(null);
-      localStorage.removeItem('user');
+      try {
+        localStorage.removeItem('user');
+      } catch {
+        // localStorage 访问被拒绝时忽略
+      }
       router.push('/');
     }
   };

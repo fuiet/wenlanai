@@ -32,7 +32,13 @@ export default function LoginInterceptor() {
 
   useEffect(() => {
     // 检查用户是否已登录（优先使用user状态，也检查localStorage作为后备）
-    const isLoggedIn = user || localStorage.getItem('session_token');
+    let hasToken = false;
+    try {
+      hasToken = !!localStorage.getItem('session_token');
+    } catch {
+      // localStorage 访问被拒绝时忽略
+    }
+    const isLoggedIn = user || hasToken;
     
     // 已登录用户不需要拦截
     if (isLoggedIn) return;
