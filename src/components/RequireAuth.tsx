@@ -37,6 +37,10 @@ export function RequireAuth({ children }: RequireAuthProps) {
 // 检查是否已登录的工具函数
 export function isLoggedIn(): boolean {
   if (typeof window === 'undefined') return false;
-  const user = localStorage.getItem('user');
-  return !!user;
+  try {
+    const user = localStorage.getItem('user');
+    return !!user;
+  } catch {
+    return false;
+  }
 }

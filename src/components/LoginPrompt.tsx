@@ -65,9 +65,19 @@ export function RequireLoginButton({ children, onClick, className = '' }: Requir
 
   const handleClick = () => {
     if (typeof window !== 'undefined') {
-      const user = localStorage.getItem('user');
-      if (!user) {
-        sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+      try {
+        const user = localStorage.getItem('user');
+        if (!user) {
+          try {
+            sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+          } catch {
+            // sessionStorage 访问被拒绝时忽略
+          }
+          router.push('/auth');
+          return;
+        }
+      } catch {
+        // localStorage 访问被拒绝时，直接跳转到登录页
         router.push('/auth');
         return;
       }

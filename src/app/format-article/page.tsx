@@ -209,11 +209,15 @@ function FormatArticleContent() {
 
   // 从localStorage加载用户模板
   useEffect(() => {
-    const saved = localStorage.getItem('formatTemplates');
-    if (saved) {
-      try {
-        setUserTemplates(JSON.parse(saved));
-      } catch {}
+    try {
+      const saved = localStorage.getItem('formatTemplates');
+      if (saved) {
+        try {
+          setUserTemplates(JSON.parse(saved));
+        } catch {}
+      }
+    } catch {
+      // localStorage 访问被拒绝时忽略
     }
   }, []);
 
@@ -264,7 +268,11 @@ function FormatArticleContent() {
     };
     const updated = [...userTemplates, newTemplate];
     setUserTemplates(updated);
-    localStorage.setItem('formatTemplates', JSON.stringify(updated));
+    try {
+      localStorage.setItem('formatTemplates', JSON.stringify(updated));
+    } catch {
+      // localStorage 访问被拒绝时忽略
+    }
     setTemplateName('');
     setShowTemplateInput(false);
     alert('模板保存成功');
@@ -280,7 +288,11 @@ function FormatArticleContent() {
     if (!confirm('确定要删除这个模板吗？')) return;
     const updated = userTemplates.filter(t => t.id !== id);
     setUserTemplates(updated);
-    localStorage.setItem('formatTemplates', JSON.stringify(updated));
+    try {
+      localStorage.setItem('formatTemplates', JSON.stringify(updated));
+    } catch {
+      // localStorage 访问被拒绝时忽略
+    }
   };
 
   // 恢复默认
