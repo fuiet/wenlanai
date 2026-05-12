@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import QRCode from 'qrcode';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +17,6 @@ import {
   CheckCircle,
   AlertCircle,
   Send,
-  QrCode,
   UserCircle,
   Loader2,
   Shield,
@@ -88,12 +86,6 @@ function OfficialAccountContent() {
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [configStatus, setConfigStatus] = useState<{ configured: boolean; appId?: string } | null>(null);
   const [showConfigSuccess, setShowConfigSuccess] = useState(false);
-  
-  // 二维码授权相关状态
-  const [showQrModal, setShowQrModal] = useState(false);
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
-  const [authChecking, setAuthChecking] = useState(false);
 
   // 模拟待推送文章数据
   const mockArticles = [
@@ -234,87 +226,42 @@ function OfficialAccountContent() {
     loadConfigStatus();
   }, []);
 
-  // 绑定公众号 - 显示二维码模态框
+  // 绑定公众号 - 标准PC版扫码授权流程
   const handleBindWechat = async () => {
     setIsBinding(true);
     setStatusMessage(null);
     try {
-      // 直接调用宝塔后端获取授权URL
+      // 调用宝塔后端获取授权URL
       const response = await fetch('https://wenlanai.top/wechat/auth_url');
       const result = await response.json();
       
       if (result.auth_url) {
-        // 生成二维码
-        const qrDataUrl = await QRCode.toDataURL(result.auth_url, {
-          width: 280,
-          margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#ffffff'
-          }
+        // 使用标准的HTML跳转方式，设置referrerPolicy='origin'
+        // 这告诉微信服务器请求来自wenlanai.top
+        const a = document.createElement('a');
+        a.href = result.auth_url;
+        a.target = '_blank';
+        a.referrerPolicy = 'origin'; // 关键：告诉微信请求来自wenlanai.top
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        setStatusMessage({ 
+          type: 'info', 
+          message: '请在打开的页面中完成扫码授权' 
         });
-        
-        setQrCodeUrl(result.auth_url);
-        setQrCodeDataUrl(qrDataUrl);
-        setShowQrModal(true);
-        setIsBinding(false);
-        
-        // 开始轮询检查授权状态
-        startAuthCheck();
       } else {
         setStatusMessage({ 
           type: 'error', 
           message: result.message || '获取授权链接失败' 
         });
-        setIsBinding(false);
       }
     } catch (error) {
       console.error('获取授权链接失败:', error);
       setStatusMessage({ type: 'error', message: '连接后端服务失败，请检查服务状态' });
+    } finally {
       setIsBinding(false);
     }
-  };
-  
-  // 轮询检查授权状态
-  const authCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const startAuthCheck = useCallback(() => {
-    setAuthChecking(true);
-    
-    // 每3秒检查一次授权状态
-    authCheckIntervalRef.current = setInterval(async () => {
-      try {
-        const response = await fetch('https://wenlanai.top/wechat/authorized_accounts');
-        const result = await response.json();
-        
-        if (result.accounts && result.accounts.length > 0) {
-          // 授权成功
-          stopAuthCheck();
-          setShowQrModal(false);
-          setStatusMessage({ 
-            type: 'success', 
-            message: '授权成功！公众号已绑定' 
-          });
-          loadAccounts();
-        }
-      } catch (error) {
-        console.error('检查授权状态失败:', error);
-      }
-    }, 3000);
-  }, []);
-  
-  const stopAuthCheck = useCallback(() => {
-    setAuthChecking(false);
-    if (authCheckIntervalRef.current) {
-      clearInterval(authCheckIntervalRef.current);
-      authCheckIntervalRef.current = null;
-    }
-  }, []);
-  
-  // 关闭二维码模态框
-  const closeQrModal = () => {
-    setShowQrModal(false);
-    stopAuthCheck();
   };
 
   // AppID/AppSecret绑定
@@ -524,7 +471,7 @@ function OfficialAccountContent() {
             公众号列表 ({accounts.length})
           </TabsTrigger>
           <TabsTrigger value="auth" className="flex items-center gap-2">
-            <QrCode className="h-4 w-4" />
+            <ExternalLink className="h-4 w-4" />
             扫码授权
           </TabsTrigger>
           <TabsTrigger value="config" className="flex items-center gap-2">
@@ -720,7 +667,7 @@ function OfficialAccountContent() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <QrCode className="h-5 w-5 text-blue-500" />
+                  <ExternalLink className="h-5 w-5 text-blue-500" />
                   绑定公众号
                 </CardTitle>
                 <CardDescription>
@@ -1134,66 +1081,6 @@ function OfficialAccountContent() {
                 推送 {selectedArticles.length} 篇文章
               </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* 二维码授权模态框 */}
-      <Dialog open={showQrModal} onOpenChange={closeQrModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <QrCode className="h-5 w-5 text-orange-500" />
-              扫码授权公众号
-            </DialogTitle>
-            <DialogDescription>
-              请使用公众号管理员微信扫描下方二维码完成授权
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="flex flex-col items-center py-6">
-            {qrCodeDataUrl ? (
-              <div className="relative">
-                <img 
-                  src={qrCodeDataUrl} 
-                  alt="授权二维码" 
-                  className="w-64 h-64 rounded-lg shadow-lg"
-                />
-                {authChecking && (
-                  <div className="absolute bottom-2 left-0 right-0 text-center">
-                    <span className="text-xs text-gray-500 flex items-center justify-center gap-1">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      等待扫码授权中...
-                    </span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="w-64 h-64 flex items-center justify-center bg-gray-100 rounded-lg">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-              </div>
-            )}
-            
-            <p className="mt-4 text-sm text-gray-500 text-center">
-              授权成功后，页面将自动刷新
-            </p>
-          </div>
-          
-          <div className="flex justify-center gap-3">
-            <Button variant="outline" onClick={closeQrModal}>
-              取消
-            </Button>
-            <Button 
-              variant="outline"
-              onClick={() => {
-                if (qrCodeUrl) {
-                  navigator.clipboard.writeText(qrCodeUrl);
-                }
-              }}
-            >
-              <Copy className="mr-2 h-4 w-4" />
-              复制链接
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
