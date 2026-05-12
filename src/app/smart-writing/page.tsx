@@ -608,6 +608,29 @@ export default function SmartWritingPage() {
   };
 
   // 推送到微信草稿箱 - 需审核通过
+  // 已授权公众号列表
+  const [authorizedAccounts, setAuthorizedAccounts] = useState<{appid: string, nickname: string}[]>([]);
+  const [showAccountSelector, setShowAccountSelector] = useState(false);
+  const [pushingArticle, setPushingArticle] = useState<Article | null>(null);
+
+  // 获取已授权公众号列表
+  const fetchAuthorizedAccounts = async () => {
+    try {
+      const response = await fetch('/api/wechat/authorized-accounts');
+      const data = await response.json();
+      if (data.success) {
+        setAuthorizedAccounts(data.data || []);
+      }
+    } catch (error) {
+      console.error('获取公众号列表失败:', error);
+    }
+  };
+
+  // 页面加载时获取公众号列表
+  useEffect(() => {
+    fetchAuthorizedAccounts();
+  }, []);
+
   const handlePushToWechat = async (article: Article) => {
     // 检查审核状态
     if (article.review_status === 'failed' || article.status === 'review_failed') {
@@ -623,15 +646,42 @@ export default function SmartWritingPage() {
       return;
     }
 
+    // 检查是否有已授权公众号
+    if (authorizedAccounts.length === 0) {
+      // 没有已授权公众号，提示用户先授权
+      const goAuth = confirm('您还没有绑定公众号，是否现在去绑定？');
+      if (goAuth) {
+        window.location.href = '/official-account?tab=auth';
+      }
+      return;
+    }
+
+    // 如果只有一个公众号，直接推送
+    if (authorizedAccounts.length === 1) {
+      await doPush(article, authorizedAccounts[0].appid);
+      return;
+    }
+
+    // 多个公众号，显示选择器
+    setPushingArticle(article);
+    setShowAccountSelector(true);
+  };
+
+  // 执行推送
+  const doPush = async (article: Article, authorizerAppid: string) => {
+    setShowAccountSelector(false);
+    setPushingArticle(null);
+
     try {
       const response = await fetch('/api/push-to-wechat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
+          authorizer_appid: authorizerAppid,
           title: article.title,
           content: article.content,
-          imageUrls: article.image_urls
+          imageUrls: article.images
         })
       });
 
@@ -1991,6 +2041,43 @@ export default function SmartWritingPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* 公众号选择器弹窗 */}
+      {showAccountSelector && pushingArticle && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">选择要推送的公众号</h3>
+            <div className="space-y-2">
+              {authorizedAccounts.map((account) => (
+                <button
+                  key={account.appid}
+                  onClick={() => doPush(pushingArticle, account.appid)}
+                  className="w-full p-4 text-left rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all flex items-center gap-3"
+                >
+                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{account.nickname}</p>
+                    <p className="text-xs text-gray-500">{account.appid}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                setShowAccountSelector(false);
+                setPushingArticle(null);
+              }}
+              className="mt-4 w-full py-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

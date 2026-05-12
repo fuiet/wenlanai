@@ -6,11 +6,24 @@ const BACKEND_URL = process.env.WECHAT_BACKEND_URL || 'https://wenlanai.top';
 /**
  * 推送文章到微信公众号草稿箱
  * 通过调用宝塔后端接口实现
+ * 
+ * 请求参数：
+ * - authorizer_appid: 已授权公众号的 AppID（必填）
+ * - title: 文章标题（必填）
+ * - content: 文章正文，HTML 格式（必填）
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, content, imageUrls, authorId } = body;
+    const { authorizer_appid, title, content, imageUrls } = body;
+
+    // 参数校验
+    if (!authorizer_appid) {
+      return NextResponse.json({
+        success: false,
+        message: '缺少必要参数：authorizer_appid（已授权公众号的 AppID）'
+      }, { status: 400 });
+    }
 
     if (!title || !content) {
       return NextResponse.json({
@@ -26,10 +39,10 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        authorizer_appid,
         title,
         content,
         image_urls: imageUrls || [],
-        author_id: authorId,
       }),
     });
 
