@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 
 // 创建数据库连接池
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.PGDATABASE_URL || process.env.DATABASE_URL,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 30000, // 增加到30秒
