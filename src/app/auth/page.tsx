@@ -29,6 +29,14 @@ export default function AuthPage() {
         body: JSON.stringify({ username, password })
       });
 
+      // 检查响应类型是否为 JSON
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        setError('服务器响应异常，请稍后重试');
+        console.error('API 返回非 JSON 响应:', contentType);
+        return;
+      }
+
       const data = await res.json();
 
       if (data.success) {
@@ -42,6 +50,7 @@ export default function AuthPage() {
         setError(data.error || '登录失败');
       }
     } catch (err: any) {
+      console.error('登录错误:', err);
       setError(err.message || '网络错误');
     } finally {
       setLoading(false);
@@ -73,6 +82,14 @@ export default function AuthPage() {
         body: JSON.stringify({ username, password })
       });
 
+      // 检查响应类型是否为 JSON
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        setError('服务器响应异常，请稍后重试');
+        console.error('API 返回非 JSON 响应:', contentType);
+        return;
+      }
+
       const data = await res.json();
 
       if (data.success) {
@@ -85,6 +102,7 @@ export default function AuthPage() {
         setError(data.error || '注册失败');
       }
     } catch (err: any) {
+      console.error('注册错误:', err);
       setError(err.message || '网络错误');
     } finally {
       setLoading(false);

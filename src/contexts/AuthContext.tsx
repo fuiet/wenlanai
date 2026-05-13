@@ -66,6 +66,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch('/api/member/profile', {
         credentials: 'include'
       });
+      
+      // 检查响应类型是否为 JSON
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('API 返回非 JSON 响应:', contentType);
+        // 非 JSON 响应，可能是错误页面，不清除本地数据
+        return;
+      }
+      
       const data = await res.json();
 
       if (data.success && data.data) {
