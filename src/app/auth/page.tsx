@@ -34,8 +34,10 @@ export default function AuthPage() {
       if (data.success) {
         // 更新全局状态
         login(data.data.user);
-        // 跳转到首页
-        router.push('/');
+        // 等待一小段时间确保 cookie 生效，然后跳转到首页
+        setTimeout(() => {
+          router.push('/');
+        }, 100);
       } else {
         setError(data.error || '登录失败');
       }

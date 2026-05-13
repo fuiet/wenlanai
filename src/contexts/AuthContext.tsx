@@ -83,12 +83,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // localStorage 访问被拒绝时忽略
         }
       } else {
-        // API 返回失败，清除本地数据
-        setUser(null);
+        // API 返回失败
+        // 检查本地是否有用户数据，如果有则保留（可能是刚登录，cookie还没生效）
         try {
-          localStorage.removeItem('user');
+          const stored = localStorage.getItem('user');
+          if (!stored) {
+            // 本地没有用户数据，才清除
+            setUser(null);
+          }
+          // 如果本地有用户数据，保留它，等待下次 checkAuth 验证
         } catch {
-          // localStorage 访问被拒绝时忽略
+          setUser(null);
         }
       }
     } catch (err) {

@@ -75,10 +75,12 @@ export async function POST(request: NextRequest) {
     });
 
     // 设置 Cookie
+    // 生产环境必须使用 secure: true（HTTPS）
+    const isProduction = process.env.COZE_PROJECT_ENV === 'PROD';
     response.cookies.set('session_token', token, {
       path: '/',
       httpOnly: true,
-      secure: false, // 开发环境设为 false
+      secure: isProduction, // 生产环境必须 true
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7 // 7天
     });
