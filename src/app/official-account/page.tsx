@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import QRCode from 'qrcode';
+import { WECHAT_API_BASE_URL } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -118,7 +119,7 @@ function OfficialAccountContent() {
   const loadAccounts = async () => {
     setAccountsLoading(true);
     try {
-      const response = await fetch('/api/wechat-auth/url');
+      const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat-auth/url`);
       const result = await response.json();
       if (result.success) {
         setAccounts(result.accounts || []);
@@ -136,7 +137,7 @@ function OfficialAccountContent() {
     setQrCodeError(null);
     try {
       // 通过代理API获取授权链接
-      const response = await fetch('/api/wechat/auth-url-proxy');
+      const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat/auth-url-proxy`);
       const result = await response.json();
       if (result.auth_url) {
         // 使用 qrserver API 生成二维码图片
@@ -255,7 +256,7 @@ function OfficialAccountContent() {
           content_source_url: article.content_source_url,
         }));
 
-      const response = await fetch('/api/wechat/batch-send', {
+      const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat/batch-send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

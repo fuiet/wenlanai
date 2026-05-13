@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+// 业务 API 使用相对路径
 import { 
   X, FileText, Target, User, Settings, Zap, Plus, Info, AlertTriangle, 
   Lightbulb, Check, Rocket, Loader2, Trash2, Edit2, 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { WECHAT_API_BASE_URL } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, AlertCircle, Smartphone, ArrowRight } from 'lucide-react';
@@ -24,7 +25,7 @@ function ScanCallbackContent() {
       
       try {
         // 调用API验证ticket并完成授权
-        const response = await fetch('/api/wechat-auth/callback', {
+        const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat-auth/callback`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ticket }),

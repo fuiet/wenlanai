@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { WECHAT_API_BASE_URL } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,7 +40,7 @@ export default function WechatAuth({ onAuthorized }: WechatAuthProps) {
     setError('');
 
     try {
-      const response = await fetch('/api/wechat/get-access-token', {
+      const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat/get-access-token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

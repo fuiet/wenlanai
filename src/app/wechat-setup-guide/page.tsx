@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { WECHAT_API_BASE_URL } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -83,7 +84,7 @@ export default function WechatSetupGuide() {
     }
 
     try {
-      const response = await fetch('/api/wechat-config', {
+      const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat-config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),

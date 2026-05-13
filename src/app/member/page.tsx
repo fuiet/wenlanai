@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+// 业务 API 使用相对路径
 import { Button } from '@/components/ui/button';
 
 const CATEGORIES = [

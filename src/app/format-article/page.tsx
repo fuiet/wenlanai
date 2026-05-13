@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { WECHAT_API_BASE_URL } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -341,7 +342,7 @@ function FormatArticleContent() {
       // 清理标题中的 Markdown 格式
       const cleanTitle = title.replace(/^#+\s*/, '').replace(/[*_`]/g, '');
       
-      const response = await fetch('/api/push-to-wechat', {
+      const response = await fetch(`${WECHAT_API_BASE_URL}/api/push-to-wechat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

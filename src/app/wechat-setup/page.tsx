@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { WECHAT_API_BASE_URL } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +26,7 @@ export default function WechatSetupPage() {
 
   const fetchConfig = async () => {
     try {
-      const res = await fetch('/api/wechat-config');
+      const res = await fetch(`${WECHAT_API_BASE_URL}/api/wechat-config`);
       const data = await res.json();
       if (data.success && data.config) {
         setSavedConfig(data.config);
@@ -35,7 +36,7 @@ export default function WechatSetupPage() {
       }
       
       // 获取ticket状态
-      const ticketRes = await fetch('/api/wechat-auth/ticket');
+      const ticketRes = await fetch(`${WECHAT_API_BASE_URL}/api/wechat-auth/ticket`);
       const ticketData = await ticketRes.json();
       if (ticketData.success && ticketData.ticket) {
         setTicket(ticketData.ticket);
@@ -50,7 +51,7 @@ export default function WechatSetupPage() {
     setMessage(null);
 
     try {
-      const res = await fetch('/api/wechat-config', {
+      const res = await fetch(`${WECHAT_API_BASE_URL}/api/wechat-config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),

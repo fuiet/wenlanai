@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { WECHAT_API_BASE_URL } from '@/lib/api';
 
-// 安全访问 localStorage 的辅助函数
+// 业务 API 使用相对路径，微信 API 使用宝塔后端
 const getStorageItem = (key: string): string | null => {
   try {
     return window.localStorage.getItem(key);
@@ -616,7 +617,7 @@ export default function SmartWritingPage() {
   // 获取已授权公众号列表
   const fetchAuthorizedAccounts = async () => {
     try {
-      const response = await fetch('/api/wechat/authorized-accounts');
+      const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat/authorized-accounts`);
       const data = await response.json();
       if (data.success) {
         setAuthorizedAccounts(data.data || []);
@@ -684,7 +685,7 @@ export default function SmartWritingPage() {
       }
 
       // 通过代理API调用宝塔后端
-      const response = await fetch('/api/push-to-wechat', {
+      const response = await fetch(`${WECHAT_API_BASE_URL}/api/push-to-wechat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

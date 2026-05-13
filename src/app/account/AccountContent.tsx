@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { WECHAT_API_BASE_URL } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -103,7 +104,7 @@ export default function AccountContent() {
   // 加载公众号列表
   const loadAccounts = async () => {
     try {
-      const response = await fetch('/api/wechat-auth/url');
+      const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat-auth/url`);
       const result = await response.json();
       
       if (result.success) {
@@ -127,7 +128,7 @@ export default function AccountContent() {
     setScanAuthData(null);
     
     try {
-      const response = await fetch('/api/wechat-auth/scan', {
+      const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat-auth/scan`, {
         method: 'POST',
       });
       
@@ -193,7 +194,7 @@ export default function AccountContent() {
     setStatusMessage(null);
 
     try {
-      const response = await fetch('/api/wechat-auth/bind', {
+      const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat-auth/bind`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
