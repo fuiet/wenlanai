@@ -135,14 +135,15 @@ function OfficialAccountContent() {
     setQrCodeLoading(true);
     setQrCodeError(null);
     try {
-      const response = await fetch('https://wenlanai.top/wechat/auth_url');
+      // 通过代理API获取授权链接
+      const response = await fetch('/api/wechat/auth-url-proxy');
       const result = await response.json();
       if (result.auth_url) {
         // 使用 qrserver API 生成二维码图片
         const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(result.auth_url)}`;
         setQrCodeUrl(qrApiUrl);
       } else {
-        setQrCodeError('获取授权链接失败');
+        setQrCodeError(result.error || '获取授权链接失败');
       }
     } catch (error) {
       console.error('获取二维码失败:', error);
