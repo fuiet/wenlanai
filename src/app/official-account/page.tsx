@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+import QRCode from 'qrcode';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -75,10 +76,12 @@ function OfficialAccountContent() {
   // 账号管理相关状态
   const [accounts, setAccounts] = useState<WechatAccount[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(true);
-  const [isBinding, setIsBinding] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
-  const [bindAppId, setBindAppId] = useState('');
-  const [bindAppSecret, setBindAppSecret] = useState('');
+  
+  // 二维码相关状态
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [qrCodeLoading, setQrCodeLoading] = useState(false);
+  const [qrCodeError, setQrCodeError] = useState<string | null>(null);
   
   // 模拟待推送文章数据
   const mockArticles = [
@@ -127,59 +130,38 @@ function OfficialAccountContent() {
     }
   };
 
+  // 获取授权二维码
+  const loadQrCode = async () => {
+    setQrCodeLoading(true);
+    setQrCodeError(null);
+    try {
+      const response = await fetch('https://wenlanai.top/wechat/auth_url');
+      const result = await response.json();
+      if (result.auth_url) {
+        // 使用 qrserver API 生成二维码图片
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(result.auth_url)}`;
+        setQrCodeUrl(qrApiUrl);
+      } else {
+        setQrCodeError('获取授权链接失败');
+      }
+    } catch (error) {
+      console.error('获取二维码失败:', error);
+      setQrCodeError('获取二维码失败，请稍后重试');
+    } finally {
+      setQrCodeLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadAccounts();
   }, []);
 
-  // 绑定公众号 - 直接跳转到授权页面
-  const handleBindWechat = () => {
-    window.location.href = 'https://wenlanai.top/wechat-auth.html';
-  };
-
-  // AppID/AppSecret绑定
-  const handleBindAccount = async () => {
-    if (!bindAppId.trim() || !bindAppSecret.trim()) {
-      setStatusMessage({ type: 'error', message: '请输入AppID和AppSecret' });
-      return;
+  // 切换到扫码授权Tab时自动加载二维码
+  useEffect(() => {
+    if (defaultTab === 'auth') {
+      loadQrCode();
     }
-
-    setIsBinding(true);
-    setStatusMessage(null);
-
-    try {
-      const response = await fetch('/api/wechat-auth/bind', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appId: bindAppId.trim(),
-          appSecret: bindAppSecret.trim(),
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setStatusMessage({ 
-          type: 'success', 
-          message: `绑定成功！公众号「${result.data?.nickname || bindAppId}」已绑定` 
-        });
-        setBindAppId('');
-        setBindAppSecret('');
-        loadAccounts();
-        setDefaultTab('list');
-      } else {
-        setStatusMessage({ 
-          type: 'error', 
-          message: result.message || '绑定失败，请检查AppID和AppSecret是否正确' 
-        });
-      }
-    } catch (error) {
-      console.error('绑定公众号失败:', error);
-      setStatusMessage({ type: 'error', message: '绑定失败，请稍后重试' });
-    } finally {
-      setIsBinding(false);
-    }
-  };
+  }, [defaultTab]);
 
   // 解绑公众号
   const handleDeleteAccount = async (appId: string) => {
@@ -336,7 +318,7 @@ function OfficialAccountContent() {
       )}
 
       {/* Tab切换 */}
-      <Tabs defaultValue={defaultTab} className="mb-6">
+      <Tabs value={defaultTab} onValueChange={setDefaultTab} className="mb-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="accounts" className="flex items-center gap-2">
             <UserCheck className="h-4 w-4" />
@@ -527,176 +509,41 @@ function OfficialAccountContent() {
           </div>
         </TabsContent>
 
-        {/* 账号管理Tab */}
+        {/* 扫码授权Tab */}
         <TabsContent value="auth" className="mt-6">
-          <div className="grid gap-6 lg:grid-cols-3">
-            {/* 扫码授权 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ExternalLink className="h-5 w-5 text-blue-500" />
-                  绑定公众号
-                </CardTitle>
-                <CardDescription>
-                  点击按钮跳转到微信授权页面，扫码授权绑定您的公众号
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button 
-                  onClick={handleBindWechat}
-                  disabled={isBinding}
-                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                  size="lg"
-                >
-                  {isBinding ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      正在跳转...
-                    </>
-                  ) : (
-                    <>
-                      <UserCheck className="mr-2 h-4 w-4" />
-                      绑定公众号
-                    </>
-                  )}
-                </Button>
-                <p className="text-sm text-muted-foreground text-center">
-                  点击后将跳转到微信授权页面，请使用公众号管理员微信扫码授权
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* AppID绑定 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-green-500" />
-                  AppID绑定
-                </CardTitle>
-                <CardDescription>
-                  输入公众号凭证完成绑定
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="appId">AppID</Label>
-                  <Input
-                    id="appId"
-                    placeholder="例如：wx1234567890abcdef"
-                    value={bindAppId}
-                    onChange={(e) => setBindAppId(e.target.value)}
-                    className="font-mono"
+          <Card className="max-w-md mx-auto">
+            <CardHeader className="text-center">
+              <CardTitle>扫码授权绑定公众号</CardTitle>
+              <CardDescription>
+                使用公众号管理员微信扫描下方二维码完成授权
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center space-y-4">
+              {qrCodeLoading ? (
+                <div className="flex items-center justify-center w-64 h-64 bg-gray-100 rounded-lg">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : qrCodeUrl ? (
+                <div className="p-4 bg-white rounded-lg border shadow-sm">
+                  <img 
+                    src={qrCodeUrl} 
+                    alt="微信授权二维码" 
+                    className="w-64 h-64"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="appSecret">AppSecret</Label>
-                  <Input
-                    id="appSecret"
-                    type="password"
-                    placeholder="请输入AppSecret"
-                    value={bindAppSecret}
-                    onChange={(e) => setBindAppSecret(e.target.value)}
-                    className="font-mono"
-                  />
+              ) : (
+                <div className="flex flex-col items-center justify-center w-64 h-64 bg-gray-100 rounded-lg">
+                  <p className="text-gray-500 text-sm mb-4">{qrCodeError || '获取二维码失败'}</p>
+                  <Button variant="outline" onClick={loadQrCode}>
+                    重新获取
+                  </Button>
                 </div>
-                <Button 
-                  onClick={() => {
-                    handleBindAccount();
-                  }}
-                  disabled={isBinding || !bindAppId || !bindAppSecret}
-                  className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
-                >
-                  {isBinding ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      绑定中...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      确认绑定
-                    </>
-                  )}
-                </Button>
-                <p className="text-xs text-gray-500 text-center">
-                  获取位置：微信公众平台 → 设置与开发 → 基本配置
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* 已绑定列表 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <UserCircle className="h-5 w-5" />
-                  已绑定 ({accounts.length})
-                </CardTitle>
-                <CardDescription>
-                  绑定后可使用一键推送功能
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {accountsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  </div>
-                ) : accounts.length === 0 ? (
-                  <div className="text-center py-6 text-gray-500">
-                    <UserCircle className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-                    <p className="text-sm">暂无已绑定的公众号</p>
-                    <p className="text-xs text-gray-400 mt-1">使用左侧方式添加</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-h-80 overflow-y-auto">
-                    {accounts.map((account) => (
-                      <div 
-                        key={account.id}
-                        className="flex items-center gap-3 p-3 border rounded-lg bg-white hover:shadow-sm transition-shadow"
-                      >
-                        {/* 头像 */}
-                        <div className="flex-shrink-0">
-                          {account.head_img ? (
-                            <img 
-                              src={account.head_img} 
-                              alt={account.nickname}
-                              className="w-10 h-10 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                              <UserCircle className="h-5 w-5 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 信息 */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1 mb-0.5">
-                            <h4 className="font-medium text-gray-900 truncate text-sm">
-                              {account.nickname || '未命名公众号'}
-                            </h4>
-                            {getAccountTypeBadge(account)}
-                          </div>
-                          <p className="text-xs text-gray-500 truncate">
-                            {account.alias || account.user_name || account.app_id}
-                          </p>
-                        </div>
-
-                        {/* 解绑按钮 */}
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                          onClick={() => handleDeleteAccount(account.app_id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+              )}
+              <p className="text-sm text-muted-foreground text-center">
+                扫码授权后，公众号将自动绑定到您的账号
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
 
       </Tabs>
