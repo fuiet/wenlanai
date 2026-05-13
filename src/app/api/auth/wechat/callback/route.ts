@@ -79,6 +79,10 @@ export async function GET(request: NextRequest) {
     
     const supabase = getSupabaseAdmin();
     
+    if (!supabase) {
+      return NextResponse.redirect(new URL(`/auth?error=db_unavailable`, request.url));
+    }
+    
     // 查找或创建用户
     let user;
     

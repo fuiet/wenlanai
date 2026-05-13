@@ -9,11 +9,13 @@ export async function createSession(userId: string): Promise<string> {
   const supabase = getSupabaseAdmin();
   
   // 存储session到数据库
-  await supabase.from('user_sessions').insert({
-    user_id: userId,
-    session_id: sessionId,
-    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7天有效期
-  });
+  if (supabase) {
+    await supabase.from('user_sessions').insert({
+      user_id: userId,
+      session_id: sessionId,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7天有效期
+    });
+  }
   
   // 设置cookie（仅在服务端上下文可用时）
   try {
@@ -42,6 +44,10 @@ export async function verifySession(): Promise<string | null> {
   }
   
   const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    return null;
+  }
+  
   const { data: session } = await supabase
     .from('user_sessions')
     .select('user_id, expires_at')
@@ -68,7 +74,9 @@ export async function clearSession(): Promise<void> {
   
   if (sessionId) {
     const supabase = getSupabaseAdmin();
-    await supabase.from('user_sessions').delete().eq('session_id', sessionId);
+    if (supabase) {
+      await supabase.from('user_sessions').delete().eq('session_id', sessionId);
+    }
   }
   
   cookieStore.delete(COOKIE_NAME);
@@ -82,6 +90,10 @@ export async function getCurrentUser(): Promise<{ id: string; phone: string; nic
   }
   
   const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    return null;
+  }
+  
   const { data: user } = await supabase
     .from('users')
     .select('id, phone, nickname')

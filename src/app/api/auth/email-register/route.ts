@@ -41,6 +41,11 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
+    // 检查 Supabase 是否可用
+    if (!supabase) {
+      return NextResponse.json({ success: false, message: '数据库服务暂不可用' }, { status: 503 });
+    }
+
     // 检查用户名是否已存在
     const { data: existingUsername } = await supabase
       .from('users')

@@ -8,7 +8,9 @@ export async function POST(request: NextRequest) {
 
     if (sessionToken) {
       const supabase = getSupabaseAdmin();
-      await supabase.from('user_sessions').delete().eq('session_token', sessionToken);
+      if (supabase) {
+        await supabase.from('user_sessions').delete().eq('session_token', sessionToken);
+      }
     }
 
     const response = NextResponse.json({ success: true, message: '已退出登录' });

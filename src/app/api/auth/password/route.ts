@@ -13,6 +13,10 @@ export async function PUT(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
+    if (!supabase) {
+      return NextResponse.json({ success: false, message: '数据库服务暂不可用' }, { status: 503 });
+    }
+
     const { data: session } = await supabase
       .from('user_sessions')
       .select('user_id')
