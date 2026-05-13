@@ -67,15 +67,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: 'include'
       });
       
-      // 检查响应类型是否为 JSON
-      const contentType = res.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.error('API 返回非 JSON 响应:', contentType);
+      // 尝试解析响应为 JSON
+      let data;
+      const responseText = await res.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('无法解析 profile 响应:', responseText.substring(0, 200));
         // 非 JSON 响应，可能是错误页面，不清除本地数据
         return;
       }
-      
-      const data = await res.json();
 
       if (data.success && data.data) {
         const userData = {

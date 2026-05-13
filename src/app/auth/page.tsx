@@ -29,15 +29,16 @@ export default function AuthPage() {
         body: JSON.stringify({ username, password })
       });
 
-      // 检查响应类型是否为 JSON
-      const contentType = res.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
+      // 尝试解析响应为 JSON
+      let data;
+      const responseText = await res.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('无法解析响应:', responseText.substring(0, 200));
         setError('服务器响应异常，请稍后重试');
-        console.error('API 返回非 JSON 响应:', contentType);
         return;
       }
-
-      const data = await res.json();
 
       if (data.success) {
         // 更新全局状态
@@ -82,15 +83,16 @@ export default function AuthPage() {
         body: JSON.stringify({ username, password })
       });
 
-      // 检查响应类型是否为 JSON
-      const contentType = res.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
+      // 尝试解析响应为 JSON
+      let data;
+      const responseText = await res.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('无法解析响应:', responseText.substring(0, 200));
         setError('服务器响应异常，请稍后重试');
-        console.error('API 返回非 JSON 响应:', contentType);
         return;
       }
-
-      const data = await res.json();
 
       if (data.success) {
         setMessage('注册成功，请登录');
