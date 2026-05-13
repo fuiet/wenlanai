@@ -683,14 +683,15 @@ export default function SmartWritingPage() {
         htmlContent = htmlContent + '\n' + imagesHtml;
       }
 
-      // 直接调用宝塔后端
-      const response = await fetch('https://wenlanai.top/api/push_draft', {
+      // 通过代理API调用宝塔后端
+      const response = await fetch('/api/push-to-wechat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           authorizer_appid: authorizerAppid,
           title: article.title,
-          content: htmlContent
+          content: htmlContent,
+          imageUrls: article.images || []
         })
       });
 

@@ -12,43 +12,24 @@ function WechatCallbackContent() {
   useEffect(() => {
     const handleCallback = async () => {
       // 获取微信回调参数
+      // 宝塔后端会处理授权，这里只负责显示结果
       const authCode = searchParams.get('auth_code');
-      const expires_in = searchParams.get('expires_in');
+      const errorCode = searchParams.get('error');
+      const success = searchParams.get('success');
       
-      if (authCode) {
-        try {
-          // 调用后端保存授权信息
-          const response = await fetch('https://wenlanai.top/wechat/save_auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ auth_code: authCode }),
-          });
-          
-          const result = await response.json();
-          
-          if (result.success) {
-            setStatus('success');
-            setMessage('授权成功！您可以关闭此页面。');
-          } else {
-            setStatus('success');
-            setMessage('授权成功！您可以关闭此页面。');
-          }
-        } catch (error) {
-          // 即使后端调用失败，也显示成功（微信授权已完成）
-          setStatus('success');
-          setMessage('授权成功！您可以关闭此页面。');
-        }
+      if (success === 'true' || authCode) {
+        // 授权成功
+        setStatus('success');
+        setMessage('授权成功！您可以关闭此页面，或返回公众号管理页面查看。');
+      } else if (errorCode) {
+        // 授权失败
+        setStatus('error');
+        const errorDesc = searchParams.get('error_description') || '授权失败，请重试';
+        setMessage(errorDesc);
       } else {
-        // 没有auth_code参数，可能是取消授权或错误
-        const errorCode = searchParams.get('error');
-        if (errorCode) {
-          setStatus('error');
-          setMessage('授权失败，请重试');
-        } else {
-          // 直接显示成功（可能是用户手动跳转）
-          setStatus('success');
-          setMessage('授权成功！您可以关闭此页面。');
-        }
+        // 未知状态，默认显示成功
+        setStatus('success');
+        setMessage('授权处理完成！您可以关闭此页面。');
       }
     };
 
