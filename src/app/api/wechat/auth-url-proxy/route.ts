@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { getCurrentUserId, query } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
-  const user_id = request.nextUrl.searchParams.get('user_id') || 'anonymous';
+  const user_id = await getCurrentUserId(request);
+  if (!user_id) {
+    return NextResponse.json({ error: '请先登录' }, { status: 401 });
+  }
   
   const COMPONENT_APPID = process.env.COMPONENT_APPID;
   const COMPONENT_APPSECRET = process.env.COMPONENT_APPSECRET;
@@ -14,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // 1. 获取 component_verify_ticket
-    const ticketRes = await query(
+    const ticketRes = await query<{ config_value: string }>(
       "SELECT config_value FROM wechat_config WHERE config_key = 'component_ticket'"
     );
     
@@ -26,7 +29,7 @@ export async function GET(request: NextRequest) {
     try {
       const ticketObj = JSON.parse(ticketRes.rows[0].config_value);
       ticket = ticketObj.ticket;
-    } catch (e) {
+    } catch {
       return NextResponse.json({ error: 'ticket解析失败' }, { status: 500 });
     }
 
@@ -84,7 +87,8 @@ export async function GET(request: NextRequest) {
     }
 
     // 5. 构造授权URL
-    const redirectUri = encodeURIComponent('https://wenlanai.top/api/wechat/auth-callback');
+    const callbackBase = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'https://wenlanai.top';
+    const redirectUri = encodeURIComponent(`${callbackBase}/api/wechat/auth-callback?state=${encodeURIComponent(preAuthCode)}`);
     const authUrl = `https://mp.weixin.qq.com/cgi-bin/componentloginpage?component_appid=${COMPONENT_APPID}&pre_auth_code=${preAuthCode}&redirect_uri=${redirectUri}`;
 
     console.log('[微信授权] 生成授权URL成功');

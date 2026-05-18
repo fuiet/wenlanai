@@ -86,6 +86,7 @@ async function getAuthorizerInfo(accessToken: string, authorizerAppid: string) {
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const authCode = searchParams.get('auth_code');
+  const state = searchParams.get('state');
 
   console.log('[授权回调] auth_code:', authCode);
 
@@ -97,6 +98,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    let userId: string | null = null;
+    if (state) {
+      const pending = await query<{ user_id: string | number }>('SELECT user_id FROM pending_auth WHERE pre_auth_code = ? LIMIT 1', [state]);
+      if (pending.rows.length > 0) {
+        userId = String(pending.rows[0].user_id);
+      }
+    }
+
+    if (!userId) {
+      throw new Error('无法确认当前登录用户，请重新发起授权');
+    }
+
     const accessToken = await getComponentAccessToken();
     const authInfo = await getAuthorizationInfo(accessToken, authCode);
     const authorizerAppid = authInfo.authorization_info.authorizer_appid;
@@ -110,11 +123,20 @@ export async function GET(request: NextRequest) {
     const headImg = authorizerInfo?.authorizer_info?.head_img || '';
     const serviceTypeInfo = authorizerInfo?.authorizer_info?.service_type_info?.id || 0;
 
-    // MySQL 语法保存
+    const existing = await query<{ user_id: string | number }>('SELECT user_id FROM wechat_accounts WHERE app_id = ? LIMIT 1', [authorizerAppid]);
+    if (existing.rows.length > 0 && String(existing.rows[0].user_id) !== String(userId)) {
+      throw new Error('该公众号已绑定到其他账号，请先在原账号解绑');
+    }
+
+    // MySQL 语法保存，写入 user_id 确保公众号只属于当前登录用户
     await query(
-      'INSERT INTO wechat_accounts (app_id, nick_name, head_img, service_type_info, authorizer_access_token, authorizer_refresh_token, is_authorized, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, true, NOW(), NOW()) ON DUPLICATE KEY UPDATE nick_name=VALUES(nick_name), head_img=VALUES(head_img), authorizer_access_token=VALUES(authorizer_access_token), authorizer_refresh_token=VALUES(authorizer_refresh_token), is_authorized=true, updated_at=NOW()',
-      [authorizerAppid, nickname, headImg, serviceTypeInfo, authorizerAccessToken, authorizerRefreshToken]
+      'INSERT INTO wechat_accounts (user_id, app_id, nick_name, head_img, service_type_info, authorizer_access_token, authorizer_refresh_token, is_authorized, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, true, NOW(), NOW()) ON DUPLICATE KEY UPDATE nick_name=VALUES(nick_name), head_img=VALUES(head_img), authorizer_access_token=VALUES(authorizer_access_token), authorizer_refresh_token=VALUES(authorizer_refresh_token), is_authorized=true, updated_at=NOW()',
+      [userId, authorizerAppid, nickname, headImg, serviceTypeInfo, authorizerAccessToken, authorizerRefreshToken]
     );
+
+    if (state) {
+      await query('DELETE FROM pending_auth WHERE pre_auth_code = ?', [state]);
+    }
 
     console.log('[授权回调] 已保存公众号信息:', nickname);
 

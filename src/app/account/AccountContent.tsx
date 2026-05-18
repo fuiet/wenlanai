@@ -104,7 +104,7 @@ export default function AccountContent() {
   // 加载公众号列表
   const loadAccounts = async () => {
     try {
-      const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat-auth/url`);
+      const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat-auth/url`, { credentials: 'include' });
       const result = await response.json();
       
       if (result.success) {
@@ -130,6 +130,7 @@ export default function AccountContent() {
     try {
       const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat-auth/scan`, {
         method: 'POST',
+        credentials: 'include',
       });
       
       const result = await response.json();
@@ -196,6 +197,7 @@ export default function AccountContent() {
     try {
       const response = await fetch(`${WECHAT_API_BASE_URL}/api/wechat-auth/bind`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           appId: bindAppId.trim(),
@@ -236,6 +238,7 @@ export default function AccountContent() {
     try {
       const response = await fetch(`/api/wechat-auth/account/${appId}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const result = await response.json();
