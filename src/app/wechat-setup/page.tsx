@@ -223,7 +223,7 @@ export default function WechatSetupPage() {
                 ) : (
                   <AlertCircle className="h-5 w-5 text-gray-400" />
                 )}
-                <span className="text-sm">AppID: {savedConfig?.appId || '未配置'}</span>
+                <span className="text-sm">AppID: {String(savedConfig?.appId || '未配置')}</span>
               </div>
               <div className="flex items-center gap-2">
                 {savedConfig?.token ? (

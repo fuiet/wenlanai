@@ -11,6 +11,7 @@ function getSupabaseClient() {
 
   return createClient(supabaseUrl, supabaseKey);
 }
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 // 获取单个文章的生成状态
 export async function GET(
@@ -18,6 +19,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ success: false, error: '数据库服务暂不可用' }, { status: 503 });
+    }
+    
     const { id } = await params;
     
     const supabase = getSupabaseClient();
@@ -36,13 +42,9 @@ export async function GET(
       .single();
     
     if (error || !article) {
-      return NextResponse.json(
-        { success: false, error: '文章不存在' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: '文章不存在' }, { status: 404 });
     }
     
-    // 返回状态信息
     return NextResponse.json({
       success: true,
       data: {
@@ -62,5 +64,6 @@ export async function GET(
       { success: false, error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

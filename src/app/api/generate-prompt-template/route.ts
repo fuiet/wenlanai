@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LLMClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
 
 // 提示词生成请求类型
 interface GeneratePromptRequest {
@@ -16,6 +15,40 @@ interface GeneratePromptRequest {
     noSubheading: boolean;
     wordCount: number;
   };
+}
+
+// DeepSeek API 调用函数
+async function callDeepSeekAPI(prompt: string): Promise<string> {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
+  
+  if (!apiKey) {
+    throw new Error('DEEPSEEK_API_KEY 未配置');
+  }
+
+  const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 4000,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`DeepSeek API 错误: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || '';
 }
 
 export async function POST(request: NextRequest) {
@@ -124,27 +157,13 @@ ${raceContent}
 
 ---
 【结尾引导】
-写完后，检查是否符合以上所有要求，确保字数精准、排版规范。
+写完后，检查是否符合以上所有要求确保字数精准、排版规范。
 `;
 
-    // 初始化 LLM 客户端
-    const config = new Config();
-    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
-    const llmClient = new LLMClient(config, customHeaders);
-
-    const messages = [
-      { role: 'user' as const, content: analysisPrompt }
-    ];
-
-    console.log('[generate-prompt-template] 开始调用LLM生成提示词...');
+    console.log('[generate-prompt-template] 开始调用DeepSeek API生成提示词...');
     
-    // 使用 invoke 方法（非流式调用）
-    const response = await llmClient.invoke(messages, {
-      model: 'deepseek-v3-2-251201',
-      temperature: 0.7,
-    });
-
-    const generatedPrompt = response.content;
+    const generatedPrompt = await callDeepSeekAPI(analysisPrompt);
+    
     console.log('[generate-prompt-template] 提示词生成成功，长度:', generatedPrompt.length);
 
     return NextResponse.json({

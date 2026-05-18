@@ -1,5 +1,41 @@
-import { NextRequest } from 'next/server';
-import { LLMClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
+import { NextRequest, NextResponse } from 'next/server';
+
+/**
+ * DeepSeek API 调用函数
+ */
+async function callDeepSeekAPI(systemPrompt: string, userPrompt: string): Promise<string> {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
+  
+  if (!apiKey) {
+    throw new Error('DEEPSEEK_API_KEY 未配置');
+  }
+
+  const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 4000,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`DeepSeek API 错误: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || '';
+}
 
 /**
  * 分析文章并生成提示词总结
@@ -9,24 +45,15 @@ export async function POST(request: NextRequest) {
     const { title, content } = await request.json();
 
     if (!title || !content) {
-      return Response.json(
+      return NextResponse.json(
         { error: '请提供文章标题和内容' },
         { status: 400 }
       );
     }
 
-    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
-    const config = new Config();
-    const client = new LLMClient(config, customHeaders);
-
-    // 构建分析提示词
     const systemPrompt = `你是一位专业的自媒体内容分析师，擅长分析爆款文章的特点，并提炼出可复用的创作提示词。`;
 
-    const messages = [
-      { role: 'system' as const, content: systemPrompt },
-      {
-        role: 'user' as const,
-        content: `请分析以下文章的标题和内容，从以下四个维度进行深入分析，并给出详细的提示词总结：
+    const userPrompt = `请分析以下文章的标题和内容，从以下四个维度进行深入分析，并给出详细的提示词总结：
 
 ## 文章标题
 ${title}
@@ -88,45 +115,22 @@ ${content}
 }
 \`\`\`
 
-请确保分析准确、详尽，提示词可以直接用于AI创作类似风格的文章。`
-      },
-    ];
+请确保分析准确、详尽，提示词可以直接用于AI创作类似风格的文章。`;
 
-    // 创建流式响应
-    const encoder = new TextEncoder();
-    const stream = client.stream(messages, {
-      model: 'doubao-seed-1-8-251228',
-      temperature: 0.7,
-      streaming: true,
+    console.log('[analyze-article] 开始调用DeepSeek API分析文章...');
+    
+    const result = await callDeepSeekAPI(systemPrompt, userPrompt);
+    
+    console.log('[analyze-article] 文章分析成功');
+
+    return NextResponse.json({
+      success: true,
+      result: result
     });
 
-    const customStream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of stream) {
-            if (chunk.content) {
-              const text = chunk.content.toString();
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: text })}\n\n`));
-            }
-          }
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
-        } catch (error) {
-          controller.error(error);
-        }
-      },
-    });
-
-    return new Response(customStream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    });
   } catch (error) {
     console.error('分析文章失败:', error);
-    return Response.json(
+    return NextResponse.json(
       { error: '分析文章失败，请稍后重试' },
       { status: 500 }
     );
