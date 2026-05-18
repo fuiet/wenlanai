@@ -78,6 +78,17 @@ export async function POST(request: NextRequest) {
 
     // 保存验证码到数据库
     const supabase = getSupabaseAdmin();
+    
+    if (!supabase) {
+      // 演示模式：直接返回成功
+      return NextResponse.json({
+        success: true,
+        message: "验证码已发送（演示模式）",
+        demo: true,
+        code: code
+      });
+    }
+    
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟有效期
 
     // 删除该手机号之前的验证码

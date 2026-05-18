@@ -31,6 +31,11 @@ export async function POST(request: NextRequest) {
 
     // 验证验证码
     const supabase = getSupabaseAdmin();
+    
+    if (!supabase) {
+      return NextResponse.json({ success: false, message: '数据库服务暂不可用' }, { status: 503 });
+    }
+    
     const { data: codeRecord, error: codeError } = await supabase
       .from('sms_codes')
       .select('*')

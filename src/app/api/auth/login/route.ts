@@ -18,6 +18,13 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
+    if (!supabase) {
+      return NextResponse.json({ 
+        success: false, 
+        message: '数据库服务暂不可用' 
+      }, { status: 503 });
+    }
+
     const { data: session } = await supabase
       .from('user_sessions')
       .select('user_id, expires_at')
@@ -90,6 +97,13 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+
+    if (!supabase) {
+      return NextResponse.json({ 
+        success: false, 
+        message: '数据库服务暂不可用' 
+      }, { status: 503 });
+    }
 
     // 查找用户（使用邮箱）
     const { data: user } = await supabase

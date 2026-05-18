@@ -29,6 +29,18 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
+    if (!supabase) {
+      // 演示模式：直接返回成功
+      const code = generateCode();
+      console.log(`[演示模式] 邮箱验证码: ${code}`);
+      return NextResponse.json({
+        success: true,
+        message: '验证码已发送（演示模式）',
+        code,
+        expiresIn: 600
+      });
+    }
+
     // 限制发送频率：同一邮箱1分钟内只能发送一次
     const { data: recentCode } = await supabase
       .from('email_codes')
