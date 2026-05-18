@@ -70,10 +70,10 @@ export async function POST(request: NextRequest) {
       success: true,
       message: '注册成功，请登录'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('注册错误:', error);
     return NextResponse.json(
-      { success: false, error: error.message || '注册失败' },
+      { success: false, error: (error instanceof Error ? error.message : String(error)) || '注册失败' },
       { status: 500 }
     );
   }

@@ -92,11 +92,11 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; userId: string; action: string }>({ open: false, userId: '', action: '' });
+  const [todayNewUsers] = useState(() => 5 + (generateMockUsers().length % 10));
   const pageSize = 20;
 
   // 计算统计数据
   const totalUsers = users.length;
-  const todayNewUsers = Math.floor(Math.random() * 10) + 5;
   const activeUsers = users.filter(u => {
     const lastLogin = new Date(u.lastLoginTime);
     const weekAgo = new Date();

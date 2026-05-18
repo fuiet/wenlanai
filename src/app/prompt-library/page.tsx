@@ -1256,7 +1256,7 @@ export default function PromptLibraryPage() {
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 mb-2">确认删除</h3>
                 <p className="text-gray-500 mb-2">
-                  确定要删除分类"{categoryToDelete}"吗？
+                  确定要删除分类「{categoryToDelete}」吗？
                 </p>
                 <p className="text-sm text-gray-400">
                   该分类下的 {getCategoryCount(categoryToDelete)} 个提示词将被保留，但分类将变为空

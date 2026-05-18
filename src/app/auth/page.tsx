@@ -51,9 +51,9 @@ export default function AuthPage() {
       } else {
         setError(data.error || '登录失败');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('登录错误:', err);
-      setError(err.message || '网络错误');
+      setError((err instanceof Error ? err.message : String(err)) || '网络错误');
     } finally {
       setLoading(false);
     }
@@ -104,9 +104,9 @@ export default function AuthPage() {
       } else {
         setError(data.error || '注册失败');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('注册错误:', err);
-      setError(err.message || '网络错误');
+      setError((err instanceof Error ? err.message : String(err)) || '网络错误');
     } finally {
       setLoading(false);
     }

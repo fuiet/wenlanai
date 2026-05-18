@@ -87,7 +87,7 @@ async function sendSmsCode(phoneNumber: string, code: string): Promise<{
       method: 'GET',
     });
 
-    const data = await response.json() as any;
+    const data = await response.json() as { Response?: { SendStatusSet?: Array<{ Code: string; Message: string; MessageId?: string }> } };
     
     console.log("[SMS] 发送结果:", JSON.stringify(data));
 

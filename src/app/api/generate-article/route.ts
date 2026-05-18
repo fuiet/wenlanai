@@ -395,7 +395,7 @@ ${imageSource === 'ai' && imageCount > 0 ? `- 图片：{{IMAGE_1}}、{{IMAGE_2}}
     }
 
     // ========== 生成配图 ==========
-    let imageUrls: string[] = [];
+    const imageUrls: string[] = [];
     const targetImageCount = Math.max(0, Math.min(imageCount || 0, 10)); // 限制0-10张
     if (targetImageCount > 0) {
       try {
@@ -653,12 +653,12 @@ ${finalContent.replace(/<[^>]+>/g, '')}
       }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('生成文章失败:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message || '服务繁忙，请稍后重试',
+        error: (error instanceof Error ? error.message : String(error)) || '服务繁忙，请稍后重试',
         errorType: 'service_error'
       },
       { status: 500 }
