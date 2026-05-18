@@ -11,6 +11,13 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
+// 导出查询函数
+export async function query(text: string, params?: unknown[]) {
+  const start = Date.now();
+  const res = await pool.query(text, params);
+  const duration = Date.now() - start;
+  console.log('Executed query', { text: text.substring(0, 50), duration, rows: res.rowCount });
+  return res;
 // 返回 any 类型以避免 TypeScript 错误
 export async function query(text: string, params?: any[]): Promise<any> {
   const [rows] = await pool.execute(text, params);

@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       success: true,
-      data: accounts.map((acc: any) => ({
+      data: accounts.map((acc: { authorizer_appid: string; nick_name?: string; service_type_info?: unknown; verify_type_info?: unknown; user_name?: string; alias?: string; qrcode_url?: string; }) => ({
         appid: acc.authorizer_appid,
         nickname: acc.nick_name || '未知公众号',
         service_type_info: acc.service_type_info,

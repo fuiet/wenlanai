@@ -7,6 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, CheckCircle, Copy, ExternalLink } from 'lucide-react';
 
+interface SavedWechatConfig {
+  appId?: string;
+  token?: string;
+  encodingAESKey?: string;
+}
+
 export default function WechatSetupPage() {
   const [config, setConfig] = useState({
     appId: '',
@@ -14,7 +20,7 @@ export default function WechatSetupPage() {
     token: '',
     encodingAESKey: '',
   });
-  const [savedConfig, setSavedConfig] = useState<Record<string, unknown> | null>(null);
+  const [savedConfig, setSavedConfig] = useState<SavedWechatConfig | null>(null);
   const [ticket, setTicket] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);

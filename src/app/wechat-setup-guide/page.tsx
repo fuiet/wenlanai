@@ -450,7 +450,7 @@ export default function WechatSetupGuide() {
               <p className="text-muted-foreground">A: 确保服务器已启动，URL可以正常访问。检查是否使用了https协议。</p>
             </div>
             <div>
-              <p className="font-medium">Q: 推送失败显示"请先绑定公众号"？</p>
+              <p className="font-medium">Q: 推送失败显示「请先绑定公众号」？</p>
               <p className="text-muted-foreground">A: 需要先通过扫码授权绑定公众号，在「公众号」页面进行授权。</p>
             </div>
             <div>

@@ -174,8 +174,8 @@ export async function GET(request: NextRequest) {
     
     return response;
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Wechat Login] 登录失败:', error);
-    return NextResponse.redirect(new URL(`/auth?error=${encodeURIComponent(error.message)}`, request.url));
+    return NextResponse.redirect(new URL(`/auth?error=${encodeURIComponent(error instanceof Error ? error.message : String(error))}`, request.url));
   }
 }

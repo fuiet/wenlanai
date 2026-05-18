@@ -233,7 +233,7 @@ export default function SmartWritingPage() {
       if (generatingTasks.length > 0) {
         // 清除过期的任务（超过5分钟的视为已失败）
         const now = Date.now();
-        const validTasks = generatingTasks.filter((task: any) => {
+        const validTasks = generatingTasks.filter((task: { startedAt: string }) => {
           const taskAge = now - new Date(task.startedAt).getTime();
           return taskAge < 5 * 60 * 1000; // 5分钟内
         });
@@ -518,7 +518,7 @@ export default function SmartWritingPage() {
             // 清除localStorage中的任务
             try {
               const generatingTasks = JSON.parse(getStorageItem('generatingTasks') || '[]');
-              const updatedTasks = generatingTasks.filter((t: any) => t.tempId !== tempArticle.id);
+              const updatedTasks = generatingTasks.filter((t: { tempId: string | number }) => t.tempId !== tempArticle.id);
               setStorageItem('generatingTasks', JSON.stringify(updatedTasks));
             } catch {
               // localStorage 访问被拒绝时忽略
@@ -539,7 +539,7 @@ export default function SmartWritingPage() {
             // 清除localStorage中的任务
             try {
               const generatingTasks = JSON.parse(getStorageItem('generatingTasks') || '[]');
-              const updatedTasks = generatingTasks.filter((t: any) => t.tempId !== tempArticle.id);
+              const updatedTasks = generatingTasks.filter((t: { tempId: string | number }) => t.tempId !== tempArticle.id);
               setStorageItem('generatingTasks', JSON.stringify(updatedTasks));
             } catch {
               // localStorage 访问被拒绝时忽略
@@ -566,7 +566,7 @@ export default function SmartWritingPage() {
           // 清除localStorage中的任务
           try {
             const generatingTasks = JSON.parse(getStorageItem('generatingTasks') || '[]');
-            const updatedTasks = generatingTasks.filter((t: any) => t.tempId !== tempArticle.id);
+            const updatedTasks = generatingTasks.filter((t: { tempId: string | number }) => t.tempId !== tempArticle.id);
             setStorageItem('generatingTasks', JSON.stringify(updatedTasks));
           } catch {
             // localStorage 访问被拒绝时忽略
@@ -1970,7 +1970,7 @@ export default function SmartWritingPage() {
                         }}
                         className="w-full text-left p-3 bg-white rounded-lg hover:bg-amber-50 transition-colors border border-amber-100 text-gray-700 italic"
                       >
-                        "{quote}"
+                        &ldquo;{quote}&rdquo;
                       </button>
                     ))}
                   </div>

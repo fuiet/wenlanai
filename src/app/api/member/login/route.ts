@@ -86,10 +86,10 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('登录错误:', error);
     return NextResponse.json(
-      { success: false, error: error.message || '登录失败' },
+      { success: false, error: (error instanceof Error ? error.message : String(error)) || '登录失败' },
       { status: 500 }
     );
   }

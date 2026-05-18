@@ -226,7 +226,7 @@ function FormatArticleContent() {
   const wordCount = content.replace(/[#*`>\-\[\]()]/g, '').length;
 
   // 更新样式
-  const updateStyle = (key: string, value: any) => {
+  const updateStyle = (key: string, value: string | number | boolean) => {
     setStyles(prev => ({ ...prev, [key]: value }));
   };
 
@@ -1252,7 +1252,7 @@ function FormatArticleContent() {
                               }}
                             >
                               {styles.quoteIcon && (
-                                <div style={{ fontSize: '24px', color: styles.quoteBorderColor, marginBottom: '4px' }}>"</div>
+                                <div style={{ fontSize: '24px', color: styles.quoteBorderColor, marginBottom: '4px' }}>&ldquo;</div>
                               )}
                               {children}
                             </blockquote>

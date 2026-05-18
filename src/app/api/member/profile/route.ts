@@ -90,10 +90,10 @@ export async function GET(request: NextRequest) {
         }
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('获取资料错误:', error);
     return NextResponse.json(
-      { success: false, error: error.message || '获取失败' },
+      { success: false, error: (error instanceof Error ? error.message : String(error)) || '获取失败' },
       { status: 500 }
     );
   }
@@ -195,10 +195,10 @@ export async function PUT(request: NextRequest) {
       { success: false, error: '未知操作' },
       { status: 400 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('更新资料错误:', error);
     return NextResponse.json(
-      { success: false, error: error.message || '更新失败' },
+      { success: false, error: (error instanceof Error ? error.message : String(error)) || '更新失败' },
       { status: 500 }
     );
   }
