@@ -15,6 +15,9 @@ const pool = mysql.createPool({
 export async function query<T extends Record<string, unknown> = Record<string, string>>(
   text: string,
   params?: Parameters<typeof pool.execute>[1]
+export async function query<T extends Record<string, unknown> = Record<string, unknown>>(
+  text: string,
+  params?: unknown[]
 ): Promise<{ rows: T[] }> {
   const [rows] = await pool.execute(text, params);
   return { rows: Array.isArray(rows) ? (rows as T[]) : [] };
