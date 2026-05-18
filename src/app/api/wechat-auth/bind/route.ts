@@ -1,42 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUserId, query } from '@/lib/db';
 
-// 延迟初始化Supabase
-const createSupabaseClient = () => {
-  const supabaseUrl = process.env.COZE_SUPABASE_URL || '';
-  const supabaseServiceKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || '';
-  
-  if (!supabaseUrl || !supabaseServiceKey) {
-    return null;
-  }
-  
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createClient } = require('@supabase/supabase-js');
-  return createClient(supabaseUrl, supabaseServiceKey);
+interface AccountInfo {
+  app_id: string;
+  nickname: string;
+  head_img: string;
+  principal_type: string;
+  verify_type_info: number;
+  user_name: string;
+  alias: string;
+  qrcode_url: string;
+  authorizer_access_token: string;
+  authorizer_refresh_token: string;
 }
 
-/**
- * POST /api/wechat-auth/bind
- * 通过AppID和AppSecret直接绑定公众号
- * 
- * 请求格式：
- * {
- *   "appId": "wx...",
- *   "appSecret": "..."
- * }
- * 
- * 响应格式：
- * {
- *   "success": true,
- *   "message": "绑定成功",
- *   "data": { account }
- * }
- */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { appId, appSecret } = body;
+    const userId = await getCurrentUserId(request);
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, message: '请先登录后再绑定公众号' },
+        { status: 401 }
+      );
+    }
 
-    // 参数验证
+    const body = await request.json();
+    const appId = typeof body.appId === 'string' ? body.appId.trim() : '';
+    const appSecret = typeof body.appSecret === 'string' ? body.appSecret.trim() : '';
+
     if (!appId || !appSecret) {
       return NextResponse.json(
         { success: false, message: '请输入AppID和AppSecret' },
@@ -44,7 +35,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 验证AppID格式（公众号或小程序的AppID）
     if ((!appId.startsWith('wx') && !appId.startsWith('wxa')) || appId.length < 15) {
       return NextResponse.json(
         { success: false, message: 'AppID格式不正确，应以wx或wxa开头' },
@@ -52,12 +42,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 调用微信API验证凭证并获取公众号信息
+    const existing = await query<{ user_id: string | number }>('SELECT user_id FROM wechat_accounts WHERE app_id = ? LIMIT 1', [appId]);
+    if (existing.rows.length > 0 && String(existing.rows[0].user_id) !== String(userId)) {
+      return NextResponse.json(
+        { success: false, message: '该公众号已绑定到其他账号，请先在原账号解绑' },
+        { status: 409 }
+      );
+    }
+
     const verifyUrl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appId}&secret=${appSecret}`;
-    
-    const accountInfo = {
+    const accountInfo: AccountInfo = {
       app_id: appId,
-      authorizer_appid: appId,
       nickname: '公众号',
       head_img: '',
       principal_type: '',
@@ -67,9 +62,6 @@ export async function POST(request: NextRequest) {
       qrcode_url: '',
       authorizer_access_token: '',
       authorizer_refresh_token: appSecret,
-      token_expires_at: new Date(Date.now() + 7200 * 1000).toISOString(),
-      refresh_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      is_authorized: true,
     };
 
     try {
@@ -78,10 +70,8 @@ export async function POST(request: NextRequest) {
 
       if (verifyData.access_token) {
         accountInfo.authorizer_access_token = verifyData.access_token;
-        accountInfo.token_expires_at = new Date(Date.now() + (verifyData.expires_in || 7200) * 1000).toISOString();
         accountInfo.nickname = '公众号（已验证）';
 
-        // 获取公众号基本信息
         const infoUrl = `https://api.weixin.qq.com/cgi-bin/get_account_basicinfo?access_token=${verifyData.access_token}`;
         const infoResponse = await fetch(infoUrl);
         const infoData = await infoResponse.json();
@@ -97,54 +87,54 @@ export async function POST(request: NextRequest) {
           accountInfo.qrcode_url = baseInfo.qrcode_url || '';
         }
       } else if (verifyData.errcode) {
-        // API验证失败，但仍然允许绑定（演示模式）
-        // 凭证无效时，记录警告但不阻止绑定
-        console.warn('微信API验证失败:', verifyData);
-        // 不再返回错误，允许继续绑定
+        console.warn('微信API验证失败，按演示模式保存:', verifyData);
       }
     } catch (apiError) {
-      console.error('调用微信API失败:', apiError);
-      // 即使API调用失败，也允许绑定（演示模式）
+      console.error('调用微信API失败，按演示模式保存:', apiError);
     }
 
-    // 保存到数据库
-    const supabaseClient = createSupabaseClient();
-    if (supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('wechat_accounts')
-        .upsert(accountInfo, {
-          onConflict: 'app_id',
-        })
-        .select()
-        .single();
+    await query(
+      `INSERT INTO wechat_accounts (
+        user_id, app_id, nick_name, head_img, principal_type, verify_type_info,
+        user_name, alias, qrcode_url, authorizer_access_token,
+        authorizer_refresh_token, is_authorized, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true, NOW(), NOW())
+      ON DUPLICATE KEY UPDATE
+        nick_name = VALUES(nick_name),
+        head_img = VALUES(head_img),
+        principal_type = VALUES(principal_type),
+        verify_type_info = VALUES(verify_type_info),
+        user_name = VALUES(user_name),
+        alias = VALUES(alias),
+        qrcode_url = VALUES(qrcode_url),
+        authorizer_access_token = VALUES(authorizer_access_token),
+        authorizer_refresh_token = VALUES(authorizer_refresh_token),
+        is_authorized = true,
+        updated_at = NOW()`,
+      [
+        userId,
+        accountInfo.app_id,
+        accountInfo.nickname,
+        accountInfo.head_img,
+        accountInfo.principal_type,
+        accountInfo.verify_type_info,
+        accountInfo.user_name,
+        accountInfo.alias,
+        accountInfo.qrcode_url,
+        accountInfo.authorizer_access_token,
+        accountInfo.authorizer_refresh_token,
+      ]
+    );
 
-      if (error) {
-        console.error('保存公众号信息失败:', error);
-        return NextResponse.json(
-          { success: false, message: '保存失败，请重试' },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: '绑定成功！',
-        data: data,
-      });
-    }
-
-    // Supabase未配置，返回成功信息（演示模式）
     return NextResponse.json({
       success: true,
-      message: '绑定成功（演示模式）',
-      demo: true,
+      message: '绑定成功！',
       data: {
-        app_id: appId,
+        app_id: accountInfo.app_id,
         nickname: accountInfo.nickname,
         head_img: accountInfo.head_img,
       },
     });
-
   } catch (error) {
     console.error('绑定公众号异常:', error);
     return NextResponse.json(

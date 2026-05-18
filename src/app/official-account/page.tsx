@@ -21,7 +21,7 @@ export default function OfficialAccountPage() {
   // 加载公众号列表
   const loadAccounts = useCallback(async () => {
     try {
-      const res = await fetch('/api/wechat-auth/accounts');
+      const res = await fetch('/api/wechat-auth/accounts', { credentials: 'include' });
       const data = await res.json();
       if (data.success) {
         setAccounts(data.accounts || []);
@@ -39,10 +39,7 @@ export default function OfficialAccountPage() {
     setSuccessMsg('');
     
     try {
-      // 从localStorage获取用户ID
-      const userId = localStorage.getItem('user_id') || 'anonymous';
-      
-      const res = await fetch(`/api/wechat/auth-url-proxy?user_id=${userId}`);
+      const res = await fetch('/api/wechat/auth-url-proxy', { credentials: 'include' });
       const data = await res.json();
       
       if (data.auth_url) {
@@ -52,7 +49,7 @@ export default function OfficialAccountPage() {
       } else {
         setError(data.error || '获取授权链接失败');
       }
-    } catch (e) {
+    } catch {
       setError('网络错误，请重试');
     }
   };

@@ -11,17 +11,13 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
-// 导出查询函数
-export async function query(text: string, params?: unknown[]) {
-  const start = Date.now();
-  const res = await pool.query(text, params);
-  const duration = Date.now() - start;
-  console.log('Executed query', { text: text.substring(0, 50), duration, rows: res.rowCount });
-  return res;
-// 返回 any 类型以避免 TypeScript 错误
-export async function query(text: string, params?: any[]): Promise<any> {
+// 返回统一的 rows 结构，便于 API 路由复用。
+export async function query<T extends Record<string, unknown> = Record<string, string>>(
+  text: string,
+  params?: Parameters<typeof pool.execute>[1]
+): Promise<{ rows: T[] }> {
   const [rows] = await pool.execute(text, params);
-  return { rows: Array.isArray(rows) ? rows : [] };
+  return { rows: Array.isArray(rows) ? (rows as T[]) : [] };
 }
 
 export async function getClient() {
@@ -30,29 +26,32 @@ export async function getClient() {
 
 export async function getCurrentUserId(request: Request): Promise<string | null> {
   const cookieHeader = request.headers.get('cookie') || '';
-  const cookies = Object.fromEntries(
-    cookieHeader.split('; ').map(c => {
-      const [key, ...val] = c.split('=');
-      return [key, val.join('=')];
-    })
-  );
-  
-  const token = cookies['session_token'];
+  const cookieEntries = cookieHeader
+    .split(';')
+    .map((cookie) => cookie.trim())
+    .filter(Boolean)
+    .map((cookie) => {
+      const [key, ...value] = cookie.split('=');
+      return [key, decodeURIComponent(value.join('='))];
+    });
+  const parsedCookies = Object.fromEntries(cookieEntries);
+
+  const token = parsedCookies.session_token;
   if (!token) return null;
-  
+
   try {
-    const result: any = await query(
+    const result = await query<{ user_id: string | number }>(
       'SELECT user_id FROM sessions WHERE token = ? AND expires_at > NOW()',
       [token]
     );
-    
-    if (result.rows && result.rows.length > 0) {
+
+    if (result.rows.length > 0) {
       return String(result.rows[0].user_id);
     }
-  } catch (e) {
-    console.error('getCurrentUserId error:', e);
+  } catch (error) {
+    console.error('getCurrentUserId error:', error);
   }
-  
+
   return null;
 }
 
