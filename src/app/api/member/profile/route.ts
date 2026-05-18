@@ -13,7 +13,7 @@ async function getCurrentUserId(request: NextRequest): Promise<string | null> {
 
   const result = await query(
     `SELECT user_id FROM sessions 
-     WHERE token = $1 AND expires_at > NOW()`,
+     WHERE token = ? AND expires_at > NOW()`,
     [token]
   );
 
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         mp.categories
        FROM member_profiles mp
        JOIN users u ON u.id = mp.user_id
-       WHERE mp.user_id = $1`,
+       WHERE mp.user_id = ?`,
       [userId]
     );
 
@@ -58,17 +58,17 @@ export async function GET(request: NextRequest) {
 
     // 获取统计数据
     const articleCount = await query(
-      `SELECT COUNT(*) as count FROM articles WHERE author = $1`,
+      `SELECT COUNT(*) as count FROM articles WHERE author = ?`,
       [profile.username]
     );
 
     const promptCount = await query(
-      `SELECT COUNT(*) as count FROM prompt_templates WHERE user_id = $1`,
+      `SELECT COUNT(*) as count FROM prompt_templates WHERE user_id = ?`,
       [userId]
     );
 
     const favoriteCount = await query(
-      `SELECT COUNT(*) as count FROM favorites WHERE user_id = $1`,
+      `SELECT COUNT(*) as count FROM favorites WHERE user_id = ?`,
       [userId]
     );
 
@@ -138,7 +138,7 @@ export async function PUT(request: NextRequest) {
 
       // 验证旧密码
       const userResult = await query(
-        'SELECT password_hash FROM users WHERE id = $1',
+        'SELECT password_hash FROM users WHERE id = ?',
         [userId]
       );
 
@@ -153,7 +153,7 @@ export async function PUT(request: NextRequest) {
       // 更新密码
       const newHash = hashPassword(newPassword);
       await query(
-        'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+        'UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?',
         [newHash, userId]
       );
 
@@ -167,7 +167,7 @@ export async function PUT(request: NextRequest) {
       const { categories } = data;
 
       await query(
-        'UPDATE member_profiles SET categories = $1 WHERE user_id = $2',
+        'UPDATE member_profiles SET categories = ? WHERE user_id = ?',
         [categories, userId]
       );
 
@@ -181,7 +181,7 @@ export async function PUT(request: NextRequest) {
       const { nickname } = data;
 
       await query(
-        'UPDATE users SET nickname = $1, updated_at = NOW() WHERE id = $2',
+        'UPDATE users SET nickname = ?, updated_at = NOW() WHERE id = ?',
         [nickname, userId]
       );
 

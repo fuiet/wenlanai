@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 // 获取单个文章的生成状态
 export async function GET(
@@ -12,9 +7,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ success: false, error: '数据库服务暂不可用' }, { status: 503 });
+    }
+    
     const { id } = await params;
     
-    // 获取文章详情
     const { data: article, error } = await supabase
       .from('articles')
       .select('*')
@@ -22,13 +21,9 @@ export async function GET(
       .single();
     
     if (error || !article) {
-      return NextResponse.json(
-        { success: false, error: '文章不存在' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: '文章不存在' }, { status: 404 });
     }
     
-    // 返回状态信息
     return NextResponse.json({
       success: true,
       data: {
@@ -44,9 +39,6 @@ export async function GET(
     
   } catch (error: any) {
     console.error('获取文章状态失败:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -17,7 +17,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 验证用户名格式
     if (username.length < 2 || username.length > 20) {
       return NextResponse.json(
         { success: false, error: '用户名长度需要在2-20个字符之间' },
@@ -25,7 +24,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 验证密码长度
     if (password.length < 6) {
       return NextResponse.json(
         { success: false, error: '密码至少6位' },
@@ -33,36 +31,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 检查用户名是否已存在
+    // 检查用户名是否已存在（在 member_profiles 中）
     const existingUser = await query(
-      'SELECT id FROM member_profiles WHERE username = $1',
+      'SELECT id FROM member_profiles WHERE username = ?',
       [username]
     );
 
-    if (existingUser.rows.length > 0) {
+    if (existingUser.rows && existingUser.rows.length > 0) {
       return NextResponse.json(
         { success: false, error: '该用户名已被使用' },
         { status: 400 }
       );
     }
 
-    // 加密密码
     const passwordHash = hashPassword(password);
+    const email = `${username}_${Date.now()}@local.com`;
 
-    // 创建用户（使用 username 作为唯一标识）
-    const userResult = await query(
-      `INSERT INTO users (email, nickname, password_hash, is_active) 
-       VALUES ($1, $2, $3, true) 
-       RETURNING id`,
-      [`${username}_${Date.now()}@local.com`, username, passwordHash]
+    // 插入 users 表
+    await query(
+      `INSERT INTO users (email, nickname, password_hash, is_active) VALUES (?, ?, ?, true)`,
+      [email, username, passwordHash]
     );
 
-    const userId = userResult.rows[0].id;
+    // 获取最后插入的 ID
+    const idResult = await query('SELECT LAST_INSERT_ID() as id');
+    const userId = idResult.rows[0].id;
 
-    // 创建会员资料
+    // 插入 member_profiles 表
     await query(
-      `INSERT INTO member_profiles (user_id, username, vip_level, categories) 
-       VALUES ($1, $2, 1, '{}')`,
+      `INSERT INTO member_profiles (user_id, username, vip_level, categories) VALUES (?, ?, 1, '{}')`,
       [userId, username]
     );
 

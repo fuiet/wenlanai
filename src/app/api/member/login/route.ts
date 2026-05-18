@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       `SELECT u.id, u.nickname, u.password_hash, mp.username, mp.vip_level, mp.vip_expire_at
        FROM users u
        JOIN member_profiles mp ON mp.user_id = u.id
-       WHERE mp.username = $1 AND u.is_active = true`,
+       WHERE mp.username = ? AND u.is_active = true`,
       [username]
     );
 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     await query(
       `INSERT INTO sessions (user_id, token, expires_at) 
-       VALUES ($1, $2, $3)`,
+       VALUES (?, ?, ?)`,
       [user.id, token, expiresAt]
     );
 

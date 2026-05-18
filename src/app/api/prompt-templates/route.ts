@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { cookies } from 'next/headers';
+import { v4 as uuidv4 } from 'uuid';
 
 async function getUserIdFromCookie(): Promise<string | null> {
   try {
@@ -12,11 +13,11 @@ async function getUserIdFromCookie(): Promise<string | null> {
     }
     
     const result = await query(
-      `SELECT user_id::text FROM sessions WHERE token = $1 AND expires_at > NOW()`,
+      `SELECT user_id FROM sessions WHERE token = ? AND expires_at > NOW()`,
       [sessionToken]
     );
     
-    if (result.rows.length > 0) {
+    if (result.rows && result.rows.length > 0) {
       return result.rows[0].user_id;
     }
     return null;
@@ -36,17 +37,17 @@ export async function GET() {
     
     const result = await query(
       `SELECT id, name, category, description, prompt, tags, author_name, 
-              personality, "persona补充", field, target_audience, word_count,
+              personality, persona_supplement, field, target_audience, word_count,
               is_custom, is_public, usage_count, created_at, updated_at
        FROM prompt_templates 
-       WHERE user_id = $1 
+       WHERE user_id = ? 
        ORDER BY created_at DESC`,
       [userId]
     );
     
     return NextResponse.json({
       success: true,
-      templates: result.rows
+      templates: result.rows || []
     });
   } catch (error) {
     console.error('获取提示词失败:', error);
@@ -63,26 +64,29 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json();
-    const { name, category, description, prompt, tags, personality, field, targetAudience, wordCount } = body;
+    const { name, category, description, prompt, tags, personality, field, targetAudience, wordCount, authorName } = body;
     
     if (!name || !prompt) {
       return NextResponse.json({ success: false, error: '缺少必填字段' }, { status: 400 });
     }
     
-    const result = await query(
+    const id = uuidv4();
+    
+    await query(
       `INSERT INTO prompt_templates 
-       (user_id, name, category, description, prompt, tags, author_name, 
-        personality, "persona补充", field, target_audience, word_count, is_custom, is_public)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-       RETURNING id, name`,
+       (id, user_id, name, category, description, prompt, content, tags, author_name, 
+        personality, persona_supplement, field, target_audience, word_count, is_custom, is_public)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        id,
         userId,
         name,
         category || '未分类',
         description || '',
         prompt,
-        tags || [],
-        body.authorName || '匿名',
+        prompt,
+        JSON.stringify(tags || []),
+        authorName || '匿名',
         personality || null,
         null,
         field || null,
@@ -95,7 +99,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({
       success: true,
-      template: result.rows[0]
+      template: { id, name }
     });
   } catch (error) {
     console.error('创建提示词失败:', error);
@@ -119,7 +123,7 @@ export async function DELETE(request: NextRequest) {
     }
     
     await query(
-      `DELETE FROM prompt_templates WHERE id = $1 AND user_id = $2`,
+      `DELETE FROM prompt_templates WHERE id = ? AND user_id = ?`,
       [id, userId]
     );
     

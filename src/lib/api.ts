@@ -4,7 +4,7 @@
  */
 
 // 微信相关 API 基础 URL - 使用宝塔后端域名
-export const WECHAT_API_BASE_URL = 'https://wenlanai.top';
+export const WECHAT_API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : '';
 
 // 业务 API 基础 URL - 使用本地 API（dev.coze.site）
 // 空字符串表示使用相对路径，由浏览器自动使用当前域名

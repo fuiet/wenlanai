@@ -13,7 +13,7 @@ async function getUserIdFromCookie(): Promise<string | null> {
     }
     
     const result = await query(
-      `SELECT user_id::text FROM sessions WHERE token = $1 AND expires_at > NOW()`,
+      `SELECT user_id FROM sessions WHERE token = ? AND expires_at > NOW()`,
       [sessionToken]
     );
     

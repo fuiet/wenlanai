@@ -1,0 +1,112 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { query } from '@/lib/db';
+
+export async function GET(request: NextRequest) {
+  const user_id = request.nextUrl.searchParams.get('user_id');
+  if (!user_id) {
+    return NextResponse.json({ error: '缺少 user_id 参数' }, { status: 400 });
+  }
+
+  // 环境变量（必须在 .env.local 中配置）
+  const COMPONENT_APPID = process.env.COMPONENT_APPID;
+  const COMPONENT_APPSECRET = process.env.COMPONENT_APPSECRET;
+  const COMPONENT_TOKEN = process.env.COMPONENT_TOKEN;
+  const COMPONENT_AES_KEY = process.env.COMPONENT_AES_KEY;
+
+  if (!COMPONENT_APPID || !COMPONENT_APPSECRET) {
+    console.error('缺失微信第三方平台配置');
+    return NextResponse.json({ error: '服务器配置错误' }, { status: 500 });
+  }
+
+  try {
+    // 1. 从数据库获取 component_verify_ticket
+    const ticketRes = await query(
+      "SELECT config_value FROM wechat_config WHERE config_key = 'component_ticket'"
+    );
+    if (!ticketRes.rows || ticketRes.rows.length === 0) {
+      console.error('未找到 component_verify_ticket');
+      return NextResponse.json({ error: '系统未就绪，请稍后重试' }, { status: 500 });
+    }
+    let ticket = null;
+    try {
+      const ticketObj = JSON.parse(ticketRes.rows[0].config_value);
+      ticket = ticketObj.ticket;
+    } catch (e) {
+      console.error('解析 ticket 失败', e);
+    }
+    if (!ticket) {
+      return NextResponse.json({ error: 'ticket 无效' }, { status: 500 });
+    }
+
+    // 2. 获取或刷新 component_access_token
+    let componentAccessToken = null;
+    const tokenRes = await query(
+      "SELECT config_value FROM wechat_config WHERE config_key = 'component_access_token'"
+    );
+    if (tokenRes.rows && tokenRes.rows.length > 0) {
+      try {
+        const tokenObj = JSON.parse(tokenRes.rows[0].config_value);
+        if (tokenObj.expires_at > Math.floor(Date.now() / 1000)) {
+          componentAccessToken = tokenObj.token;
+        }
+      } catch (e) {}
+    }
+    if (!componentAccessToken) {
+      const url = 'https://api.weixin.qq.com/cgi-bin/component/api_component_token';
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          component_appid: COMPONENT_APPID,
+          component_appsecret: COMPONENT_APPSECRET,
+          component_verify_ticket: ticket,
+        }),
+      });
+      const data = await resp.json();
+      if (!data.component_access_token) {
+        console.error('获取 component_access_token 失败', data);
+        return NextResponse.json({ error: '获取平台凭证失败' }, { status: 500 });
+      }
+      componentAccessToken = data.component_access_token;
+      const expiresAt = Math.floor(Date.now() / 1000) + data.expires_in;
+      await query(
+        `INSERT INTO wechat_config (config_key, config_value) 
+         VALUES ('component_access_token', $1) 
+         ON CONFLICT (config_key) 
+         DO UPDATE SET config_value = $1, updated_at = NOW()`,
+        [JSON.stringify({ token: componentAccessToken, expires_at: expiresAt })]
+      );
+    }
+
+    // 3. 获取预授权码 pre_auth_code
+    const preAuthUrl = 'https://api.weixin.qq.com/cgi-bin/component/api_create_preauthcode';
+    const preResp = await fetch(`${preAuthUrl}?component_access_token=${componentAccessToken}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ component_appid: COMPONENT_APPID }),
+    });
+    const preData = await preResp.json();
+    if (!preData.pre_auth_code) {
+      console.error('获取 pre_auth_code 失败', preData);
+      return NextResponse.json({ error: preData.errmsg || '获取预授权码失败' }, { status: 500 });
+    }
+    const preAuthCode = preData.pre_auth_code;
+
+    // 存储预授权码与用户的对应关系（用于回调时识别）
+    await query(
+      `INSERT INTO pending_auth (pre_auth_code, user_id, created_at) 
+       VALUES ($1, $2, NOW()) 
+       ON CONFLICT (pre_auth_code) 
+       DO UPDATE SET user_id = $2, created_at = NOW()`,
+      [preAuthCode, user_id]
+    );
+
+    // 4. 构造授权 URL
+    const redirectUri = 'https://wenlanai.top/wechat/callback.html';
+    const authUrl = `https://mp.weixin.qq.com/cgi-bin/componentloginpage?component_appid=${COMPONENT_APPID}&pre_auth_code=${preAuthCode}&redirect_uri=${redirectUri}`;
+    return NextResponse.json({ auth_url: authUrl });
+  } catch (error: any) {
+    console.error('获取授权链接失败:', error);
+    return NextResponse.json({ error: '获取授权链接失败' }, { status: 500 });
+  }
+}

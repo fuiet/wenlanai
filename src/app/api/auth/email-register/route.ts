@@ -41,9 +41,19 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
+    // 检查 Supabase 是否可用
+    if (!supabase) {
+      return NextResponse.json({ success: false, message: '数据库服务暂不可用' }, { status: 503 });
+    }
+
     // 检查用户名是否已存在
+    // 检查 Supabase 是否可用
+    if (!supabase) {
+      return NextResponse.json({ success: false, message: '数据库服务暂不可用' }, { status: 503 });
+    }
+
     const { data: existingUsername } = await supabase
-      .from('users')
+      .from('users' as any)
       .select('id')
       .eq('nickname', username)
       .single();
@@ -54,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     // 检查邮箱是否已注册
     const { data: existingEmail } = await supabase
-      .from('users')
+      .from('users' as any)
       .select('id, email')
       .eq('email', email)
       .single();
@@ -67,8 +77,8 @@ export async function POST(request: NextRequest) {
     const passwordHash = bcrypt.hashSync(password, 10);
 
     // 创建用户
-    const { data: newUser, error: createError } = await supabase
-      .from('users')
+    const { data: newUser, error: createError } = await supabase!
+      .from('users' as any)
       .insert({
         email,
         password_hash: passwordHash,
