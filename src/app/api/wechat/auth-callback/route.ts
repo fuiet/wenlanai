@@ -5,7 +5,7 @@ const COMPONENT_APPID = process.env.COMPONENT_APPID || '';
 const COMPONENT_APPSECRET = process.env.COMPONENT_APPSECRET || '';
 
 async function getComponentAccessToken(): Promise<string> {
-  const ticketResult = await query(
+  const ticketResult = await query<{ config_value: string }>(
     "SELECT config_value FROM wechat_config WHERE config_key = 'component_ticket'"
   );
   
@@ -128,14 +128,13 @@ export async function GET(request: NextRequest) {
       throw new Error('该公众号已绑定到其他账号，请先在原账号解绑');
     }
 
-    // MySQL 语法保存，写入 user_id 确保公众号只属于当前登录用户
     await query(
       'INSERT INTO wechat_accounts (user_id, app_id, nick_name, head_img, service_type_info, authorizer_access_token, authorizer_refresh_token, is_authorized, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, true, NOW(), NOW()) ON DUPLICATE KEY UPDATE nick_name=VALUES(nick_name), head_img=VALUES(head_img), authorizer_access_token=VALUES(authorizer_access_token), authorizer_refresh_token=VALUES(authorizer_refresh_token), is_authorized=true, updated_at=NOW()',
       [userId, authorizerAppid, nickname, headImg, serviceTypeInfo, authorizerAccessToken, authorizerRefreshToken]
     );
 
     if (state) {
-      await query('DELETE FROM pending_auth WHERE pre_auth_code = ?', [state]);
+      await query<Record<string, unknown>>('DELETE FROM pending_auth WHERE pre_auth_code = ?', [state]);
     }
 
     console.log('[授权回调] 已保存公众号信息:', nickname);

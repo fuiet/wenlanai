@@ -11,7 +11,7 @@ async function getCurrentUserId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get('session_token')?.value;
   if (!token) return null;
 
-  const result = await query(
+  const result = await query<{ user_id: string }>(
     `SELECT user_id FROM sessions 
      WHERE token = ? AND expires_at > NOW()`,
     [token]
@@ -31,7 +31,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const result = await query(
+    const result = await query<{
+      id: string;
+      username: string;
+      email: string;
+      nickname: string | null;
+      created_at: Date;
+      vip_level: number;
+      vip_expire_at: Date | null;
+      categories: string[] | null;
+    }>(
       `SELECT 
         mp.id,
         mp.username,
@@ -57,17 +66,17 @@ export async function GET(request: NextRequest) {
     const profile = result.rows[0];
 
     // 获取统计数据
-    const articleCount = await query(
+    const articleCount = await query<{ count: number }>(
       `SELECT COUNT(*) as count FROM articles WHERE author = ?`,
       [profile.username]
     );
 
-    const promptCount = await query(
+    const promptCount = await query<{ count: number }>(
       `SELECT COUNT(*) as count FROM prompt_templates WHERE user_id = ?`,
       [userId]
     );
 
-    const favoriteCount = await query(
+    const favoriteCount = await query<{ count: number }>(
       `SELECT COUNT(*) as count FROM favorites WHERE user_id = ?`,
       [userId]
     );
@@ -84,9 +93,9 @@ export async function GET(request: NextRequest) {
         vipExpireAt: profile.vip_expire_at,
         categories: profile.categories || [],
         stats: {
-          articleCount: parseInt(articleCount.rows[0].count) || 0,
-          promptCount: parseInt(promptCount.rows[0].count) || 0,
-          favoriteCount: parseInt(favoriteCount.rows[0].count) || 0
+          articleCount: articleCount.rows[0]?.count || 0,
+          promptCount: promptCount.rows[0]?.count || 0,
+          favoriteCount: favoriteCount.rows[0]?.count || 0
         }
       }
     });
@@ -137,13 +146,13 @@ export async function PUT(request: NextRequest) {
       }
 
       // 验证旧密码
-      const userResult = await query(
+      const userResult = await query<{ password_hash: string }>(
         'SELECT password_hash FROM users WHERE id = ?',
         [userId]
       );
 
       const oldHash = hashPassword(oldPassword);
-      if (userResult.rows[0].password_hash !== oldHash) {
+      if (userResult.rows[0]?.password_hash !== oldHash) {
         return NextResponse.json(
           { success: false, error: '旧密码错误' },
           { status: 400 }
@@ -168,7 +177,7 @@ export async function PUT(request: NextRequest) {
 
       await query(
         'UPDATE member_profiles SET categories = ? WHERE user_id = ?',
-        [categories, userId]
+        [JSON.stringify(categories), userId]
       );
 
       return NextResponse.json({

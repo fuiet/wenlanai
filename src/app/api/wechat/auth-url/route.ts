@@ -5,7 +5,7 @@ const COMPONENT_APPID = process.env.WECHAT_COMPONENT_APPID || '';
 const COMPONENT_APPSECRET = process.env.WECHAT_COMPONENT_APPSECRET || '';
 
 async function getComponentAccessToken() {
-  const result = await query("SELECT config_value FROM wechat_config WHERE config_key = 'component_ticket'");
+  const result = await query<{ config_value: string }>("SELECT config_value FROM wechat_config WHERE config_key = 'component_ticket'");
   if (result.rows.length === 0) throw new Error('未收到ticket');
   const ticketData = JSON.parse(result.rows[0].config_value);
   const response = await fetch('https://api.weixin.qq.com/cgi-bin/component/api_component_token', {

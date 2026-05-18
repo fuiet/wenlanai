@@ -12,14 +12,12 @@ const pool = mysql.createPool({
 });
 
 // 返回统一的 rows 结构，便于 API 路由复用。
-export async function query<T extends Record<string, unknown> = Record<string, string>>(
-  text: string,
-  params?: Parameters<typeof pool.execute>[1]
-export async function query<T extends Record<string, unknown> = Record<string, unknown>>(
+export async function query<T = Record<string, unknown>>(
   text: string,
   params?: unknown[]
 ): Promise<{ rows: T[] }> {
-  const [rows] = await pool.execute(text, params);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [rows] = await pool.execute(text, params as any);
   return { rows: Array.isArray(rows) ? (rows as T[]) : [] };
 }
 

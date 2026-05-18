@@ -308,7 +308,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (state) {
-      await query('DELETE FROM pending_auth WHERE pre_auth_code = ?', [state]);
+      await query<Record<string, unknown>>('DELETE FROM pending_auth WHERE pre_auth_code = ?', [state]);
     }
 
     // 成功重定向

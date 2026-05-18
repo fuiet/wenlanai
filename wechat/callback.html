@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>绑定公众号</title></head>
+<body>
+<script>
+const authCode = new URLSearchParams(location.search).get('auth_code');
+const userId = localStorage.getItem('user_id');
+if (!authCode) document.body.innerText = '未收到授权码';
+else if (!userId) document.body.innerText = '请先登录';
+else {
+  fetch('/api/wechat_callback', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ auth_code: authCode, user_id: userId })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      document.body.innerText = '绑定成功！可关闭页面。';
+      // 核心命令：通知父窗口刷新公众号列表
+      if (window.opener) {
+        window.opener.postMessage('wechat_bound', '*');
+      }
+    } else {
+      document.body.innerText = '绑定失败：' + (data.error || '未知错误');
+    }
+  })
+  .catch(e => document.body.innerText = '网络错误');
+}
+</script>
+</body>
+</html>

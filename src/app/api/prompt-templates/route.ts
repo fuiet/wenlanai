@@ -12,7 +12,7 @@ async function getUserIdFromCookie(): Promise<string | null> {
       return null;
     }
     
-    const result = await query(
+    const result = await query<{ user_id: string }>(
       `SELECT user_id FROM sessions WHERE token = ? AND expires_at > NOW()`,
       [sessionToken]
     );
