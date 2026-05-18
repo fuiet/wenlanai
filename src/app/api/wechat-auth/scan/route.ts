@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUserId, query } from '@/lib/db';
 
 /**
  * 微信第三方平台扫码授权API
@@ -148,6 +149,14 @@ async function getPreAuthCode(
  */
 export async function POST(request: NextRequest) {
   try {
+    const userId = await getCurrentUserId(request);
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, message: '请先登录后再绑定公众号' },
+        { status: 401 }
+      );
+    }
+
     // 1. 获取第三方平台配置
     const config = await getComponentConfig();
     
@@ -192,9 +201,14 @@ export async function POST(request: NextRequest) {
       });
     }
     
+    await query(
+      'INSERT INTO pending_auth (pre_auth_code, user_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id)',
+      [preAuthCode, userId]
+    );
+
     // 5. 构建授权URL
     const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
-    const redirectUri = encodeURIComponent(`${baseUrl}/api/wechat-auth/callback`);
+    const redirectUri = encodeURIComponent(`${baseUrl}/api/wechat-auth/callback?state=${encodeURIComponent(preAuthCode)}`);
     
     // 授权页面URL
     const authUrl = `https://mp.weixin.qq.com/cgi-bin/componentloginpage?component_appid=${config.appId}&pre_auth_code=${preAuthCode}&redirect_uri=${redirectUri}&auth_type=1`;

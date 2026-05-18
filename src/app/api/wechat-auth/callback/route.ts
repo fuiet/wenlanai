@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { query } from '@/lib/db';
 
 // 延迟初始化Supabase
 const createSupabaseClient = () => {
@@ -110,6 +111,7 @@ export async function GET(request: NextRequest) {
     const authCode = searchParams.get('auth_code');
     const expiresIn = searchParams.get('expires_in');
     const authAppId = searchParams.get('auth_appid');
+    const state = searchParams.get('state');
 
     // 从数据库获取配置
     const config = await getComponentConfig();
@@ -207,6 +209,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/official-account?tab=auth&error=no_auth_code', request.url));
     }
 
+    let userId: string | null = null;
+    if (state) {
+      const pending = await query<{ user_id: string | number }>('SELECT user_id FROM pending_auth WHERE pre_auth_code = ? LIMIT 1', [state]);
+      if (pending.rows.length > 0) {
+        userId = String(pending.rows[0].user_id);
+      }
+    }
+
+    if (!userId) {
+      return NextResponse.redirect(new URL('/official-account?tab=auth&error=user_not_found', request.url));
+    }
+
     // 获取Component Access Token
     const componentAccessToken = await getComponentAccessToken(config);
     if (!componentAccessToken) {
@@ -241,57 +255,60 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/official-account?tab=auth&error=database_not_configured', request.url));
     }
     
-    // 检查是否已存在
+    const { data: otherOwner } = await supabaseClient
+      .from('wechat_accounts')
+      .select('id, user_id')
+      .eq('app_id', authInfoData.authorizer_appid)
+      .neq('user_id', userId)
+      .maybeSingle();
+
+    if (otherOwner) {
+      return NextResponse.redirect(new URL('/official-account?tab=auth&error=already_bound', request.url));
+    }
+
+    // 检查当前用户是否已绑定同一公众号
     const { data: existing } = await supabaseClient
       .from('wechat_accounts')
       .select('id')
       .eq('app_id', authInfoData.authorizer_appid)
-      .single();
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const accountPayload = {
+      user_id: userId,
+      app_id: authInfoData.authorizer_appid,
+      authorizer_appid: authInfoData.authorizer_appid,
+      nickname: authorizerData.nickname,
+      head_img: authorizerData.head_img,
+      principal_type: authorizerData.principal_type,
+      verify_type_info: authorizerData.verify_type_info,
+      user_name: authorizerData.user_name,
+      alias: authorizerData.alias,
+      qrcode_url: authorizerData.qrcode_url,
+      business_info: authorizerData.business_info ? JSON.stringify(authorizerData.business_info) : null,
+      authorizer_access_token: authInfoData.authorizer_access_token,
+      authorizer_refresh_token: authInfoData.authorizer_refresh_token,
+      func_info: authInfoData.func_info ? JSON.stringify(authInfoData.func_info) : null,
+      token_expires_at: tokenExpiresAt.toISOString(),
+      refresh_expires_at: refreshExpiresAt.toISOString(),
+      is_authorized: true,
+      updated_at: new Date().toISOString(),
+    };
 
     if (existing) {
-      // 更新
       await supabaseClient
         .from('wechat_accounts')
-        .update({
-          nickname: authorizerData.nickname,
-          head_img: authorizerData.head_img,
-          principal_type: authorizerData.principal_type,
-          verify_type_info: authorizerData.verify_type_info,
-          user_name: authorizerData.user_name,
-          alias: authorizerData.alias,
-          qrcode_url: authorizerData.qrcode_url,
-          business_info: authorizerData.business_info ? JSON.stringify(authorizerData.business_info) : null,
-          authorizer_access_token: authInfoData.authorizer_access_token,
-          authorizer_refresh_token: authInfoData.authorizer_refresh_token,
-          func_info: authInfoData.func_info ? JSON.stringify(authInfoData.func_info) : null,
-          token_expires_at: tokenExpiresAt.toISOString(),
-          refresh_expires_at: refreshExpiresAt.toISOString(),
-          is_authorized: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('app_id', authInfoData.authorizer_appid);
+        .update(accountPayload)
+        .eq('id', existing.id)
+        .eq('user_id', userId);
     } else {
-      // 插入
       await supabaseClient
         .from('wechat_accounts')
-        .insert({
-          app_id: authInfoData.authorizer_appid,
-          authorizer_appid: authInfoData.authorizer_appid,
-          nickname: authorizerData.nickname,
-          head_img: authorizerData.head_img,
-          principal_type: authorizerData.principal_type,
-          verify_type_info: authorizerData.verify_type_info,
-          user_name: authorizerData.user_name,
-          alias: authorizerData.alias,
-          qrcode_url: authorizerData.qrcode_url,
-          business_info: authorizerData.business_info ? JSON.stringify(authorizerData.business_info) : null,
-          authorizer_access_token: authInfoData.authorizer_access_token,
-          authorizer_refresh_token: authInfoData.authorizer_refresh_token,
-          func_info: authInfoData.func_info ? JSON.stringify(authInfoData.func_info) : null,
-          token_expires_at: tokenExpiresAt.toISOString(),
-          refresh_expires_at: refreshExpiresAt.toISOString(),
-          is_authorized: true,
-        });
+        .insert(accountPayload);
+    }
+
+    if (state) {
+      await query('DELETE FROM pending_auth WHERE pre_auth_code = ?', [state]);
     }
 
     // 成功重定向
