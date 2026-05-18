@@ -12,6 +12,9 @@ const pool = mysql.createPool({
 });
 
 // 返回统一的 rows 结构，便于 API 路由复用。
+export async function query<T extends Record<string, unknown> = Record<string, string>>(
+  text: string,
+  params?: Parameters<typeof pool.execute>[1]
 export async function query<T extends Record<string, unknown> = Record<string, unknown>>(
   text: string,
   params?: unknown[]
